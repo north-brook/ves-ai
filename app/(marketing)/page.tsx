@@ -4,7 +4,7 @@ import {
   ArrowRight,
   Eye,
   Zap,
-  GitBranch,
+  Plug,
   Bug,
   Lightbulb,
   Activity,
@@ -64,7 +64,7 @@ export default function LandingPage() {
           <div className="grid gap-8 md:grid-cols-3">
             <div className="relative">
               <div className="from-accent-purple to-accent-pink mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br">
-                <GitBranch className="h-8 w-8" />
+                <Plug className="h-8 w-8" />
               </div>
               <h3 className="font-display mb-3 text-2xl font-bold">
                 1. Connect{" "}
