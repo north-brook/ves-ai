@@ -1,0 +1,212 @@
+"use client";
+
+import { Check, ArrowRight } from "lucide-react";
+import Google from "@/components/google";
+
+const plans = [
+  {
+    name: "Starter",
+    hours: "50 hrs of monthly analysis",
+    sessions: "~1,000 monthly sessions",
+    price: "$199",
+    description: "Early-stage startups",
+    popular: false,
+  },
+  {
+    name: "Growth",
+    hours: "250 hrs of monthly analysis",
+    sessions: "~5,000 monthly sessions",
+    price: "$699",
+    description: "Growing product teams",
+    popular: true,
+  },
+  {
+    name: "Scale",
+    hours: "500 hrs of monthly analysis",
+    sessions: "~10,000 monthly sessions",
+    price: "$1,999",
+    description: "Mid-market SaaS",
+    popular: false,
+  },
+  {
+    name: "Enterprise",
+    hours: "Unlimited analysis",
+    sessions: "Unlimited",
+    price: "Custom",
+    description: "Large orgs with special needs",
+    popular: false,
+  },
+];
+
+const features = [
+  "Full AI session analysis",
+  "Bug, UX, and feature suggestions",
+  "Direct Linear integration",
+  "Priority scoring & duplicate detection",
+];
+
+export default function PricingPage() {
+  return (
+    <>
+      {/* Hero Section */}
+      <section className="relative overflow-hidden pt-24 pb-12">
+        <div className="from-accent-purple/10 via-accent-pink/5 to-accent-orange/10 absolute inset-0 bg-gradient-to-br blur-3xl" />
+
+        <div className="relative mx-auto max-w-6xl px-6">
+          <div className="text-center">
+            <h1 className="font-display mb-6 text-4xl font-bold md:text-5xl lg:text-6xl">
+              Simple plans. No overages. No surprises.
+            </h1>
+
+            <p className="text-foreground-secondary mx-auto max-w-2xl text-xl">
+              Pick the plan that matches how many sessions you want VES to watch
+              each month.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Cards */}
+      <section className="px-6 py-16">
+        <div className="mx-auto max-w-7xl">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            {plans.map((plan) => (
+              <div
+                key={plan.name}
+                className={`relative rounded-2xl p-8 ${
+                  plan.popular
+                    ? "from-accent-purple/10 to-accent-purple/5 border-accent-purple border-2 bg-gradient-to-b"
+                    : "bg-surface border-border border"
+                }`}
+              >
+                {plan.popular && (
+                  <div className="absolute -top-3 right-0 left-0 flex w-full justify-center">
+                    <span className="from-accent-purple to-accent-pink rounded-full bg-gradient-to-r px-3 py-1 text-xs font-medium">
+                      MOST POPULAR
+                    </span>
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  <h3 className="font-display text-2xl font-bold">
+                    {plan.name}
+                  </h3>
+
+                  <div className="space-y-1">
+                    <div className="text-3xl font-bold">
+                      {plan.price}
+                      {plan.price !== "Custom" && (
+                        <span className="text-foreground-secondary text-lg font-normal">
+                          /mo
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="border-border space-y-2 border-y py-4">
+                    <p className="text-foreground">{plan.hours}</p>
+                    <p className="text-foreground-secondary text-sm">
+                      {plan.sessions}
+                    </p>
+                  </div>
+
+                  <p className="text-foreground-secondary text-sm">
+                    {plan.description}
+                  </p>
+
+                  {plan.popular ? (
+                    <button className="group relative w-full rounded-lg bg-gradient-to-r from-accent-purple via-accent-pink to-accent-orange p-[2px] font-semibold transition-all duration-200 hover:scale-105">
+                      <div className="flex items-center justify-center rounded-[6px] bg-background py-3 transition-all group-hover:bg-background/90">
+                        <span className="text-foreground font-semibold">Get Started</span>
+                      </div>
+                    </button>
+                  ) : plan.name === "Enterprise" ? (
+                    <a
+                      href="mailto:team@ves.ai?subject=Enterprise"
+                      className="block w-full rounded-lg border border-border bg-background py-3 text-center font-medium transition-all duration-200 hover:bg-surface"
+                    >
+                      Contact Sales
+                    </a>
+                  ) : (
+                    <button
+                      className="w-full rounded-lg border border-border bg-background py-3 font-medium transition-all duration-200 hover:bg-surface"
+                    >
+                      Get Started
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* All Plans Include */}
+      <section className="px-6 py-16">
+        <div className="mx-auto max-w-4xl">
+          <h2 className="font-display mb-12 text-center text-3xl font-bold">
+            All plans include
+          </h2>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            {features.map((feature) => (
+              <div key={feature} className="flex items-start gap-3">
+                <div className="from-accent-purple to-accent-pink mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-r">
+                  <Check className="h-4 w-4" />
+                </div>
+                <p className="text-foreground">{feature}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* How Billing Works */}
+      <section className="bg-surface px-6 py-16">
+        <div className="mx-auto max-w-4xl">
+          <h2 className="font-display mb-12 text-center text-3xl font-bold">
+            How billing works
+          </h2>
+
+          <div className="mx-auto max-w-2xl space-y-4">
+            <div className="flex items-start gap-3">
+              <span className="text-accent-purple">•</span>
+              <p className="text-foreground">
+                No credit card needed for 7-day free trial
+              </p>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-accent-pink">•</span>
+              <p className="text-foreground">Cancel anytime — no lock-in</p>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-accent-orange">•</span>
+              <p className="text-foreground">
+                Upgrade when you need more analysis hours
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="px-6 py-24">
+        <div className="mx-auto max-w-4xl text-center">
+          <button className="group font-display from-accent-purple via-accent-pink to-accent-orange relative rounded-lg bg-gradient-to-r p-[2px] text-lg font-semibold transition-all duration-200 hover:scale-105">
+            <div className="bg-background group-hover:bg-background/90 flex items-center gap-2 rounded-[6px] px-8 py-4 transition-all">
+              <Google size={20} />
+              <span className="text-foreground font-semibold">
+                Sign in with Google
+              </span>
+              <ArrowRight className="text-foreground h-5 w-5 transition-transform group-hover:translate-x-1" />
+            </div>
+          </button>
+
+          <p className="text-foreground-secondary mt-4 text-sm">
+            One click, 2-minute setup
+          </p>
+        </div>
+      </section>
+    </>
+  );
+}
