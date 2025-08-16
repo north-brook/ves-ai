@@ -1,12 +1,6 @@
 import Icon from "@/components/icon";
 
 export function Logo() {
-  const sizeClasses = {
-    sm: { icon: "w-6 h-6", text: "text-xl" },
-    md: { icon: "w-8 h-8", text: "text-2xl" },
-    lg: { icon: "w-10 h-10", text: "text-3xl" },
-  };
-
   return (
     <div className="flex items-center gap-2">
       <div className="relative">

@@ -9,7 +9,6 @@ import {
   Lightbulb,
   Activity,
   ListChecks,
-  CheckCircle,
   Users,
   Rocket,
   Target,
@@ -174,7 +173,7 @@ export default function LandingPage() {
       <section className="px-6 py-24">
         <div className="mx-auto max-w-6xl">
           <h2 className="font-display mb-16 text-center text-4xl font-bold md:text-5xl">
-            Who It's For
+            Who It&apos;s For
           </h2>
 
           <div className="grid gap-8 md:grid-cols-3">

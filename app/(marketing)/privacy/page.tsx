@@ -12,7 +12,7 @@ export default function PrivacyPage() {
             1. Introduction
           </h2>
           <p className="text-foreground-secondary mb-4">
-            Steppable Inc. ("we," "our," or "us") operates VES (Visual
+            Steppable Inc. (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) operates VES (Visual
             Evaluation System) and is committed to protecting your privacy. This
             Privacy Policy explains how we collect, use, disclose, and safeguard
             your information when you use our service.
@@ -100,7 +100,7 @@ export default function PrivacyPage() {
           <p className="text-foreground-secondary mt-4">
             AI analysis is performed on our secure servers. We do not use your
             data to train general AI models or share it with third-party AI
-            services beyond what's necessary for providing VES functionality.
+            services beyond what&apos;s necessary for providing VES functionality.
           </p>
         </section>
 
@@ -211,7 +211,7 @@ export default function PrivacyPage() {
 
         <section>
           <h2 className="font-display mt-12 mb-4 text-2xl font-bold">
-            11. Children's Privacy
+            11. Children&apos;s Privacy
           </h2>
           <p className="text-foreground-secondary mb-4">
             VES is not intended for use by individuals under the age of 18. We
@@ -260,7 +260,7 @@ export default function PrivacyPage() {
           <p className="text-foreground-secondary mb-4">
             We may update this Privacy Policy from time to time. We will notify
             you of any material changes by posting the new Privacy Policy on
-            this page and updating the "Last updated" date. Your continued use
+            this page and updating the &quot;Last updated&quot; date. Your continued use
             of VES after changes constitutes acceptance of the updated policy.
           </p>
         </section>

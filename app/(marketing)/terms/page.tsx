@@ -12,7 +12,7 @@ export default function TermsPage() {
             1. Acceptance of Terms
           </h2>
           <p className="text-foreground-secondary mb-4">
-            By accessing and using VES ("Visual Evaluation System"), a service
+            By accessing and using VES (&quot;Visual Evaluation System&quot;), a service
             provided by Steppable Inc., you accept and agree to be bound by the
             terms and provision of this agreement. If you do not agree to abide
             by the above, please do not use this service.
@@ -131,7 +131,7 @@ export default function TermsPage() {
             9. Disclaimers and Limitations
           </h2>
           <p className="text-foreground-secondary mb-4">
-            VES is provided "as is" and "as available" without any warranties of
+            VES is provided &quot;as is&quot; and &quot;as available&quot; without any warranties of
             any kind, either express or implied. We do not guarantee that the
             service will be uninterrupted, secure, or error-free.
           </p>
