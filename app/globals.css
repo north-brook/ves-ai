@@ -1,26 +1,54 @@
 @import "tailwindcss";
 
 :root {
+  /* Light mode colors */
   --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --surface: #f8f8f8;
+  --foreground: #0a0a0a;
+  --foreground-secondary: rgba(10, 10, 10, 0.7);
+  --foreground-muted: rgba(10, 10, 10, 0.4);
+  --border: rgba(10, 10, 10, 0.05);
+  
+  /* Accent colors (same in both modes) */
+  --accent-purple: #6c47ff;
+  --accent-pink: #ff4d94;
+  --accent-orange: #ff8a3d;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
+    /* Dark mode colors */
     --background: #0a0a0a;
-    --foreground: #ededed;
+    --surface: #141414;
+    --foreground: #ffffff;
+    --foreground-secondary: rgba(255, 255, 255, 0.7);
+    --foreground-muted: rgba(255, 255, 255, 0.4);
+    --border: rgba(255, 255, 255, 0.1);
   }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-foreground-secondary: var(--foreground-secondary);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-border: var(--border);
+  --color-accent-purple: var(--accent-purple);
+  --color-accent-pink: var(--accent-pink);
+  --color-accent-orange: var(--accent-orange);
+  --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+@layer components {
+  button {
+    @apply hover:cursor-pointer disabled:cursor-not-allowed;
+  }
 }
