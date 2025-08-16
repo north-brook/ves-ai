@@ -6,7 +6,7 @@ import Google from "@/components/google";
 const plans = [
   {
     name: "Starter",
-    hours: "50 hrs of monthly analysis",
+    hours: "50 hours of monthly analysis",
     sessions: "~1,000 monthly sessions",
     price: "$199",
     description: "Early-stage startups",
@@ -14,7 +14,7 @@ const plans = [
   },
   {
     name: "Growth",
-    hours: "250 hrs of monthly analysis",
+    hours: "250 hours of monthly analysis",
     sessions: "~5,000 monthly sessions",
     price: "$699",
     description: "Growing product teams",
@@ -22,7 +22,7 @@ const plans = [
   },
   {
     name: "Scale",
-    hours: "500 hrs of monthly analysis",
+    hours: "500 hours of monthly analysis",
     sessions: "~10,000 monthly sessions",
     price: "$1,999",
     description: "Mid-market SaaS",
@@ -203,7 +203,7 @@ export default function PricingPage() {
           </button>
 
           <p className="text-foreground-secondary mt-4 text-sm">
-            One click, 2-minute setup
+            7-day free trial. No credit card required.
           </p>
         </div>
       </section>
