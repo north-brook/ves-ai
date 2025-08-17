@@ -10,14 +10,17 @@ ENV PATH="/root/.bun/bin:${PATH}"
 
 WORKDIR /app
 
-# Install deps with Bun
+# Install deps with Bun (including devDependencies for build)
 COPY package.json bun.lockb* ./
-RUN bun install --production
+RUN bun install
 
 # Copy source and build
 COPY tsconfig.json ./
 COPY src ./src
 RUN bun run build
+
+# Remove devDependencies after build to reduce image size
+RUN bun install --production
 
 ENV NODE_ENV=production
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
