@@ -1,60 +1,93 @@
 # VES Platform Spec
 
-## 1. Dashboard
+## 0. Home (/home)
 
-**Purpose:** High-level overview of platform impact.
+**Purpose:** Launching pad to your project(s)
 
-### Sections
+- If user has only one project, redirect to /[project]
+- If user has multiple projects, render project cards that link to /[project]
 
-- **Usage Metrics**
-  - Hours of analysis (current vs. previous period)
-  - Sessions reviewed
-  - Tickets created in Linear
-- **Session Categories**
-  - Bugs
-  - UX issues
+---
+
+## 1. Project Dashboard (/[project])
+
+**Purpose:** High-level overview of project activity and session management
+
+### Usage Metrics (Top Section)
+
+- **Hours of Analysis**
+  - Current period usage
+  - Visual indicator of usage within current plan limits
+  - Comparison to previous period
+- **Sessions Analyzed**
+  - Total count for current period
+  - Comparison to previous period
+- **Tickets Created**
+  - Total Linear tickets created for current period
+  - Comparison to previous period
+
+### Session List
+
+- **Session Status Indicators**
+  - `pulled` - New session detected, not yet analyzed
+  - `queued` - New session queued for watching and analysis
+  - `watching` - Currently watching session
+  - `analyzing` - Currently analyzing session
+  - `done` - Analysis complete
+- **Session Information**
+  - Short descriptive name (AI-generated summary)
+  - Inferred tags (Bug, UX Issue, Feature Opportunity, etc.)
+  - Linked Linear tickets (if any)
+  - Timestamp and duration
+- **List Actions**
+  - Each session row links to /[project]/[session]
+  - Filter by status, tags, date range
+  - Search by session name or user
+
+---
+
+## 2. Session Detail (/[project]/[session])
+
+**Purpose:** Deep dive into an individual session with full analysis and context
+
+### Page Components
+
+#### Header
+
+- Short descriptive name of the session (AI-generated)
+- Session metadata (timestamp, duration, user ID)
+
+#### Session Replay
+
+- Embedded PostHog session replay player
+- Full replay with AI-identified key moments highlighted
+
+#### Analysis Section
+
+- Full markdown analysis of the session
+  - Key observations
+  - User behavior patterns
+  - Identified issues or opportunities
+  - Recommended actions
+
+#### Tags & Categorization
+
+- Inferred tags categorizing the session
+  - Bug types (UI, functionality, performance)
+  - UX issues (navigation, confusion, errors)
   - Feature opportunities
-- **Recent Tickets**
-  - Last 5–10 tickets with status (open/in-progress/closed)
-  - Links to related session replays
+  - Severity level
 
----
+#### Linear Integration
 
-## 2. Sessions
+- Embedded linked Linear tickets
+  - Ticket title and status
+  - Direct link to Linear
+  - Option to create new ticket from analysis
 
-**Purpose:** Organized, searchable catalog of all analyzed sessions.
+#### Actions
 
-### Features
-
-- **Session List**
-  - Timestamp, user ID, duration, tags
-  - Quick preview (screenshot/clip)
-- **Filters & Search**
-  - Date range, project, session length
-  - Tags: Bug / UX Issue / Feature Idea
-  - Severity (critical → minor)
-- **Session Detail**
-  - Replay player with AI highlights
-  - Tags & categories
-  - Linked Linear ticket(s)
-  - Export/share
-
----
-
-## 3. Tickets
-
-**Purpose:** Unified view of all tickets created in Linear.
-
-### Features
-
-- **Ticket List**
-  - Title, priority, status, assignee, team
-  - Linked sessions inline
-- **Filters**
-  - Status (open/in-progress/closed)
-  - Category (bug / UX issue / feature)
-  - Team/project
-- **Ticket Detail**
-  - Full AI-generated description
-  - Linked sessions (watch inline)
-  - Live Linear sync (status updates)
+- Export session analysis
+- Share session link
+- Create/link Linear ticket
+- Add manual notes or tags

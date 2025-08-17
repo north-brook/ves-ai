@@ -1,12 +1,13 @@
-"use client";
-
-import { Check, ArrowRight } from "lucide-react";
-import Google from "@/components/google";
+import { Check } from "lucide-react";
+import { Suspense } from "react";
+import LogInButton, { LoadingLogInButton } from "@/app/auth/log-in-button";
+import serverSupabase from "@/lib/supabase/server";
+import Link from "next/link";
 
 const plans = [
   {
     name: "Starter",
-    hours: "50 hours of monthly analysis",
+    hours: "20 hours of monthly analysis",
     sessions: "~1,000 monthly sessions",
     price: "$199",
     description: "Early-stage startups",
@@ -14,7 +15,7 @@ const plans = [
   },
   {
     name: "Growth",
-    hours: "250 hours of monthly analysis",
+    hours: "100 hours of monthly analysis",
     sessions: "~5,000 monthly sessions",
     price: "$699",
     description: "Growing product teams",
@@ -22,8 +23,8 @@ const plans = [
   },
   {
     name: "Scale",
-    hours: "500 hours of monthly analysis",
-    sessions: "~10,000 monthly sessions",
+    hours: "300 hours of monthly analysis",
+    sessions: "~15,000 monthly sessions",
     price: "$1,999",
     description: "Mid-market SaaS",
     popular: false,
@@ -49,7 +50,7 @@ export default function PricingPage() {
   return (
     <>
       {/* Hero Section */}
-      <section className="relative overflow-hidden pt-24 pb-12">
+      <section className="relative overflow-hidden pt-24 pb-24">
         <div className="from-accent-purple/10 via-accent-pink/5 to-accent-orange/10 absolute inset-0 bg-gradient-to-br blur-3xl" />
 
         <div className="relative mx-auto max-w-6xl px-6">
@@ -81,13 +82,13 @@ export default function PricingPage() {
               >
                 {plan.popular && (
                   <div className="absolute -top-3 right-0 left-0 flex w-full justify-center">
-                    <span className="from-accent-purple to-accent-pink rounded-full bg-gradient-to-r px-3 py-1 text-xs font-medium">
+                    <span className="from-accent-purple to-accent-pink rounded-full bg-gradient-to-r px-3 py-1 text-xs font-medium text-white">
                       MOST POPULAR
                     </span>
                   </div>
                 )}
 
-                <div className="space-y-4">
+                <div className="flex flex-col items-stretch justify-start gap-4">
                   <h3 className="font-display text-2xl font-bold">
                     {plan.name}
                   </h3>
@@ -114,26 +115,29 @@ export default function PricingPage() {
                     {plan.description}
                   </p>
 
-                  {plan.popular ? (
-                    <button className="group relative w-full rounded-lg bg-gradient-to-r from-accent-purple via-accent-pink to-accent-orange p-[2px] font-semibold transition-all duration-200 hover:scale-105">
-                      <div className="flex items-center justify-center rounded-[6px] bg-background py-3 transition-all group-hover:bg-background/90">
-                        <span className="text-foreground font-semibold">Get Started</span>
-                      </div>
-                    </button>
-                  ) : plan.name === "Enterprise" ? (
-                    <a
-                      href="mailto:team@ves.ai?subject=Enterprise"
-                      className="block w-full rounded-lg border border-border bg-background py-3 text-center font-medium transition-all duration-200 hover:bg-surface"
-                    >
-                      Contact Sales
-                    </a>
-                  ) : (
-                    <button
-                      className="w-full rounded-lg border border-border bg-background py-3 font-medium transition-all duration-200 hover:bg-surface"
-                    >
-                      Get Started
-                    </button>
-                  )}
+                  <Suspense
+                    fallback={
+                      <LoadingPricingButton
+                        variant={
+                          plan.popular
+                            ? "popular"
+                            : plan.name === "Enterprise"
+                              ? "enterprise"
+                              : "default"
+                        }
+                      />
+                    }
+                  >
+                    <LoadedPricingButton
+                      variant={
+                        plan.popular
+                          ? "popular"
+                          : plan.name === "Enterprise"
+                            ? "enterprise"
+                            : "default"
+                      }
+                    />
+                  </Suspense>
                 </div>
               </div>
             ))}
@@ -142,7 +146,7 @@ export default function PricingPage() {
       </section>
 
       {/* All Plans Include */}
-      <section className="px-6 py-16">
+      <section className="px-6 py-24">
         <div className="mx-auto max-w-4xl">
           <h2 className="font-display mb-12 text-center text-3xl font-bold">
             All plans include
@@ -152,7 +156,7 @@ export default function PricingPage() {
             {features.map((feature) => (
               <div key={feature} className="flex items-start gap-3">
                 <div className="from-accent-purple to-accent-pink mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-r">
-                  <Check className="h-4 w-4" />
+                  <Check size={16} className="stroke-white" />
                 </div>
                 <p className="text-foreground">{feature}</p>
               </div>
@@ -162,7 +166,7 @@ export default function PricingPage() {
       </section>
 
       {/* How Billing Works */}
-      <section className="bg-surface px-6 py-16">
+      <section className="bg-surface px-6 py-24">
         <div className="mx-auto max-w-4xl">
           <h2 className="font-display mb-12 text-center text-3xl font-bold">
             How billing works
@@ -190,23 +194,90 @@ export default function PricingPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="px-6 py-24">
+      <section className="px-6 pt-32 pb-48">
         <div className="mx-auto max-w-4xl text-center">
-          <button className="group font-display from-accent-purple via-accent-pink to-accent-orange relative rounded-lg bg-gradient-to-r p-[2px] text-lg font-semibold transition-all duration-200 hover:scale-105">
-            <div className="bg-background group-hover:bg-background/90 flex items-center gap-2 rounded-[6px] px-8 py-4 transition-all">
-              <Google size={20} />
-              <span className="text-foreground font-semibold">
-                Sign in with Google
-              </span>
-              <ArrowRight className="text-foreground h-5 w-5 transition-transform group-hover:translate-x-1" />
-            </div>
-          </button>
-
-          <p className="text-foreground-secondary mt-4 text-sm">
-            7-day free trial. No credit card required.
-          </p>
+          <h2 className="font-display mb-6 text-center text-3xl font-bold">
+            Start in 2 minutes
+          </h2>
+          <Suspense fallback={<LoadingLogInButton />}>
+            <LoadedLogInButton />
+          </Suspense>
         </div>
       </section>
     </>
   );
+}
+
+function LoadingPricingButton({
+  variant,
+}: {
+  variant: "default" | "popular" | "enterprise";
+}) {
+  switch (variant) {
+    case "default":
+      return (
+        <div className="border-border bg-background hover:bg-surface h-[50px] w-full rounded-lg border py-3 font-medium transition-all duration-200" />
+      );
+    case "popular":
+      return (
+        <div className="group from-accent-purple via-accent-pink to-accent-orange relative h-[50px] w-full rounded-lg bg-gradient-to-r p-[2px] font-semibold transition-all duration-200">
+          <div className="bg-background group-hover:bg-background/90 flex items-center justify-center rounded-[6px] py-3 transition-all" />
+        </div>
+      );
+    case "enterprise":
+      return (
+        <div className="border-border bg-background hover:bg-surface block h-[50px] w-full rounded-lg border py-3 text-center font-medium transition-all duration-200" />
+      );
+  }
+}
+
+async function LoadedPricingButton({
+  variant,
+}: {
+  variant: "default" | "popular" | "enterprise";
+}) {
+  const supabase = await serverSupabase();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+
+  switch (variant) {
+    case "default":
+      return (
+        <Link
+          href={authUser ? "/home" : "/login"}
+          className="border-border bg-background hover:bg-surface mt-[2px] flex flex-row items-center justify-center rounded-lg border py-3 font-medium transition-all duration-200"
+        >
+          Get Started
+        </Link>
+      );
+    case "popular":
+      return (
+        <Link
+          href={authUser ? "/home" : "/login"}
+          className="group from-accent-purple via-accent-pink to-accent-orange relative w-full rounded-lg bg-gradient-to-r p-[2px] font-semibold transition-all duration-200"
+        >
+          <div className="bg-background group-hover:bg-background/90 flex items-center justify-center rounded-[6px] py-3 transition-all">
+            <span className="text-foreground font-semibold">Get Started</span>
+          </div>
+        </Link>
+      );
+    case "enterprise":
+      return (
+        <Link
+          href="mailto:team@ves.ai?subject=Enterprise"
+          className="border-border bg-background hover:bg-surface mt-[2px] block w-full rounded-lg border py-3 text-center font-medium transition-all duration-200"
+        >
+          Contact Sales
+        </Link>
+      );
+  }
+}
+
+async function LoadedLogInButton() {
+  const supabase = await serverSupabase();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+  return <LogInButton authUser={authUser} />;
 }

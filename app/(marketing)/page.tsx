@@ -1,7 +1,4 @@
-"use client";
-
 import {
-  ArrowRight,
   Eye,
   Zap,
   Plug,
@@ -13,11 +10,13 @@ import {
   Rocket,
   Target,
 } from "lucide-react";
-import Google from "@/components/google";
 import PostHog from "@/components/posthog";
 import Linear from "@/components/linear";
+import LogInButton, { LoadingLogInButton } from "@/app/auth/log-in-button";
+import serverSupabase from "@/lib/supabase/server";
+import { Suspense } from "react";
 
-export default function LandingPage() {
+export default async function LandingPage() {
   return (
     <>
       {/* Hero Section */}
@@ -37,19 +36,9 @@ export default function LandingPage() {
               <Linear size={20} className="mx-1 inline-block align-baseline" />.
             </p>
 
-            <button className="group font-display from-accent-purple via-accent-pink to-accent-orange relative rounded-lg bg-gradient-to-r p-[2px] text-lg font-semibold transition-all duration-200 hover:scale-105">
-              <div className="bg-background group-hover:bg-background/90 flex items-center gap-2 rounded-[6px] px-8 py-4 transition-all">
-                <Google size={20} />
-                <span className="text-foreground font-semibold">
-                  Sign in with Google
-                </span>
-                <ArrowRight className="text-foreground h-5 w-5 transition-transform group-hover:translate-x-1" />
-              </div>
-            </button>
-
-            <p className="text-foreground-secondary mt-4 text-sm">
-              7-day free trial. No credit card required.
-            </p>
+            <Suspense fallback={<LoadingLogInButton />}>
+              <LoadedLogInButton />
+            </Suspense>
           </div>
         </div>
       </section>
@@ -64,7 +53,7 @@ export default function LandingPage() {
           <div className="grid gap-8 md:grid-cols-3">
             <div className="relative">
               <div className="from-accent-purple to-accent-pink mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br">
-                <Plug className="h-8 w-8" />
+                <Plug size={24} className="text-white" />
               </div>
               <h3 className="font-display mb-3 text-2xl font-bold">
                 1. Connect{" "}
@@ -80,7 +69,7 @@ export default function LandingPage() {
 
             <div className="relative">
               <div className="from-accent-pink to-accent-orange mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br">
-                <Eye className="h-8 w-8" />
+                <Eye size={24} className="text-white" />
               </div>
               <h3 className="font-display mb-3 text-2xl font-bold">
                 2. AI Review
@@ -93,7 +82,7 @@ export default function LandingPage() {
 
             <div className="relative">
               <div className="from-accent-orange to-accent-purple mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br">
-                <ListChecks className="h-8 w-8" />
+                <ListChecks size={24} className="text-white" />
               </div>
               <h3 className="font-display mb-3 text-2xl font-bold">
                 3. Action in{" "}
@@ -202,27 +191,25 @@ export default function LandingPage() {
       </section>
 
       {/* Final CTA */}
-      <section className="px-6 py-32">
+      <section className="px-6 pt-32 pb-48">
         <div className="mx-auto max-w-4xl text-center">
           <h2 className="font-display mb-6 text-4xl font-bold md:text-5xl">
             Get Started
           </h2>
 
-          <button className="group font-display from-accent-purple via-accent-pink to-accent-orange relative mb-6 rounded-lg bg-gradient-to-r p-[2px] text-lg font-semibold transition-all duration-200 hover:scale-105">
-            <div className="bg-background group-hover:bg-background/90 flex items-center gap-2 rounded-[6px] px-8 py-4 transition-all">
-              <Google size={20} />
-              <span className="text-foreground font-semibold">
-                Sign in with Google
-              </span>
-              <ArrowRight className="text-foreground h-5 w-5 transition-transform group-hover:translate-x-1" />
-            </div>
-          </button>
-
-          <p className="text-foreground-muted text-sm">
-            7-day free trial. No credit card required.
-          </p>
+          <Suspense fallback={<LoadingLogInButton />}>
+            <LoadedLogInButton />
+          </Suspense>
         </div>
       </section>
     </>
   );
+}
+
+async function LoadedLogInButton() {
+  const supabase = await serverSupabase();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+  return <LogInButton authUser={authUser} />;
 }
