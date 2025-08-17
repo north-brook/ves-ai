@@ -116,6 +116,121 @@ export type Database = {
           },
         ]
       }
+      session_tickets: {
+        Row: {
+          created_at: string
+          id: string
+          project_id: string
+          session_id: string
+          ticket_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          project_id: string
+          session_id: string
+          ticket_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          project_id?: string
+          session_id?: string
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_tickets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_tickets_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_tickets_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sessions: {
+        Row: {
+          analysis: string | null
+          analyzed_at: string | null
+          created_at: string
+          duration: number | null
+          embed_url: string | null
+          embedding: string | null
+          id: string
+          name: string | null
+          project_id: string
+          recording_id: string
+          session_at: string | null
+          source_id: string
+          status: Database["public"]["Enums"]["session_status"]
+          tags: string[] | null
+          video_url: string | null
+        }
+        Insert: {
+          analysis?: string | null
+          analyzed_at?: string | null
+          created_at?: string
+          duration?: number | null
+          embed_url?: string | null
+          embedding?: string | null
+          id?: string
+          name?: string | null
+          project_id: string
+          recording_id: string
+          session_at?: string | null
+          source_id: string
+          status: Database["public"]["Enums"]["session_status"]
+          tags?: string[] | null
+          video_url?: string | null
+        }
+        Update: {
+          analysis?: string | null
+          analyzed_at?: string | null
+          created_at?: string
+          duration?: number | null
+          embed_url?: string | null
+          embedding?: string | null
+          id?: string
+          name?: string | null
+          project_id?: string
+          recording_id?: string
+          session_at?: string | null
+          source_id?: string
+          status?: Database["public"]["Enums"]["session_status"]
+          tags?: string[] | null
+          video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sessions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sessions_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sources: {
         Row: {
           created_at: string
@@ -150,6 +265,60 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "sources_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tickets: {
+        Row: {
+          created_at: string
+          description: string
+          destination_id: string
+          external_id: string
+          id: string
+          labels: string[]
+          links: string[]
+          name: string
+          project_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          destination_id: string
+          external_id: string
+          id?: string
+          labels: string[]
+          links: string[]
+          name: string
+          project_id: string
+          status: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          destination_id?: string
+          external_id?: string
+          id?: string
+          labels?: string[]
+          links?: string[]
+          name?: string
+          project_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tickets_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "destinations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
@@ -196,6 +365,7 @@ export type Database = {
     }
     Enums: {
       destination_type: "linear"
+      session_status: "pulled" | "queued" | "watching" | "analyzing" | "done"
       source_type: "posthog"
     }
     CompositeTypes: {
@@ -325,6 +495,7 @@ export const Constants = {
   public: {
     Enums: {
       destination_type: ["linear"],
+      session_status: ["pulled", "queued", "watching", "analyzing", "done"],
       source_type: ["posthog"],
     },
   },

@@ -64,7 +64,7 @@ export async function connectPostHog(formData: FormData) {
 
     const data = await response.json();
     const projectExists = data.results?.some(
-      (p: any) => p.id.toString() === posthogProject
+      (p: { id: number | string }) => p.id.toString() === posthogProject
     );
 
     if (!projectExists) {
@@ -145,7 +145,7 @@ export async function fetchPostHogProjects(apiKey: string, host: string) {
 
     const data = await response.json();
     return {
-      projects: data.results?.map((p: any) => ({
+      projects: data.results?.map((p: { id: number | string; name: string }) => ({
         id: p.id.toString(),
         name: p.name,
       })) || [],

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import log from "@/lib/log";
 import * as Sentry from "@sentry/nextjs";
+import { LinearClient } from "@linear/sdk";
 
 export async function initiateLinearOAuth(projectSlug: string) {
   const clientId = process.env.LINEAR_CLIENT_ID;
@@ -127,46 +128,19 @@ export async function connectLinear(formData: FormData) {
     return { error: "You don't have access to this project" };
   }
 
-  // Validate the Linear API key
+  // Validate the Linear API key using SDK
   try {
-    const response = await fetch("https://api.linear.app/graphql", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: linearToken,
-      },
-      body: JSON.stringify({
-        query: `
-          query {
-            viewer {
-              id
-              email
-            }
-            teams {
-              nodes {
-                id
-                key
-                name
-              }
-            }
-          }
-        `,
-      }),
-    });
-
-    if (!response.ok) {
+    const linearClient = new LinearClient({ accessToken: linearToken });
+    
+    // Verify the API key works by fetching viewer
+    const viewer = await linearClient.viewer;
+    if (!viewer) {
       return { error: "Invalid Linear API key" };
     }
 
-    const data = await response.json();
-
-    if (data.errors) {
-      return { error: "Invalid Linear API key" };
-    }
-
-    const teamExists = data.data?.teams?.nodes?.some(
-      (t: any) => t.id === linearTeam,
-    );
+    // Check if team exists
+    const teams = await linearClient.teams();
+    const teamExists = teams.nodes.some((t) => t.id === linearTeam);
 
     if (!teamExists) {
       return { error: "Linear team not found" };
@@ -236,51 +210,40 @@ export async function connectLinear(formData: FormData) {
 
 export async function fetchLinearData(apiKey: string) {
   try {
-    const response = await fetch("https://api.linear.app/graphql", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: apiKey,
-      },
-      body: JSON.stringify({
-        query: `
-          query {
-            viewer {
-              id
-              email
-              name
-            }
-            teams {
-              nodes {
-                id
-                key
-                name
-                projects {
-                  nodes {
-                    id
-                    name
-                  }
-                }
-              }
-            }
-          }
-        `,
-      }),
-    });
-
-    if (!response.ok) {
+    const linearClient = new LinearClient({ accessToken: apiKey });
+    
+    // Fetch viewer info
+    const viewer = await linearClient.viewer;
+    if (!viewer) {
       return { error: "Invalid API key" };
     }
 
-    const data = await response.json();
-
-    if (data.errors) {
-      return { error: "Invalid API key" };
-    }
+    // Fetch teams with projects
+    const teamsData = await linearClient.teams();
+    const teams = await Promise.all(
+      teamsData.nodes.map(async (team) => {
+        const projects = await team.projects();
+        return {
+          id: team.id,
+          key: team.key,
+          name: team.name,
+          projects: {
+            nodes: projects.nodes.map((p) => ({
+              id: p.id,
+              name: p.name,
+            })),
+          },
+        };
+      })
+    );
 
     return {
-      teams: data.data?.teams?.nodes || [],
-      viewer: data.data?.viewer,
+      teams,
+      viewer: {
+        id: viewer.id,
+        email: viewer.email,
+        name: viewer.name,
+      },
     };
   } catch (error) {
     console.error(error);

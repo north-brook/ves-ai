@@ -5,7 +5,6 @@ import { ArrowRight, LoaderCircle, ExternalLink } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { initiateLinearOAuth, saveLinearSettings } from "./actions";
 import { toast } from "sonner";
-import Linear from "@/components/linear";
 import { useSearchParams } from "next/navigation";
 import {
   Select,

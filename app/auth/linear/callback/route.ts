@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import serverSupabase from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import * as Sentry from "@sentry/nextjs";
-import log from "@/lib/log";
+import { LinearClient } from "@linear/sdk";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -48,39 +48,20 @@ export async function GET(request: Request) {
     const tokenData = await tokenResponse.json();
     const accessToken = tokenData.access_token;
 
-    // Get user info and default team
-    const graphqlResponse = await fetch("https://api.linear.app/graphql", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: accessToken,
-      },
-      body: JSON.stringify({
-        query: `
-          query {
-            viewer {
-              id
-              email
-              name
-            }
-            teams {
-              nodes {
-                id
-                key
-                name
-              }
-            }
-          }
-        `,
-      }),
-    });
-
-    if (!graphqlResponse.ok) {
+    // Get user info and default team using SDK
+    const linearClient = new LinearClient({ accessToken });
+    
+    const viewer = await linearClient.viewer;
+    if (!viewer) {
       throw new Error("Failed to fetch Linear user data");
     }
 
-    const graphqlData = await graphqlResponse.json();
-    const teams = graphqlData.data?.teams?.nodes || [];
+    const teamsData = await linearClient.teams();
+    const teams = teamsData.nodes.map((team) => ({
+      id: team.id,
+      key: team.key,
+      name: team.name,
+    }));
     
     if (teams.length === 0) {
       throw new Error("No Linear teams found");

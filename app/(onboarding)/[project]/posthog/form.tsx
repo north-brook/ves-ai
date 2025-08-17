@@ -5,7 +5,6 @@ import { ArrowRight, LoaderCircle, ExternalLink } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { connectPostHog, fetchPostHogProjects } from "./actions";
 import { toast } from "sonner";
-import PostHog from "@/components/posthog";
 import {
   Select,
   SelectContent,
@@ -23,7 +22,7 @@ interface PostHogFormProps {
 export function PostHogForm({ projectSlug, existingSource }: PostHogFormProps) {
   const [apiKey, setApiKey] = useState(existingSource?.source_key || "");
   const [host, setHost] = useState(
-    existingSource?.source_host || "https://us.i.posthog.com",
+    existingSource?.source_host || "https://us.posthog.com",
   );
   const [selectedProject, setSelectedProject] = useState(
     existingSource?.source_project || "",
@@ -112,11 +111,11 @@ export function PostHogForm({ projectSlug, existingSource }: PostHogFormProps) {
             <SelectValue placeholder="Select a region" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="https://us.i.posthog.com">
-              US Cloud (us.i.posthog.com)
+            <SelectItem value="https://us.posthog.com">
+              US Cloud (us.posthog.com)
             </SelectItem>
-            <SelectItem value="https://eu.i.posthog.com">
-              EU Cloud (eu.i.posthog.com)
+            <SelectItem value="https://eu.posthog.com">
+              EU Cloud (eu.posthog.com)
             </SelectItem>
             <SelectItem value="custom">Self-hosted (custom URL)</SelectItem>
           </SelectContent>

@@ -1,5 +1,4 @@
 import {
-  ArrowRight,
   Eye,
   Zap,
   Plug,
@@ -11,7 +10,6 @@ import {
   Rocket,
   Target,
 } from "lucide-react";
-import Google from "@/components/google";
 import PostHog from "@/components/posthog";
 import Linear from "@/components/linear";
 import LogInButton, { LoadingLogInButton } from "@/app/auth/log-in-button";
@@ -55,7 +53,7 @@ export default async function LandingPage() {
           <div className="grid gap-8 md:grid-cols-3">
             <div className="relative">
               <div className="from-accent-purple to-accent-pink mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br">
-                <Plug className="h-8 w-8" />
+                <Plug size={24} className="text-white" />
               </div>
               <h3 className="font-display mb-3 text-2xl font-bold">
                 1. Connect{" "}
@@ -71,7 +69,7 @@ export default async function LandingPage() {
 
             <div className="relative">
               <div className="from-accent-pink to-accent-orange mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br">
-                <Eye className="h-8 w-8" />
+                <Eye size={24} className="text-white" />
               </div>
               <h3 className="font-display mb-3 text-2xl font-bold">
                 2. AI Review
@@ -84,7 +82,7 @@ export default async function LandingPage() {
 
             <div className="relative">
               <div className="from-accent-orange to-accent-purple mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br">
-                <ListChecks className="h-8 w-8" />
+                <ListChecks size={24} className="text-white" />
               </div>
               <h3 className="font-display mb-3 text-2xl font-bold">
                 3. Action in{" "}

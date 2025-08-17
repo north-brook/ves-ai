@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import {
   ArrowRight,
-  CheckCircle,
   Activity,
   Bug,
   Lightbulb,
@@ -60,23 +59,19 @@ async function LoadedWelcome({ projectSlug }: { projectSlug: string }) {
   return (
     <div className="mx-auto max-w-2xl">
       <div className="text-center">
-        <div className="from-accent-purple to-accent-pink mb-6 inline-flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br">
-          <CheckCircle className="h-10 w-10 text-white" />
-        </div>
-
         <h1 className="font-display mb-4 text-4xl font-bold">
           {"You're all set!"}
         </h1>
 
         <p className="text-foreground-secondary mx-auto mb-8 max-w-lg text-lg">
-          VES is now watching your sessions. You'll start seeing AI-suggested
-          bug reports, UX issues, and feature ideas in Linear within 24 hours.
+          VES is now watching your sessions. You&apos;ll start seeing AI-suggested
+          bug reports, UX issues, and feature ideas.
         </p>
       </div>
 
       <div className="bg-surface/50 border-border mb-8 space-y-4 rounded-2xl border p-6 backdrop-blur-sm">
         <h2 className="font-display mb-4 text-xl font-semibold">
-          What happens next:
+          What happens next
         </h2>
 
         <div className="flex gap-3">
@@ -131,7 +126,7 @@ async function LoadedWelcome({ projectSlug }: { projectSlug: string }) {
         </Link>
 
         <p className="text-foreground-secondary text-sm">
-          You can always adjust settings from your dashboard
+          Observe session analysis live in the dashboard
         </p>
       </div>
     </div>

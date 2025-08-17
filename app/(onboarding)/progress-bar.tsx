@@ -36,23 +36,13 @@ export function ProgressBar({ currentStep }: ProgressBarProps) {
                   <span className="text-sm font-semibold">{step.number}</span>
                 )}
               </div>
-              <span
-                className={cn(
-                  "mt-2 text-xs font-medium",
-                  step.number <= currentStep
-                    ? "text-foreground"
-                    : "text-foreground-secondary",
-                )}
-              >
-                {step.label}
-              </span>
             </div>
             {index < steps.length - 1 && (
               <div className="relative mx-4 w-16 md:w-24">
-                <div className="absolute top-5 h-[2px] w-full bg-border" />
+                <div className="bg-border absolute top-0 h-[2px] w-full" />
                 <div
                   className={cn(
-                    "absolute top-5 h-[2px] bg-gradient-to-r from-accent-purple to-accent-pink transition-all duration-500",
+                    "from-accent-purple to-accent-pink absolute h-[2px] bg-gradient-to-r transition-all duration-500",
                     step.number < currentStep ? "w-full" : "w-0",
                   )}
                 />

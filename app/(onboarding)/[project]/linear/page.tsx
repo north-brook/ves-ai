@@ -4,6 +4,7 @@ import { LinearForm, LoadingLinearForm } from "./form";
 import serverSupabase from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Linear from "@/components/linear";
+import { LinearClient } from "@linear/sdk";
 
 export default async function LinearPage({
   params,
@@ -72,37 +73,30 @@ async function LoadedLinearForm({ projectSlug }: { projectSlug: string }) {
 
   let linearData = null;
 
-  // If we have a token, fetch Linear data
+  // If we have a token, fetch Linear data using SDK
   if (existingDestination?.destination_token) {
     try {
-      const response = await fetch("https://api.linear.app/graphql", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: existingDestination.destination_token,
-        },
-        body: JSON.stringify({
-          query: `
-            query {
-              organization {
-                id
-                name
-                teams {
-                  nodes {
-                    id
-                    key
-                    name
-                  }
-                }
-              }
-            }
-          `,
-        }),
+      const linearClient = new LinearClient({ 
+        accessToken: existingDestination.destination_token 
       });
-
-      if (response.ok) {
-        const data = await response.json();
-        linearData = data.data;
+      
+      const organization = await linearClient.organization;
+      const teams = await linearClient.teams();
+      
+      if (organization) {
+        linearData = {
+          organization: {
+            id: organization.id,
+            name: organization.name,
+            teams: {
+              nodes: teams.nodes.map((team) => ({
+                id: team.id,
+                key: team.key,
+                name: team.name,
+              })),
+            },
+          },
+        };
       }
     } catch (error) {
       console.error("Failed to fetch Linear data:", error);
