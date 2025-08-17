@@ -1,7 +1,7 @@
-"use client";
-
-import { Check, ArrowRight } from "lucide-react";
-import Google from "@/components/google";
+import { Check } from "lucide-react";
+import { Suspense } from "react";
+import LogInButton, { LoadingLogInButton } from "@/app/auth/log-in-button";
+import serverSupabase from "@/lib/supabase/server";
 
 const plans = [
   {
@@ -49,7 +49,7 @@ export default function PricingPage() {
   return (
     <>
       {/* Hero Section */}
-      <section className="relative overflow-hidden pt-24 pb-12">
+      <section className="relative overflow-hidden pt-24 pb-24">
         <div className="from-accent-purple/10 via-accent-pink/5 to-accent-orange/10 absolute inset-0 bg-gradient-to-br blur-3xl" />
 
         <div className="relative mx-auto max-w-6xl px-6">
@@ -115,22 +115,22 @@ export default function PricingPage() {
                   </p>
 
                   {plan.popular ? (
-                    <button className="group relative w-full rounded-lg bg-gradient-to-r from-accent-purple via-accent-pink to-accent-orange p-[2px] font-semibold transition-all duration-200 hover:scale-105">
-                      <div className="flex items-center justify-center rounded-[6px] bg-background py-3 transition-all group-hover:bg-background/90">
-                        <span className="text-foreground font-semibold">Get Started</span>
+                    <button className="group from-accent-purple via-accent-pink to-accent-orange relative w-full rounded-lg bg-gradient-to-r p-[2px] font-semibold transition-all duration-200 hover:scale-105">
+                      <div className="bg-background group-hover:bg-background/90 flex items-center justify-center rounded-[6px] py-3 transition-all">
+                        <span className="text-foreground font-semibold">
+                          Get Started
+                        </span>
                       </div>
                     </button>
                   ) : plan.name === "Enterprise" ? (
                     <a
                       href="mailto:team@ves.ai?subject=Enterprise"
-                      className="block w-full rounded-lg border border-border bg-background py-3 text-center font-medium transition-all duration-200 hover:bg-surface"
+                      className="border-border bg-background hover:bg-surface block w-full rounded-lg border py-3 text-center font-medium transition-all duration-200"
                     >
                       Contact Sales
                     </a>
                   ) : (
-                    <button
-                      className="w-full rounded-lg border border-border bg-background py-3 font-medium transition-all duration-200 hover:bg-surface"
-                    >
+                    <button className="border-border bg-background hover:bg-surface w-full rounded-lg border py-3 font-medium transition-all duration-200">
                       Get Started
                     </button>
                   )}
@@ -142,7 +142,7 @@ export default function PricingPage() {
       </section>
 
       {/* All Plans Include */}
-      <section className="px-6 py-16">
+      <section className="px-6 py-24">
         <div className="mx-auto max-w-4xl">
           <h2 className="font-display mb-12 text-center text-3xl font-bold">
             All plans include
@@ -162,7 +162,7 @@ export default function PricingPage() {
       </section>
 
       {/* How Billing Works */}
-      <section className="bg-surface px-6 py-16">
+      <section className="bg-surface px-6 py-24">
         <div className="mx-auto max-w-4xl">
           <h2 className="font-display mb-12 text-center text-3xl font-bold">
             How billing works
@@ -190,23 +190,25 @@ export default function PricingPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="px-6 py-24">
+      <section className="px-6 pt-32 pb-48">
         <div className="mx-auto max-w-4xl text-center">
-          <button className="group font-display from-accent-purple via-accent-pink to-accent-orange relative rounded-lg bg-gradient-to-r p-[2px] text-lg font-semibold transition-all duration-200 hover:scale-105">
-            <div className="bg-background group-hover:bg-background/90 flex items-center gap-2 rounded-[6px] px-8 py-4 transition-all">
-              <Google size={20} />
-              <span className="text-foreground font-semibold">
-                Sign in with Google
-              </span>
-              <ArrowRight className="text-foreground h-5 w-5 transition-transform group-hover:translate-x-1" />
-            </div>
-          </button>
+          <h2 className="font-display mb-6 text-center text-3xl font-bold">
+            Setup in 2 minutes
+          </h2>
 
-          <p className="text-foreground-secondary mt-4 text-sm">
-            7-day free trial. No credit card required.
-          </p>
+          <Suspense fallback={<LoadingLogInButton />}>
+            <LoadedLogInButton />
+          </Suspense>
         </div>
       </section>
     </>
   );
+}
+
+async function LoadedLogInButton() {
+  const supabase = await serverSupabase();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+  return <LogInButton authUser={authUser} />;
 }
