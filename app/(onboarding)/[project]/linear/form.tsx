@@ -63,8 +63,8 @@ export function LinearForm({
 
   const saveMutation = useMutation({
     mutationFn: saveLinearSettings,
-    onError: (error) => {
-      toast.error(error.message || "Failed to save Linear settings");
+    onSettled: (data) => {
+      if (data?.error) toast.error(data.error);
     },
   });
 
@@ -192,7 +192,7 @@ export function LinearForm({
   );
 }
 
-export function LoadingLinearForm() {
+export function LinearFormSkeleton() {
   return (
     <div className="space-y-6">
       <div className="bg-surface h-20 w-full animate-pulse rounded-lg" />

@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { StepLayout } from "../../step-layout";
-import { PostHogForm, LoadingPostHogForm } from "./form";
+import { PostHogForm, PostHogFormSkeleton } from "./form";
 import serverSupabase from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import PostHog from "@/components/posthog";
@@ -22,7 +22,7 @@ export default async function PostHogPage({
       description="Set up PostHog integration to analyze session replays"
       backHref={`/${project}/setup`}
     >
-      <Suspense fallback={<LoadingPostHogForm />}>
+      <Suspense fallback={<PostHogFormSkeleton />}>
         <LoadedPostHogForm projectSlug={project} />
       </Suspense>
     </StepLayout>

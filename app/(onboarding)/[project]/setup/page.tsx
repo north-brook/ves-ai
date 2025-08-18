@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { StepLayout } from "../../step-layout";
-import { ProjectSetupForm, LoadingProjectSetupForm } from "./form";
+import { ProjectSetupForm, ProjectSetupFormSkeleton } from "./form";
 import serverSupabase from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
@@ -16,14 +16,18 @@ export default async function ProjectSetupPage({
       title="Setup Your Project"
       description="Let's get your project configured for AI-powered session analysis"
     >
-      <Suspense fallback={<LoadingProjectSetupForm />}>
+      <Suspense fallback={<ProjectSetupFormSkeleton />}>
         <LoadedProjectSetupForm projectSlug={projectSlug} />
       </Suspense>
     </StepLayout>
   );
 }
 
-async function LoadedProjectSetupForm({ projectSlug }: { projectSlug: string }) {
+async function LoadedProjectSetupForm({
+  projectSlug,
+}: {
+  projectSlug: string;
+}) {
   const supabase = await serverSupabase();
   const {
     data: { user: authUser },
@@ -63,5 +67,11 @@ async function LoadedProjectSetupForm({ projectSlug }: { projectSlug: string }) 
     image: project.image,
   };
 
-  return <ProjectSetupForm defaults={defaults} projectId={project.id} isNew={false} />;
+  return (
+    <ProjectSetupForm
+      defaults={defaults}
+      projectId={project.id}
+      isNew={false}
+    />
+  );
 }

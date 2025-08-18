@@ -57,7 +57,9 @@ export type Database = {
           id: string
           image: string
           name: string
+          plan: Database["public"]["Enums"]["project_plan"]
           slug: string
+          subscribed_at: string | null
         }
         Insert: {
           created_at?: string
@@ -65,7 +67,9 @@ export type Database = {
           id?: string
           image: string
           name: string
+          plan: Database["public"]["Enums"]["project_plan"]
           slug: string
+          subscribed_at?: string | null
         }
         Update: {
           created_at?: string
@@ -73,7 +77,9 @@ export type Database = {
           id?: string
           image?: string
           name?: string
+          plan?: Database["public"]["Enums"]["project_plan"]
           slug?: string
+          subscribed_at?: string | null
         }
         Relationships: []
       }
@@ -164,10 +170,10 @@ export type Database = {
       }
       sessions: {
         Row: {
+          active_duration: number | null
           analysis: string | null
           analyzed_at: string | null
           created_at: string
-          duration: number | null
           embed_url: string | null
           embedding: string | null
           id: string
@@ -178,13 +184,15 @@ export type Database = {
           source_id: string
           status: Database["public"]["Enums"]["session_status"]
           tags: string[] | null
+          total_duration: number | null
+          video_duration: number | null
           video_url: string | null
         }
         Insert: {
+          active_duration?: number | null
           analysis?: string | null
           analyzed_at?: string | null
           created_at?: string
-          duration?: number | null
           embed_url?: string | null
           embedding?: string | null
           id?: string
@@ -195,13 +203,15 @@ export type Database = {
           source_id: string
           status: Database["public"]["Enums"]["session_status"]
           tags?: string[] | null
+          total_duration?: number | null
+          video_duration?: number | null
           video_url?: string | null
         }
         Update: {
+          active_duration?: number | null
           analysis?: string | null
           analyzed_at?: string | null
           created_at?: string
-          duration?: number | null
           embed_url?: string | null
           embedding?: string | null
           id?: string
@@ -212,6 +222,8 @@ export type Database = {
           source_id?: string
           status?: Database["public"]["Enums"]["session_status"]
           tags?: string[] | null
+          total_duration?: number | null
+          video_duration?: number | null
           video_url?: string | null
         }
         Relationships: [
@@ -284,6 +296,7 @@ export type Database = {
           name: string
           project_id: string
           status: string
+          url: string
         }
         Insert: {
           created_at?: string
@@ -296,6 +309,7 @@ export type Database = {
           name: string
           project_id: string
           status: string
+          url: string
         }
         Update: {
           created_at?: string
@@ -308,6 +322,7 @@ export type Database = {
           name?: string
           project_id?: string
           status?: string
+          url?: string
         }
         Relationships: [
           {
@@ -358,6 +373,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      match_sessions: {
+        Args: {
+          match_count: number
+          match_threshold: number
+          query_embedding: string
+        }
+        Returns: {
+          id: string
+          similarity: number
+        }[]
+      }
       project_access: {
         Args: { project_id: string; user_id: string }
         Returns: boolean
@@ -365,7 +391,14 @@ export type Database = {
     }
     Enums: {
       destination_type: "linear"
-      session_status: "pulled" | "queued" | "watching" | "analyzing" | "done"
+      project_plan: "trial" | "starter" | "growth" | "scale" | "enterprise"
+      session_status:
+        | "pending"
+        | "processing"
+        | "processed"
+        | "analyzing"
+        | "analyzed"
+        | "failed"
       source_type: "posthog"
     }
     CompositeTypes: {
@@ -495,7 +528,15 @@ export const Constants = {
   public: {
     Enums: {
       destination_type: ["linear"],
-      session_status: ["pulled", "queued", "watching", "analyzing", "done"],
+      project_plan: ["trial", "starter", "growth", "scale", "enterprise"],
+      session_status: [
+        "pending",
+        "processing",
+        "processed",
+        "analyzing",
+        "analyzed",
+        "failed",
+      ],
       source_type: ["posthog"],
     },
   },

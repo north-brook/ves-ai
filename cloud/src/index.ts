@@ -1,9 +1,9 @@
 import express from "express";
-import { getRecordingMeta, enableSharingAndGetEmbedToken } from "./posthog";
+import { getRecordingMeta } from "./posthog";
 import { recordReplayToWebm } from "./renderer";
 import { uploadToSupabase } from "./uploader";
 import { postCallback } from "./callback";
-import type { RenderRequest } from "./types";
+import type { ErrorPayload, RenderRequest, SuccessPayload } from "./types";
 import { clampMs } from "./util";
 
 const app = express();
@@ -21,7 +21,9 @@ app.post("/render", async (req, res) => {
     "source_key",
     "source_project",
     "recording_id",
+    "embed_url",
     "supabase_url",
+    "supabase_storage_url",
     "supabase_service_role_key",
     "supabase_bucket",
     "supabase_file_path",
@@ -38,20 +40,35 @@ app.post("/render", async (req, res) => {
   }
 
   console.log(
-    `[start] recording ${body.recording_id} | source=${body.source_type} | host=${body.source_host} | bucket=${body.supabase_bucket} | path=${body.supabase_file_path}`,
+    `🎬 [START] Recording ${body.recording_id}\n` +
+      `  📹 Source: ${body.source_type} | Host: ${body.source_host}\n` +
+      `  🗂️ Target: ${body.supabase_bucket}/${body.supabase_file_path}`,
   );
 
-  let successPayload: any | null = null;
-  let errorPayload: any | null = null;
+  // Return 200 immediately to acknowledge receipt
+  res.status(200).json({ 
+    success: true, 
+    message: "Recording job accepted and processing",
+    recording_id: body.recording_id 
+  });
+
+  // Process the recording asynchronously
+  processRecordingAsync(body).catch((err) => {
+    console.error(
+      `❌ [ASYNC ERROR] Failed to process recording ${body.recording_id}:`,
+      err
+    );
+  });
+});
+
+// Async function to process the recording
+async function processRecordingAsync(body: RenderRequest) {
+  let successPayload: SuccessPayload | null = null;
+  let errorPayload: ErrorPayload | null = null;
 
   try {
-    // 1) Enable sharing & get embed URL
-    const embedUrl = await enableSharingAndGetEmbedToken(
-      body.source_host,
-      body.source_key,
-      body.source_project,
-      body.recording_id,
-    );
+    // 1) Use the embed URL provided in the request
+    const embedUrl = body.embed_url;
 
     // 2) Fetch meta to estimate runtime
     const meta = await getRecordingMeta(
@@ -68,30 +85,72 @@ app.post("/render", async (req, res) => {
     const expectedMs = clampMs(expectedSeconds * 1000);
 
     console.log(
-      `[meta] expectedSeconds=${expectedSeconds} (active=${meta.active_seconds}, total=${meta.recording_duration}) -> wait≈${Math.round(expectedMs / 1000)}s`,
+      `📊 [META] Duration analysis:\n` +
+        `  ⏱️ Active: ${meta.active_seconds}s | Total: ${meta.recording_duration}s\n` +
+        `  🎯 Expected: ${expectedSeconds}s (clamped wait: ${Math.round(expectedMs / 1000)}s)`,
     );
 
-    // 3) Record to WebM
-    const { webmPath, durationSeconds } = await recordReplayToWebm(
-      embedUrl,
-      expectedSeconds,
-    );
+    // 3) Record to WebM with retry logic for empty videos
+    let webmPath: string = "";
+    let durationSeconds: number = 0;
+    let retryCount = 0;
+    const maxRetries = 2;
+
+    while (retryCount <= maxRetries) {
+      try {
+        const result = await recordReplayToWebm(embedUrl, expectedSeconds);
+
+        // Check if the video is valid (not empty)
+        const fs = await import("fs/promises");
+        const stats = await fs.stat(result.webmPath);
+        const minSize = expectedSeconds * 5000; // Minimum ~5KB per second
+
+        if (stats.size < minSize && retryCount < maxRetries) {
+          console.log(
+            `⚠️ [RETRY] Video seems empty (${stats.size} bytes), retrying... (${retryCount + 1}/${maxRetries})`,
+          );
+          retryCount++;
+          continue;
+        }
+
+        webmPath = result.webmPath;
+        durationSeconds = result.durationSeconds;
+        break;
+      } catch (err) {
+        if (retryCount < maxRetries) {
+          console.log(
+            `⚠️ [RETRY] Recording failed, retrying... (${retryCount + 1}/${maxRetries})`,
+          );
+          retryCount++;
+        } else {
+          throw err;
+        }
+      }
+    }
+
+    if (!webmPath) {
+      throw new Error("Failed to create video after all retries");
+    }
 
     console.log(
-      `[rendered] duration=${durationSeconds.toFixed(1)}s webm=${webmPath}`,
+      `✅ [RENDERED] Video created:\n` +
+        `  ⏱️ Duration: ${durationSeconds.toFixed(1)}s\n` +
+        `  📁 Path: ${webmPath}`,
     );
 
     // 4) Upload to Supabase
     const { publicUrl } = await uploadToSupabase({
       supabaseUrl: body.supabase_url,
+      supabaseStorageUrl: body.supabase_storage_url,
       supabaseServiceRoleKey: body.supabase_service_role_key,
       bucket: body.supabase_bucket,
       filePath: body.supabase_file_path,
       localPath: webmPath,
-      signedUrlTtlSeconds: body.signed_url_ttl_seconds,
     });
 
-    console.log(`[uploaded] ${publicUrl}`);
+    console.log(
+      `☁️ [UPLOADED] Successfully uploaded:\n` + `  🔗 URL: ${publicUrl}`,
+    );
 
     successPayload = {
       success: true,
@@ -101,21 +160,32 @@ app.post("/render", async (req, res) => {
     };
     await postCallback(body.callback, successPayload);
 
-    // Return the same success payload to the caller for convenience
-    return res.status(200).json(successPayload);
+    console.log(
+      `✅ [COMPLETED] Recording ${body.recording_id} processed successfully`
+    );
   } catch (err: any) {
     const message = err?.message || String(err);
-    console.error(`[error] ${message}`);
-    errorPayload = { success: false, error: message };
+    console.error(
+      `❌ [ERROR] Recording failed:\n` +
+        `  🆔 Recording: ${body.recording_id}\n` +
+        `  💥 Error: ${message}\n` +
+        `  📚 Stack: ${err?.stack || "No stack trace"}`,
+    );
+    errorPayload = {
+      success: false,
+      error: message,
+      recording_id: body.recording_id,
+    };
     await postCallback(body.callback, errorPayload);
-    return res.status(500).json(errorPayload);
   }
-});
+}
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
-  console.log(`listening on :${PORT}`);
   console.log(
-    `Playwright will run headless Chromium. Ensure Cloud Run timeout >= 15m for long sessions.`,
+    `🚀 [SERVER] Cloud recording service started:\n` +
+      `  🌐 Port: ${PORT}\n` +
+      `  🎭 Playwright: Headless Chromium\n` +
+      `  ⏰ Note: Ensure Cloud Run timeout >= 15m for long sessions`,
   );
 });

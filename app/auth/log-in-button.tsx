@@ -69,7 +69,7 @@ export default function LogInButton({
         </button>
 
         <p className="text-foreground-secondary mt-4 text-sm">
-          7-day free trial. No credit card required.
+          1 hour of free analysis. No credit card required.
         </p>
       </form>
     );

@@ -22,7 +22,6 @@ interface ProjectSetupFormProps {
 export function ProjectSetupForm({
   defaults,
   projectId,
-  isNew = false,
 }: ProjectSetupFormProps) {
   const [name, setName] = useState(defaults.name);
   const [slug, setSlug] = useState(defaults.slug);
@@ -33,6 +32,7 @@ export function ProjectSetupForm({
   const [invites, setInvites] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isNew = !projectId;
 
   const saveProjectMutation = useMutation({
     mutationFn: saveProject,
@@ -47,13 +47,11 @@ export function ProjectSetupForm({
     queryFn: async () => {
       if (!slug || slug.length < 3) return null;
       const supabase = clientSupabase();
-      const { data, error } = await supabase
-        .from("projects")
-        .select("id")
-        .eq("slug", slug)
-        .not("id", "eq", projectId);
+      let query = supabase.from("projects").select("id").eq("slug", slug);
+      if (projectId) query = query.not("id", "eq", projectId);
+      const { data, error } = await query;
 
-      return error ? false : data?.length === 0;
+      return !error && data?.length === 0;
     },
     enabled: !!slug && slug.length >= 3,
     staleTime: 1000,
@@ -273,7 +271,7 @@ export function ProjectSetupForm({
   );
 }
 
-export function LoadingProjectSetupForm() {
+export function ProjectSetupFormSkeleton() {
   return (
     <div className="space-y-6">
       <div className="flex items-start gap-4">

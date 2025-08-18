@@ -15,7 +15,7 @@
 
 ### Usage Metrics (Top Section)
 
-- **Hours of Analysis**
+- **Analysis Time**
   - Current period usage
   - Visual indicator of usage within current plan limits
   - Comparison to previous period
@@ -29,14 +29,15 @@
 ### Session List
 
 - **Session Status Indicators**
-  - `pulled` - New session detected, not yet analyzed
-  - `queued` - New session queued for watching and analysis
-  - `watching` - Currently watching session
+  - `pending` - New session detected, not yet analyzed
+  - `processing` - Watching session
+  - `processed` - Session watched and pending analysis
   - `analyzing` - Currently analyzing session
-  - `done` - Analysis complete
+  - `analyzed` - Analysis complete
+  - `failed` - Failed to process/analyze session
 - **Session Information**
   - Short descriptive name (AI-generated summary)
-  - Inferred tags (Bug, UX Issue, Feature Opportunity, etc.)
+  - Inferred tags (Purchase Product, Create Lesson, etc.)
   - Linked Linear tickets (if any)
   - Timestamp and duration
 - **List Actions**

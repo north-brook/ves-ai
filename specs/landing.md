@@ -3,7 +3,7 @@
 Connect PostHog, and VES will review your replays, find bugs, identify opportunities, and prepare rich tickets for Linear.
 
 [ Sign in with Google ]
-7-day free trial. No credit card required.
+1 hour of free analysis. No credit card required.
 
 ---
 
@@ -43,4 +43,4 @@ Clear, prioritized tickets appear in your backlog automatically.
 ## Get Started
 
 [ Sign in with Google ]
-7-day free trial. No credit card required.
+1 hour of free analysis. No credit card required.

@@ -8,7 +8,8 @@ const plans = [
   {
     name: "Starter",
     hours: "20 hours of monthly analysis",
-    sessions: "~1,000 monthly sessions",
+    workers: "2 analysis workers",
+    sessions: "~200 monthly sessions",
     price: "$199",
     description: "Early-stage startups",
     popular: false,
@@ -16,7 +17,8 @@ const plans = [
   {
     name: "Growth",
     hours: "100 hours of monthly analysis",
-    sessions: "~5,000 monthly sessions",
+    workers: "5 analysis workers",
+    sessions: "~1,000 monthly sessions",
     price: "$699",
     description: "Growing product teams",
     popular: true,
@@ -24,7 +26,8 @@ const plans = [
   {
     name: "Scale",
     hours: "300 hours of monthly analysis",
-    sessions: "~15,000 monthly sessions",
+    workers: "10 analysis workers",
+    sessions: "~3,000 monthly sessions",
     price: "$1,999",
     description: "Mid-market SaaS",
     popular: false,
@@ -32,6 +35,7 @@ const plans = [
   {
     name: "Enterprise",
     hours: "Unlimited analysis",
+    workers: "Unlimited workers",
     sessions: "Unlimited",
     price: "Custom",
     description: "Large orgs with special needs",
@@ -44,6 +48,7 @@ const features = [
   "Bug, UX, and feature suggestions",
   "Direct Linear integration",
   "Priority scoring & duplicate detection",
+  "Concurrent analysis workers for faster processing",
 ];
 
 export default function PricingPage() {
@@ -106,6 +111,9 @@ export default function PricingPage() {
 
                   <div className="border-border space-y-2 border-y py-4">
                     <p className="text-foreground">{plan.hours}</p>
+                    <p className="text-foreground-secondary text-sm">
+                      {plan.workers}
+                    </p>
                     <p className="text-foreground-secondary text-sm">
                       {plan.sessions}
                     </p>
@@ -176,7 +184,7 @@ export default function PricingPage() {
             <div className="flex items-start gap-3">
               <span className="text-accent-purple">•</span>
               <p className="text-foreground">
-                No credit card needed for 7-day free trial
+                No credit card needed for 1 hour of free analysis
               </p>
             </div>
             <div className="flex items-start gap-3">

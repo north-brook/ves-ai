@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { StepLayout } from "../../step-layout";
-import { LinearForm, LoadingLinearForm } from "./form";
+import { LinearForm, LinearFormSkeleton } from "./form";
 import serverSupabase from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Linear from "@/components/linear";
@@ -23,7 +23,7 @@ export default async function LinearPage({
       description="Set up Linear integration to automatically sync tickets"
       backHref={`/${project}/posthog`}
     >
-      <Suspense fallback={<LoadingLinearForm />}>
+      <Suspense fallback={<LinearFormSkeleton />}>
         <LoadedLinearForm projectSlug={project} />
       </Suspense>
     </StepLayout>
@@ -76,13 +76,13 @@ async function LoadedLinearForm({ projectSlug }: { projectSlug: string }) {
   // If we have a token, fetch Linear data using SDK
   if (existingDestination?.destination_token) {
     try {
-      const linearClient = new LinearClient({ 
-        accessToken: existingDestination.destination_token 
+      const linearClient = new LinearClient({
+        accessToken: existingDestination.destination_token,
       });
-      
+
       const organization = await linearClient.organization;
       const teams = await linearClient.teams();
-      
+
       if (organization) {
         linearData = {
           organization: {

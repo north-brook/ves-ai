@@ -4,14 +4,15 @@ export type RenderRequest = {
   source_key: string; // API key with required scopes
   source_project: string; // PostHog project ID
   recording_id: string; // The recording/session ID to render
+  embed_url: string; // The embed URL for the recording (e.g. "https://us.posthog.com/embedded/TOKEN")
 
   supabase_url: string;
+  supabase_storage_url: string;
   supabase_service_role_key: string;
   supabase_bucket: string;
   supabase_file_path: string; // e.g. "replays/abc123.webm"
 
   callback: string; // URL to POST result to
-  signed_url_ttl_seconds?: number; // optional; used when bucket is private
 };
 
 export type SuccessPayload = {
@@ -22,6 +23,7 @@ export type SuccessPayload = {
 };
 
 export type ErrorPayload = {
+  recording_id: string;
   success: false;
   error: string;
 };

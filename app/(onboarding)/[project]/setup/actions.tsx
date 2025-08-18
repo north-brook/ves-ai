@@ -122,6 +122,7 @@ export async function saveProject(formData: FormData) {
         image:
           imageUrl ||
           `https://www.google.com/s2/favicons?domain=${domain}&sz=128`,
+        plan: "trial",
       })
       .select()
       .single();
@@ -177,11 +178,11 @@ export async function saveProject(formData: FormData) {
         .in("user_email", invites);
 
       const existingEmails = new Set(
-        existingRoles?.map((r) => r.user_email.toLowerCase()) || []
+        existingRoles?.map((r) => r.user_email.toLowerCase()) || [],
       );
-      
+
       const newInvites = invites.filter(
-        (email) => !existingEmails.has(email.toLowerCase())
+        (email) => !existingEmails.has(email.toLowerCase()),
       );
 
       if (newInvites.length > 0) {
@@ -233,11 +234,11 @@ export async function saveProject(formData: FormData) {
     }
   }
 
-  await log({
-    text: projectId 
-      ? `✏️ Project updated: ${project.name} (${project.slug})`
-      : `🚀 New project created: ${project.name} (${project.slug})`,
-  });
+  if (!projectId)
+    await log({
+      text: `🚀 New project created: ${project.name} (${project.slug})`,
+      url: project.domain,
+    });
 
   revalidatePath("/", "layout");
   redirect(`/${project.slug}/posthog`);
