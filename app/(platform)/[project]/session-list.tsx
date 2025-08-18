@@ -3,8 +3,9 @@
 import { useState, useMemo, useEffect, useTransition, useRef } from "react";
 import Link from "next/link";
 import { Session } from "@/types";
-import { searchSessions } from "./actions";
+import { searchSessions, triggerRunJob } from "./actions";
 import clientSupabase from "@/lib/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
 interface SessionWithTickets extends Session {
   ticketCount?: number;
@@ -40,6 +41,27 @@ export function SessionList({
     SessionWithTickets[] | null
   >(null);
   const [isPending, startTransition] = useTransition();
+
+  // Trigger run job on mount
+  useQuery({
+    queryKey: ["trigger-run-job", projectSlug],
+    queryFn: async () => {
+      console.log(`🔄 [SESSION-LIST] Triggering run job for ${projectSlug}`);
+      const result = await triggerRunJob(projectSlug);
+      if (!result.success) {
+        console.error(
+          `❌ [SESSION-LIST] Failed to trigger run job:`,
+          result.error,
+        );
+      }
+      return result;
+    },
+    refetchOnMount: true,
+    refetchOnReconnect: false,
+    refetchOnWindowFocus: false,
+    refetchInterval: false,
+    refetchIntervalInBackground: false,
+  });
 
   // Setup realtime subscription for sessions
   useEffect(() => {

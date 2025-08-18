@@ -236,7 +236,7 @@ export async function saveProject(formData: FormData) {
 
   if (!projectId)
     await log({
-      text: `🚀 New project created: ${project.name} (${project.slug})`,
+      text: `🚀 New project created: ${project.name}`,
       url: project.domain,
     });
 

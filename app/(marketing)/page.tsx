@@ -15,6 +15,12 @@ import Linear from "@/components/linear";
 import LogInButton, { LoadingLogInButton } from "@/app/auth/log-in-button";
 import serverSupabase from "@/lib/supabase/server";
 import { Suspense } from "react";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "VES AI • AI Session Analysis for Product Teams",
+  description: "Use AI to watch every session replay and get actionable product improvements. Connect PostHog, find bugs, flag UX issues, and prepare rich tickets for Linear.",
+};
 
 export default async function LandingPage() {
   return (

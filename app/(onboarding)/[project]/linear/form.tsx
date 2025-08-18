@@ -98,6 +98,7 @@ export function LinearForm({
           </div>
           {!isConnected ? (
             <button
+              type="button"
               onClick={() => initiateLinearOAuth(project.slug)}
               className="border-border bg-background hover:bg-surface flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
             >

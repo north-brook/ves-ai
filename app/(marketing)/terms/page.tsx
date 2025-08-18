@@ -1,3 +1,10 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Terms of Use • VES AI",
+  description: "Terms of Use for VES AI's AI-powered session analysis service.",
+};
+
 export default function TermsPage() {
   return (
     <div className="mx-auto max-w-4xl px-6 py-16">

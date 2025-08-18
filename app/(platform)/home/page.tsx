@@ -1,5 +1,11 @@
 import { Suspense } from "react";
 import { ProjectGrid, ProjectGridSkeleton } from "./project-grid";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Projects • VES AI",
+  description: "View and manage your VES AI projects.",
+};
 
 export default function HomePage() {
   return (

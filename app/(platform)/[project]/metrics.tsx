@@ -79,7 +79,7 @@ export async function Metrics({ projectSlug }: { projectSlug: string }) {
       />
 
       <MetricCard
-        title="Tickets Created"
+        title="Linked Tickets"
         value={ticketsCount.toString()}
         icon={<Ticket className="h-5 w-5" />}
       />

@@ -1,6 +1,12 @@
 import LogInButton, { LoadingLogInButton } from "@/app/auth/log-in-button";
 import serverSupabase from "@/lib/supabase/server";
 import { Suspense } from "react";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Login • VES AI",
+  description: "Log in to VES AI to access your AI-powered session analysis dashboard.",
+};
 
 export default async function LogInPage() {
   return (

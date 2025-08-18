@@ -221,7 +221,6 @@ export async function GET(request: NextRequest) {
 
     // Beautiful completion log
     const duration = ((Date.now() - jobStartTime) / 1000).toFixed(2);
-    console.log(`\n${"=".repeat(60)}`);
     console.log(`✨ CRON JOB COMPLETED SUCCESSFULLY ✨`);
     console.log(`${"=".repeat(60)}`);
     console.log(`📅 Timestamp: ${new Date().toISOString()}`);
@@ -246,14 +245,12 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(`\n💚 Health Status: All systems operational`);
-    console.log(`${"=".repeat(60)}\n`);
     return NextResponse.json(summary);
   } catch (error: unknown) {
     const errorMessage =
       error instanceof Error ? error.message : "Internal server error";
     const duration = ((Date.now() - jobStartTime) / 1000).toFixed(2);
 
-    console.log(`\n${"=".repeat(60)}`);
     console.log(`💥 CRON JOB FAILED 💥`);
     console.log(`${"=".repeat(60)}`);
     console.log(`📅 Timestamp: ${new Date().toISOString()}`);
@@ -273,7 +270,6 @@ export async function GET(request: NextRequest) {
         });
     }
     console.log(`\n🔴 Health Status: Service experiencing issues`);
-    console.log(`${"=".repeat(60)}\n`);
 
     Sentry.captureException(error, {
       tags: { job: "cron" },

@@ -77,7 +77,7 @@ export async function saveLinearSettings(formData: FormData) {
   }
 
   await log({
-    text: `📋 Linear settings updated for project: ${project.name}`,
+    text: `📋 Linear connected for project: ${project.name}`,
   });
 
   revalidatePath("/", "layout");

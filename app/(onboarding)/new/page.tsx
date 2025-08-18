@@ -8,6 +8,12 @@ import serverSupabase from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { titlefy } from "@/lib/slugify";
 import slugify from "@/lib/slugify";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "New Project • VES AI",
+  description: "Create a new project and configure it for AI-powered session analysis.",
+};
 
 export default function NewProjectPage() {
   return (

@@ -5,6 +5,29 @@ import serverSupabase from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Linear from "@/components/linear";
 import { LinearClient } from "@linear/sdk";
+import type { Metadata } from "next";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ project: string }>;
+}): Promise<Metadata> {
+  const { project: projectSlug } = await params;
+  const supabase = await serverSupabase();
+  
+  const { data: project } = await supabase
+    .from("projects")
+    .select("name")
+    .eq("slug", projectSlug)
+    .single();
+
+  const projectName = project?.name || "Project";
+  
+  return {
+    title: `Connect Linear • ${projectName} • VES AI`,
+    description: `Set up Linear integration for ${projectName} to automatically sync AI-generated tickets.`,
+  };
+}
 
 export default async function LinearPage({
   params,

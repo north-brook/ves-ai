@@ -22,6 +22,9 @@ RUN bun run build
 # Remove devDependencies after build to reduce image size
 RUN bun install --production
 
+# Ensure Playwright browsers are installed
+RUN bunx playwright install chromium
+
 ENV NODE_ENV=production
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 # Cloud Run will inject PORT; our server reads it

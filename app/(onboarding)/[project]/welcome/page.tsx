@@ -2,6 +2,29 @@ import { Activity, Bug, Lightbulb } from "lucide-react";
 import serverSupabase from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import DashboardButton from "./dashboard-button";
+import type { Metadata } from "next";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ project: string }>;
+}): Promise<Metadata> {
+  const { project: projectSlug } = await params;
+  const supabase = await serverSupabase();
+  
+  const { data: project } = await supabase
+    .from("projects")
+    .select("name")
+    .eq("slug", projectSlug)
+    .single();
+
+  const projectName = project?.name || "Project";
+  
+  return {
+    title: `Welcome • ${projectName} • VES AI`,
+    description: `Welcome to VES AI. ${projectName} is now configured for AI-powered session analysis.`,
+  };
+}
 
 export default async function WelcomePage({
   params,

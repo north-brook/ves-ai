@@ -1,3 +1,10 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Privacy Policy • VES AI",
+  description: "Privacy Policy for VES AI. Learn how we collect, use, and protect your information.",
+};
+
 export default function PrivacyPage() {
   return (
     <div className="mx-auto max-w-4xl px-6 py-16">

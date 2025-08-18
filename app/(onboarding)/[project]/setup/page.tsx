@@ -3,6 +3,29 @@ import { StepLayout } from "../../step-layout";
 import { ProjectSetupForm, ProjectSetupFormSkeleton } from "./form";
 import serverSupabase from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ project: string }>;
+}): Promise<Metadata> {
+  const { project: projectSlug } = await params;
+  const supabase = await serverSupabase();
+  
+  const { data: project } = await supabase
+    .from("projects")
+    .select("name")
+    .eq("slug", projectSlug)
+    .single();
+
+  const projectName = project?.name || "Project";
+  
+  return {
+    title: `Project Setup • ${projectName} • VES AI`,
+    description: `Configure ${projectName} settings for AI-powered session analysis.`,
+  };
+}
 
 export default async function ProjectSetupPage({
   params,

@@ -3,6 +3,12 @@ import { Suspense } from "react";
 import LogInButton, { LoadingLogInButton } from "@/app/auth/log-in-button";
 import serverSupabase from "@/lib/supabase/server";
 import Link from "next/link";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Pricing • VES AI",
+  description: "Simple, transparent pricing for AI-powered session analysis. No overages, no surprises. Start with 1 hour free.",
+};
 
 const plans = [
   {
