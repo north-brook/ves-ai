@@ -70,7 +70,7 @@ export function PostHogForm({ projectSlug, existingSource }: PostHogFormProps) {
           <div className="flex-1">
             <h3 className="font-medium">Create a PostHog API Key</h3>
             <p className="text-foreground-secondary text-sm">
-              Use the MCP Server scope preset
+              Give the key <b>All Access</b> scope
             </p>
           </div>
           <a
@@ -195,7 +195,7 @@ export function PostHogForm({ projectSlug, existingSource }: PostHogFormProps) {
   );
 }
 
-export function LoadingPostHogForm() {
+export function PostHogFormSkeleton() {
   return (
     <div className="space-y-6">
       <div className="bg-surface h-20 w-full animate-pulse rounded-lg" />

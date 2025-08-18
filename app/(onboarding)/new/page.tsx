@@ -1,6 +1,9 @@
 import { Suspense } from "react";
 import { StepLayout } from "../step-layout";
-import { ProjectSetupForm, LoadingProjectSetupForm } from "../[project]/setup/form";
+import {
+  ProjectSetupForm,
+  ProjectSetupFormSkeleton,
+} from "../[project]/setup/form";
 import serverSupabase from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { titlefy } from "@/lib/slugify";
@@ -12,7 +15,7 @@ export default function NewProjectPage() {
       title="Setup Your Project"
       description="Let's get your project configured for AI-powered session analysis"
     >
-      <Suspense fallback={<LoadingProjectSetupForm />}>
+      <Suspense fallback={<ProjectSetupFormSkeleton />}>
         <LoadedProjectForm />
       </Suspense>
     </StepLayout>

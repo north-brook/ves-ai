@@ -1,8 +1,8 @@
 # Use the official Playwright base to ensure browsers and deps are available
 FROM mcr.microsoft.com/playwright:v1.46.1-jammy
 
-# Install unzip (required for Bun installation)
-RUN apt-get update && apt-get install -y unzip && apt-get clean
+# Install necessary packages
+RUN apt-get update && apt-get install -y unzip && apt-get install -y ffmpeg && ffmpeg -version && ffprobe -version && apt-get clean
 
 # Install Bun
 RUN curl -fsSL https://bun.sh/install | bash

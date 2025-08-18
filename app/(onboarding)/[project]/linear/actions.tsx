@@ -131,7 +131,7 @@ export async function connectLinear(formData: FormData) {
   // Validate the Linear API key using SDK
   try {
     const linearClient = new LinearClient({ accessToken: linearToken });
-    
+
     // Verify the API key works by fetching viewer
     const viewer = await linearClient.viewer;
     if (!viewer) {
@@ -211,7 +211,7 @@ export async function connectLinear(formData: FormData) {
 export async function fetchLinearData(apiKey: string) {
   try {
     const linearClient = new LinearClient({ accessToken: apiKey });
-    
+
     // Fetch viewer info
     const viewer = await linearClient.viewer;
     if (!viewer) {
@@ -234,7 +234,7 @@ export async function fetchLinearData(apiKey: string) {
             })),
           },
         };
-      })
+      }),
     );
 
     return {

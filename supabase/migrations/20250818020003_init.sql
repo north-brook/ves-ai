@@ -73,12 +73,25 @@ CREATE TYPE "public"."destination_type" AS ENUM (
 ALTER TYPE "public"."destination_type" OWNER TO "postgres";
 
 
+CREATE TYPE "public"."project_plan" AS ENUM (
+    'trial',
+    'starter',
+    'growth',
+    'scale',
+    'enterprise'
+);
+
+
+ALTER TYPE "public"."project_plan" OWNER TO "postgres";
+
+
 CREATE TYPE "public"."session_status" AS ENUM (
-    'pulled',
-    'queued',
-    'watching',
+    'pending',
+    'processing',
+    'processed',
     'analyzing',
-    'done'
+    'analyzed',
+    'failed'
 );
 
 
@@ -91,6 +104,23 @@ CREATE TYPE "public"."source_type" AS ENUM (
 
 
 ALTER TYPE "public"."source_type" OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."match_sessions"("query_embedding" "extensions"."vector", "match_threshold" double precision, "match_count" integer) RETURNS TABLE("id" "uuid", "similarity" double precision)
+    LANGUAGE "sql" STABLE
+    AS $$
+  select
+    s.id,
+    1 - (s.embedding <=> query_embedding) as similarity  -- cosine_similarity = 1 - cosine_distance
+  from sessions s
+  where s.embedding is not null
+    and s.embedding <=> query_embedding < 1 - match_threshold
+  order by s.embedding <=> query_embedding                -- smaller distance = closer match
+  limit match_count;
+$$;
+
+
+ALTER FUNCTION "public"."match_sessions"("query_embedding" "extensions"."vector", "match_threshold" double precision, "match_count" integer) OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."project_access"("project_id" "uuid", "user_id" "uuid") RETURNS boolean
@@ -132,7 +162,9 @@ CREATE TABLE IF NOT EXISTS "public"."projects" (
     "name" "text" NOT NULL,
     "slug" "text" NOT NULL,
     "domain" "text" NOT NULL,
-    "image" "text" NOT NULL
+    "image" "text" NOT NULL,
+    "plan" "public"."project_plan" NOT NULL,
+    "subscribed_at" timestamp with time zone
 );
 
 
@@ -172,13 +204,15 @@ CREATE TABLE IF NOT EXISTS "public"."sessions" (
     "recording_id" "text" NOT NULL,
     "embed_url" "text",
     "video_url" "text",
-    "duration" numeric,
     "name" "text",
     "analysis" "text",
     "tags" "text"[],
     "analyzed_at" timestamp with time zone,
     "embedding" "extensions"."vector",
-    "session_at" timestamp with time zone
+    "session_at" timestamp with time zone,
+    "active_duration" numeric,
+    "total_duration" numeric,
+    "video_duration" numeric
 );
 
 
@@ -210,7 +244,8 @@ CREATE TABLE IF NOT EXISTS "public"."tickets" (
     "description" "text" NOT NULL,
     "labels" "text"[] NOT NULL,
     "status" "text" NOT NULL,
-    "links" "text"[] NOT NULL
+    "links" "text"[] NOT NULL,
+    "url" "text" NOT NULL
 );
 
 
@@ -405,6 +440,9 @@ GRANT USAGE ON SCHEMA "public" TO "postgres";
 GRANT USAGE ON SCHEMA "public" TO "anon";
 GRANT USAGE ON SCHEMA "public" TO "authenticated";
 GRANT USAGE ON SCHEMA "public" TO "service_role";
+
+
+
 
 
 

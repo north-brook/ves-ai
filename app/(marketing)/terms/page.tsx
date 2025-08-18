@@ -12,10 +12,10 @@ export default function TermsPage() {
             1. Acceptance of Terms
           </h2>
           <p className="text-foreground-secondary mb-4">
-            By accessing and using VES (&quot;Visual Evaluation System&quot;), a service
-            provided by Steppable Inc., you accept and agree to be bound by the
-            terms and provision of this agreement. If you do not agree to abide
-            by the above, please do not use this service.
+            By accessing and using VES (&quot;Visual Evaluation System&quot;), a
+            service provided by Steppable Inc., you accept and agree to be bound
+            by the terms and provision of this agreement. If you do not agree to
+            abide by the above, please do not use this service.
           </p>
         </section>
 
@@ -92,7 +92,7 @@ export default function TermsPage() {
             analysis limits:
           </p>
           <ul className="text-foreground-secondary ml-4 list-inside list-disc space-y-2">
-            <li>7-day free trial with no credit card required</li>
+            <li>1 hour of free analysis</li>
             <li>Monthly subscription billing</li>
             <li>No setup fees or hidden charges</li>
             <li>Cancel anytime with no penalties</li>
@@ -131,9 +131,10 @@ export default function TermsPage() {
             9. Disclaimers and Limitations
           </h2>
           <p className="text-foreground-secondary mb-4">
-            VES is provided &quot;as is&quot; and &quot;as available&quot; without any warranties of
-            any kind, either express or implied. We do not guarantee that the
-            service will be uninterrupted, secure, or error-free.
+            VES is provided &quot;as is&quot; and &quot;as available&quot;
+            without any warranties of any kind, either express or implied. We do
+            not guarantee that the service will be uninterrupted, secure, or
+            error-free.
           </p>
           <p className="text-foreground-secondary mb-4">
             In no event shall Steppable Inc. be liable for any indirect,

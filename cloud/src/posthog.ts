@@ -51,18 +51,31 @@ export async function getRecordingMeta(
   sourceProject: string,
   recordingId: string,
 ): Promise<RecordingMeta> {
+  console.log("📊 [POSTHOG] Fetching recording metadata...");
   const host = sourceHost.replace(/\/+$/, '');
   const url = `${host}/api/projects/${sourceProject}/session_recordings/${recordingId}/`;
+  console.log(`  🔗 API URL: ${url}`);
+  
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${sourceKey}` },
   });
+  
   if (!res.ok) {
     const text = await res.text();
+    console.error(`  ❌ [ERROR] PostHog API failed: ${res.status}`);
+    console.error(`  📝 Response: ${text}`);
     throw new Error(`PostHog meta GET failed: ${res.status} ${text}`);
   }
+  
   const json = await res.json();
-  return {
+  const meta = {
     recording_duration: json.recording_duration ?? undefined,
     active_seconds: json.active_seconds ?? undefined,
   };
+  
+  console.log(`  ✅ Metadata retrieved:`);
+  console.log(`    🎦 Total duration: ${meta.recording_duration ?? 'unknown'}s`);
+  console.log(`    ⏱️ Active duration: ${meta.active_seconds ?? 'unknown'}s`);
+  
+  return meta;
 }
