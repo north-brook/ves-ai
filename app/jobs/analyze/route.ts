@@ -9,6 +9,13 @@ import {
   getRemainingWorkerCapacity,
   hasRemainingAllowance,
 } from "@/lib/limits";
+import {
+  createPartFromUri,
+  createUserContent,
+  GoogleGenAI,
+  Type,
+} from "@google/genai";
+import nextJobs from "../run/next-job";
 
 type AnalyzeRequest = {
   session_id: string;
@@ -102,62 +109,100 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      // TODO: Implement AI analysis of the video recording
-      console.log(`🤖 [ANALYZE] TODO: Implement AI video analysis`);
+      const ai = new GoogleGenAI({});
+
+      console.log(`🤖 [ANALYZE] AI video analysis`);
       console.log(`   Video to analyze: ${session.video_url}`);
       console.log(`   Embed URL: ${session.embed_url}`);
 
-      // Placeholder for AI analysis
-      // This is where you would:
-      // 1. Download or stream the video
-      // 2. Send it to an AI service (OpenAI, Claude, etc.)
-      // 3. Get insights about the session
-      // 4. Generate a summary and tags
+      const videoFile = await ai.files.upload({
+        file: session.video_url,
+        config: { mimeType: "video/webm" },
+      });
 
-      const placeholderAnalysis = {
-        summary: "AI analysis not yet implemented",
-        insights: [],
-        tags: ["pending-analysis"],
-        analyzed_at: new Date().toISOString(),
-      };
+      if (!videoFile.uri || !videoFile.mimeType) {
+        console.error(`❌ [ANALYZE] Failed to upload video file`);
+        return NextResponse.json(
+          { error: "Failed to upload video file" },
+          { status: 500 },
+        );
+      }
 
-      // For now, we'll just mark it as analyzed with placeholder data
-      console.log(`⏸️ [ANALYZE] Skipping actual AI analysis (not implemented)`);
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-pro",
+        contents: createUserContent([
+          createPartFromUri(videoFile.uri, videoFile.mimeType),
+          "",
+        ]),
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              type: Type.OBJECT,
+              properties: {
+                analysis: {
+                  type: Type.STRING,
+                  description: "",
+                },
+                tldr: {
+                  type: Type.STRING,
+                  description: "A TL;DR of the analysis",
+                },
+                tags: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.STRING,
+                    description: "A tag for the session",
+                  },
+                },
+                name: {
+                  type: Type.STRING,
+                  description: "A name for the session",
+                },
+              },
+              required: ["analysis", "tldr", "tags", "name"],
+              propertyOrdering: ["analysis", "tldr", "tags", "name"],
+            },
+          },
+        },
+      });
+
+      if (!response?.text) {
+        console.error(`❌ [ANALYZE] Failed to get response from AI`);
+        return NextResponse.json(
+          { error: "Failed to get response from AI" },
+          { status: 500 },
+        );
+      }
+
+      let analysis: string;
+      let tldr: string;
+      let tags: string[];
+      let name: string;
+
+      try {
+        const json = JSON.parse(response.text);
+        analysis = json.analysis;
+        tldr = json.tldr;
+        tags = json.tags;
+        name = json.name;
+      } catch (error) {
+        console.error(`❌ [ANALYZE] Failed to parse JSON:`, error);
+        return NextResponse.json(
+          { error: "Failed to parse JSON" },
+          { status: 500 },
+        );
+      }
 
       // Update session with analysis results
       const analysisUpdate: Database["public"]["Tables"]["sessions"]["Update"] =
         {
-          name: "Analyzed Session",
+          name: name,
           status: "analyzed",
-          analysis: `# Session Analysis Report
-
-## Executive Summary
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.
-
-## Key Findings
-- **User Engagement**: Excepteur sint occaecat cupidatat non proident
-- **Navigation Patterns**: Sunt in culpa qui officia deserunt mollit anim
-- **Performance Issues**: Duis aute irure dolor in reprehenderit in voluptate
-
-## Detailed Analysis
-
-### User Behavior
-Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo.
-
-### Technical Observations
-- Lorem ipsum dolor sit amet consectetur
-- Adipiscing elit sed do eiusmod tempor
-- Incididunt ut labore et dolore magna aliqua
-
-### Recommendations
-1. **Immediate Actions**: Ut enim ad minim veniam quis nostrud
-2. **Short-term Improvements**: Exercitation ullamco laboris nisi ut aliquip
-3. **Long-term Strategy**: Ex ea commodo consequat duis aute irure
-
-## Conclusion
-Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.`,
-          analyzed_at: placeholderAnalysis.analyzed_at,
-          tags: placeholderAnalysis.tags,
+          analysis: analysis,
+          analyzed_at: new Date().toISOString(),
+          tags: tags,
         };
 
       const { error: analysisError } = await supabase
@@ -174,114 +219,22 @@ Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed 
         `✨ [ANALYZE] Successfully marked session ${session_id} as analyzed`,
       );
       console.log(`   Status: analyzing → analyzed`);
-      console.log(`   Analysis: ${placeholderAnalysis.summary}`);
-      console.log(`   Tags: ${placeholderAnalysis.tags.join(", ")}`);
+      console.log(`   TLDR: ${tldr}`);
+      console.log(`   Tags: ${tags.join(", ")}`);
 
       // Trigger processing for next pending session in the project
       console.log(`🔍 [ANALYZE] Checking for next pending session to process`);
 
-      const plan = session.project.plan;
-
-      // Check worker limits (now we have one less active worker since we just finished)
-      const { data: activeWorkers } = await supabase
-        .from("sessions")
-        .select("id")
-        .eq("project_id", session.project.id)
-        .in("status", ["processing", "analyzing"]);
-
-      const activeWorkerCount = activeWorkers?.length || 0;
-      const workerLimit = getWorkerLimit(plan);
-      const availableWorkers = getRemainingWorkerCapacity(
-        plan,
-        activeWorkerCount,
-      );
-
-      console.log(
-        `👷 [ANALYZE] Project ${session.project.id} (${plan}): ${activeWorkerCount}/${workerLimit} workers active`,
-      );
-
-      if (availableWorkers > 0) {
-        // Check usage limits
-        const billingPeriod = getBillingPeriod(session.project);
-        const { data: periodSessions } = await supabase
-          .from("sessions")
-          .select("video_duration")
-          .eq("project_id", session.project.id)
-          .eq("status", "analyzed")
-          .gte("analyzed_at", billingPeriod.start.toISOString())
-          .lte("analyzed_at", billingPeriod.end.toISOString());
-
-        const currentUsage = calculateTotalUsage(periodSessions || []);
-
-        if (hasRemainingAllowance(plan, currentUsage)) {
-          // Find next pending session
-          const { data: nextSession } = await supabase
-            .from("sessions")
-            .select("id")
-            .eq("project_id", session.project.id)
-            .eq("status", "pending")
-            .order("created_at", { ascending: true })
-            .limit(1)
-            .single();
-
-          if (nextSession) {
-            // Trigger processing for next session
-            try {
-              console.log(
-                `🎯 [ANALYZE] Triggering processing for next session ${nextSession.id}`,
-              );
-              const response = await fetch(
-                `${process.env.NEXT_PUBLIC_URL}/jobs/process`,
-                {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${process.env.CRON_SECRET}`,
-                  },
-                  body: JSON.stringify({ session_id: nextSession.id }),
-                },
-              );
-
-              if (response.ok) {
-                console.log(
-                  `✅ [ANALYZE] Successfully triggered processing for session ${nextSession.id}`,
-                );
-              } else {
-                console.error(
-                  `⚠️ [ANALYZE] Process trigger returned ${response.status} for session ${nextSession.id}`,
-                );
-              }
-            } catch (error) {
-              console.error(
-                `❌ [ANALYZE] Error triggering process for session ${nextSession.id}:`,
-                error,
-              );
-              Sentry.captureException(error, {
-                tags: { job: "analyze", step: "trigger_next_process" },
-                extra: { sessionId: nextSession.id },
-              });
-            }
-          } else {
-            console.log(
-              `💭 [ANALYZE] No pending sessions found for project ${session.project.id}`,
-            );
-          }
-        } else {
-          console.log(
-            `⚠️ [ANALYZE] Project ${session.project.id} has reached usage limits`,
-          );
-        }
-      } else {
-        console.log(
-          `⚠️ [ANALYZE] Project ${session.project.id} has no available workers`,
-        );
-      }
+      await nextJobs(session.project.id, 1);
 
       return NextResponse.json({
         success: true,
         session_id,
-        message: "Analysis completed (placeholder)",
-        analysis: placeholderAnalysis,
+        message: "Analysis completed",
+        analysis: analysis,
+        tldr: tldr,
+        tags: tags,
+        name: name,
       });
     } catch (analysisError) {
       console.error(`❌ [ANALYZE] Analysis failed:`, analysisError);
