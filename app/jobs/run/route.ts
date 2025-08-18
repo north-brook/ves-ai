@@ -644,12 +644,12 @@ async function processPendingSessionsForProject(
   return processedCount;
 }
 
-export type RecordingMeta = {
+type RecordingMeta = {
   recording_duration?: number;
   active_seconds?: number;
 };
 
-export async function enableSharingAndGetEmbedUrl(
+async function enableSharingAndGetEmbedUrl(
   sourceHost: string,
   sourceKey: string,
   sourceProject: string,
@@ -690,26 +690,4 @@ export async function enableSharingAndGetEmbedUrl(
   if (!token)
     throw new Error("PostHog sharing: access token missing in response");
   return `${host}/embedded/${token}`;
-}
-
-export async function getRecordingMeta(
-  sourceHost: string,
-  sourceKey: string,
-  sourceProject: string,
-  recordingId: string,
-): Promise<RecordingMeta> {
-  const host = sourceHost.replace(/\/+$/, "");
-  const url = `${host}/api/projects/${sourceProject}/session_recordings/${recordingId}/`;
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${sourceKey}` },
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`PostHog meta GET failed: ${res.status} ${text}`);
-  }
-  const json = await res.json();
-  return {
-    recording_duration: json.recording_duration ?? undefined,
-    active_seconds: json.active_seconds ?? undefined,
-  };
 }

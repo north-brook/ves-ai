@@ -130,10 +130,10 @@ export async function POST(request: NextRequest) {
         },
         body: JSON.stringify(cloudRequest),
       });
-    } catch (fetchError: any) {
+    } catch (fetchError) {
       console.error(
         `❌ [PROCESS] Failed to connect to cloud service:`,
-        fetchError.message || fetchError,
+        fetchError instanceof Error ? fetchError.message : fetchError,
       );
 
       // Update session status back to failed
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
         .eq("id", session_id);
 
       throw new Error(
-        `Failed to connect to cloud service: ${fetchError.message || "Connection refused"}`,
+        `Failed to connect to cloud service: ${fetchError instanceof Error ? fetchError.message : fetchError}`,
       );
     }
 
