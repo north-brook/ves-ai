@@ -13,11 +13,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Destination } from "@/types";
+import { Destination, Project } from "@/types";
 
 interface LinearFormProps {
-  projectSlug: string;
-  existingDestination?: Destination | null;
+  project: Project;
+  destination?: Destination | null;
   linearData?: {
     organization: {
       id: string;
@@ -34,8 +34,8 @@ interface LinearFormProps {
 }
 
 export function LinearForm({
-  projectSlug,
-  existingDestination,
+  project,
+  destination,
   linearData,
 }: LinearFormProps) {
   const searchParams = useSearchParams();
@@ -43,7 +43,7 @@ export function LinearForm({
   const success = searchParams.get("success");
 
   const [selectedTeam, setSelectedTeam] = useState(
-    existingDestination?.destination_team || "",
+    destination?.destination_team || "",
   );
 
   const isConnected = !!linearData?.organization;
@@ -52,20 +52,20 @@ export function LinearForm({
 
   // Auto-select first team when data loads
   useEffect(() => {
-    if (
-      teams.length > 0 &&
-      !selectedTeam &&
-      !existingDestination?.destination_team
-    ) {
+    if (teams.length > 0 && !selectedTeam && !destination?.destination_team) {
       setSelectedTeam(teams[0].id);
     }
-  }, [teams, selectedTeam, existingDestination?.destination_team]);
+  }, [teams, selectedTeam, destination?.destination_team]);
 
   const saveMutation = useMutation({
     mutationFn: saveLinearSettings,
     onSettled: (data) => {
       if (data?.error) toast.error(data.error);
     },
+  });
+
+  const connectMutation = useMutation({
+    mutationFn: initiateLinearOAuth,
   });
 
   useEffect(() => {
@@ -79,7 +79,7 @@ export function LinearForm({
 
   return (
     <form action={saveMutation.mutate} className="space-y-6">
-      <input type="hidden" name="projectSlug" value={projectSlug} />
+      <input type="hidden" name="projectSlug" value={project.slug} />
       <input
         type="hidden"
         name="linearWorkspace"
@@ -98,15 +98,19 @@ export function LinearForm({
           </div>
           {!isConnected ? (
             <button
-              onClick={() => initiateLinearOAuth(projectSlug)}
+              onClick={() => initiateLinearOAuth(project.slug)}
               className="border-border bg-background hover:bg-surface flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
             >
               Connect Linear
-              <ExternalLink className="h-4 w-4" />
+              {connectMutation.isIdle ? (
+                <ExternalLink className="h-4 w-4" />
+              ) : (
+                <LoaderCircle className="text-foreground h-4 w-4 animate-spin" />
+              )}
             </button>
           ) : (
             <button
-              onClick={() => initiateLinearOAuth(projectSlug)}
+              onClick={() => initiateLinearOAuth(project.slug)}
               type="submit"
               className="border-border bg-background hover:bg-surface rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
             >

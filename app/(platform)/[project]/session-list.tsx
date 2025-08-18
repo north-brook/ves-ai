@@ -306,7 +306,7 @@ export function SessionList({
               placeholder="Search sessions..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="border-border bg-background focus:ring-accent-purple w-full rounded-lg border py-3 pr-4 pl-10 text-sm focus:ring-2 focus:outline-none"
+              className="border-border bg-background focus:ring-accent-purple w-full rounded-lg border py-3 pr-4 pl-10 text-sm focus:ring focus:outline-none"
               disabled={isPending}
             />
             {isPending && (
@@ -397,8 +397,8 @@ export function SessionList({
                     </div>
                   </div>
                 </div>
-                <SessionStatusBadge 
-                  status={session.status} 
+                <SessionStatusBadge
+                  status={session.status}
                   size="md"
                   createdAt={session.created_at}
                   activeDuration={session.active_duration}

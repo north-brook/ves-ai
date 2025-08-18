@@ -100,7 +100,7 @@ port = 54324
 [storage]
 enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").
-file_size_limit = "50GB"
+file_size_limit = "20MB"
 
 # Image transformation API is available to Supabase Pro plan.
 # [storage.image_transformation]
@@ -337,4 +337,4 @@ s3_access_key = "env(S3_ACCESS_KEY)"
 s3_secret_key = "env(S3_SECRET_KEY)"
 
 [remotes.staging]
-project_id = "ytvixxsusuvkivnoutys"
+project_id = "icesaadvqvqqrzopfjpp"

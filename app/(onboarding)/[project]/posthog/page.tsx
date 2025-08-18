@@ -63,14 +63,12 @@ async function LoadedPostHogForm({ projectSlug }: { projectSlug: string }) {
   }
 
   // Check if PostHog is already connected
-  const { data: existingSource } = await supabase
+  const { data: source } = await supabase
     .from("sources")
     .select("*")
     .eq("project_id", project.id)
     .eq("type", "posthog")
     .single();
 
-  return (
-    <PostHogForm projectSlug={projectSlug} existingSource={existingSource} />
-  );
+  return <PostHogForm project={project} source={source} />;
 }

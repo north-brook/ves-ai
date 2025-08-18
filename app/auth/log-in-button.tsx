@@ -52,7 +52,7 @@ export default function LogInButton({
           <div className="bg-background group-hover:bg-background/90 flex items-center gap-2 rounded-[6px] px-8 py-4 transition-all">
             <Google size={20} />
             <span className="text-foreground font-semibold">
-              Sign in with Google
+              Continue with Google
             </span>
             {googleAuthMutation.isIdle ? (
               <ArrowRight
@@ -101,7 +101,7 @@ export default function LogInButton({
           ) : (
             <LoaderCircle size={18} className="text-foreground animate-spin" />
           )}
-          Sign in with Google
+          Continue with Google
         </button>
       </form>
     );

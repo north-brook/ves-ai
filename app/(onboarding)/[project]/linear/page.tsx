@@ -64,7 +64,7 @@ async function LoadedLinearForm({ projectSlug }: { projectSlug: string }) {
   }
 
   // Check if Linear is already connected
-  const { data: existingDestination } = await supabase
+  const { data: destination } = await supabase
     .from("destinations")
     .select("*")
     .eq("project_id", project.id)
@@ -74,10 +74,10 @@ async function LoadedLinearForm({ projectSlug }: { projectSlug: string }) {
   let linearData = null;
 
   // If we have a token, fetch Linear data using SDK
-  if (existingDestination?.destination_token) {
+  if (destination?.destination_token) {
     try {
       const linearClient = new LinearClient({
-        accessToken: existingDestination.destination_token,
+        accessToken: destination.destination_token,
       });
 
       const organization = await linearClient.organization;
@@ -105,8 +105,8 @@ async function LoadedLinearForm({ projectSlug }: { projectSlug: string }) {
 
   return (
     <LinearForm
-      projectSlug={projectSlug}
-      existingDestination={existingDestination}
+      project={project}
+      destination={destination}
       linearData={linearData}
     />
   );
