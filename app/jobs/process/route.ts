@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
 import adminSupabase from "@/lib/supabase/admin";
 import * as Sentry from "@sentry/nextjs";
 import type { RenderRequest } from "@/cloud/src/types";
@@ -22,10 +21,7 @@ export async function POST(request: NextRequest) {
 
     if (!session_id) {
       console.error("❌ [PROCESS] Missing session_id");
-      return NextResponse.json(
-        { error: "Missing session_id" },
-        { status: 400 },
-      );
+      throw new Error("Missing session_id");
     }
 
     console.log(`🎬 [PROCESS] Starting processing for session ${session_id}`);
@@ -35,7 +31,7 @@ export async function POST(request: NextRequest) {
     const { data: session, error: sessionError } = await supabase
       .from("sessions")
       .select(
-        "id,recording_id,status,embed_url,project_id,source_id,source:sources(id,source_host,source_key,source_project,type),project:projects(slug)",
+        "id,recording_id,status,embed_url,active_duration,project_id,source_id,source:sources(id,source_host,source_key,source_project,type),project:projects(slug)",
       )
       .eq("id", session_id)
       .single();
@@ -59,23 +55,20 @@ export async function POST(request: NextRequest) {
       console.warn(
         `⚠️ [PROCESS] Session ${session_id} is not pending (status: ${session.status})`,
       );
-      return NextResponse.json(
-        {
-          error: `Session is not pending (status: ${session.status})`,
-        },
-        { status: 400 },
-      );
+      throw new Error(`Session is not pending (status: ${session.status})`);
     }
 
     // Check if embed_url exists
     if (!session.embed_url) {
       console.error(`❌ [PROCESS] Session ${session_id} missing embed_url`);
-      return NextResponse.json(
-        {
-          error: `Session missing embed_url`,
-        },
-        { status: 400 },
+      throw new Error("Session missing embed_url");
+    }
+
+    if (!session.active_duration) {
+      console.error(
+        `❌ [PROCESS] Session ${session_id} missing active_duration`,
       );
+      throw new Error("Session missing active_duration");
     }
 
     // Update session status to processing
@@ -84,7 +77,7 @@ export async function POST(request: NextRequest) {
     );
     const { error: updateError } = await supabase
       .from("sessions")
-      .update({ status: "processing" })
+      .update({ status: "processing", processed_at: new Date().toISOString() })
       .eq("id", session_id);
 
     if (updateError) {
@@ -97,27 +90,24 @@ export async function POST(request: NextRequest) {
 
     // Prepare cloud service request
     const cloudRequest: RenderRequest = {
+      project_id: session.project_id,
+      session_id: session.id,
       source_type: "posthog",
       source_host: session.source.source_host!,
       source_key: session.source.source_key!,
       source_project: session.source.source_project!,
       recording_id: session.recording_id,
       embed_url: session.embed_url, // Pass the embed URL from the session
-      supabase_url: process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      supabase_storage_url: process.env.NEXT_PUBLIC_SUPABASE_URL!.replaceAll(
-        "supabase.co",
-        "storage.supabase.co",
-      ),
-      supabase_service_role_key: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      supabase_bucket: "sessions",
-      supabase_file_path: `${session.project_id}/${session.id}.webm`,
+      active_duration: session.active_duration,
       callback: `${process.env.NEXT_PUBLIC_URL}/jobs/process/callback`,
     };
 
     console.log(`☁️ [PROCESS] Sending request to cloud service`);
     console.log(`   Cloud URL: ${process.env.CLOUD_URL}/render`);
     console.log(`   Recording: ${cloudRequest.recording_id}`);
-    console.log(`   File path: ${cloudRequest.supabase_file_path}`);
+    console.log(
+      `   File path: ${cloudRequest.project_id}/${cloudRequest.session_id}.webm`,
+    );
 
     // Call cloud rendering service and verify it accepts the job
     console.log(`🚀 [PROCESS] Triggering cloud service`);

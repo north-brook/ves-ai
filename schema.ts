@@ -178,12 +178,14 @@ export type Database = {
           embedding: string | null
           id: string
           name: string | null
+          processed_at: string | null
           project_id: string
           recording_id: string
           session_at: string | null
           source_id: string
           status: Database["public"]["Enums"]["session_status"]
           tags: string[] | null
+          tldr: string | null
           total_duration: number | null
           video_duration: number | null
           video_url: string | null
@@ -197,12 +199,14 @@ export type Database = {
           embedding?: string | null
           id?: string
           name?: string | null
+          processed_at?: string | null
           project_id: string
           recording_id: string
           session_at?: string | null
           source_id: string
           status: Database["public"]["Enums"]["session_status"]
           tags?: string[] | null
+          tldr?: string | null
           total_duration?: number | null
           video_duration?: number | null
           video_url?: string | null
@@ -216,12 +220,14 @@ export type Database = {
           embedding?: string | null
           id?: string
           name?: string | null
+          processed_at?: string | null
           project_id?: string
           recording_id?: string
           session_at?: string | null
           source_id?: string
           status?: Database["public"]["Enums"]["session_status"]
           tags?: string[] | null
+          tldr?: string | null
           total_duration?: number | null
           video_duration?: number | null
           video_url?: string | null

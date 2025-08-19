@@ -1,6 +1,6 @@
 "use client";
 
-import { SessionStatus } from "@/types";
+import { Session } from "@/types";
 import {
   Loader2,
   CheckCircle,
@@ -14,40 +14,40 @@ import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 
 interface SessionStatusProps {
-  status: SessionStatus;
+  session: Session;
   size?: "sm" | "md" | "lg";
   showLabel?: boolean;
-  createdAt?: string;
-  activeDuration?: number | null;
   showProgress?: boolean;
 }
 
 export function SessionStatusBadge({
-  status,
+  session,
   size = "md",
   showLabel = true,
-  createdAt,
-  activeDuration,
-  showProgress = false,
 }: SessionStatusProps) {
   const [progress, setProgress] = useState(0);
 
+  const showProgress =
+    session.status === "processing" || session.status === "analyzing";
+
   useEffect(() => {
-    if (!showProgress || !createdAt || (status !== "processing" && status !== "analyzing")) {
+    if (!showProgress) {
       setProgress(0);
       return;
     }
 
     const calculateProgress = () => {
-      const startTime = new Date(createdAt).getTime();
+      const startTime = new Date(
+        session.analyzed_at || session.processed_at || session.created_at,
+      ).getTime();
       const now = Date.now();
       const elapsed = (now - startTime) / 1000; // Convert to seconds
-      
-      if (status === "processing") {
-        // Processing should take ~active_duration seconds
-        const estimatedDuration = activeDuration || 60;
+
+      if (session.status === "processing") {
+        // Processing should take ~active_duration + 30 seconds
+        const estimatedDuration = (session.active_duration || 60) + 30;
         return Math.min((elapsed / estimatedDuration) * 90, 90); // Max 90%
-      } else if (status === "analyzing") {
+      } else if (session.status === "analyzing") {
         // Analyzing should take ~5 minutes
         const estimatedDuration = 300; // 5 minutes
         return Math.min((elapsed / estimatedDuration) * 90, 90); // Max 90%
@@ -64,9 +64,14 @@ export function SessionStatusBadge({
     }, 100);
 
     return () => clearInterval(interval);
-  }, [status, createdAt, activeDuration, showProgress]);
+  }, [
+    session.status,
+    session.created_at,
+    session.active_duration,
+    showProgress,
+  ]);
   const getStatusConfig = () => {
-    switch (status) {
+    switch (session.status) {
       case "pending":
         return {
           icon: Clock,
@@ -142,10 +147,12 @@ export function SessionStatusBadge({
 
   const sizes = sizeClasses[size];
 
-  const showProgressBar = showProgress && (status === "processing" || status === "analyzing");
-  
+  const showProgressBar =
+    showProgress &&
+    (session.status === "processing" || session.status === "analyzing");
+
   const getProgressColor = () => {
-    switch (status) {
+    switch (session.status) {
       case "processing":
         return "bg-blue-500";
       case "analyzing":
@@ -158,17 +165,17 @@ export function SessionStatusBadge({
   return (
     <span
       className={cn(
-        "relative inline-flex items-center rounded-full border font-medium transition-all overflow-hidden",
+        "relative inline-flex items-center overflow-hidden rounded-full border font-medium transition-all",
         config.color,
         sizes.container,
         sizes.gap,
       )}
     >
       {showProgressBar && (
-        <div 
+        <div
           className={cn(
             "absolute inset-0 opacity-20 transition-all duration-300",
-            getProgressColor()
+            getProgressColor(),
           )}
           style={{ width: `${progress}%` }}
         />

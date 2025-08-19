@@ -8,10 +8,12 @@
     "start": "bun run dist/index.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.864.0",
+    "@aws-sdk/lib-storage": "^3.864.0",
+    "@google-cloud/storage": "^7.17.0",
     "@supabase/supabase-js": "^2.47.10",
     "express": "^4.19.2",
-    "playwright": "^1.46.0",
-    "tus-js-client": "^4.3.1"
+    "playwright": "^1.46.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.3",

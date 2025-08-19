@@ -1,74 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { ArrowLeft, Calendar, Clock, Tag, Activity } from "lucide-react";
 import Link from "next/link";
 import { formatDistanceToNow, format } from "date-fns";
 import { SessionStatusBadge } from "@/components/session-status";
-import { Session } from "@/types";
-import clientSupabase from "@/lib/supabase/client";
+import { Project, Session } from "@/types";
 
 interface SessionHeaderClientProps {
-  initialSession: Session;
-  projectSlug: string;
+  session: Session;
+  project: Project;
 }
 
 export function SessionHeaderClient({
-  initialSession,
-  projectSlug,
+  session,
+  project,
 }: SessionHeaderClientProps) {
-  const [session, setSession] = useState<Session>(initialSession);
-
-  useEffect(() => {
-    console.log("🔌 Setting up realtime subscription for session:", session.id);
-    const supabase = clientSupabase();
-
-    // Test the connection
-    console.log("🔍 Supabase client status:", {
-      url: process.env.NEXT_PUBLIC_SUPABASE_URL,
-      hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      sessionId: session.id,
-    });
-
-    // Subscribe to changes for this specific session
-    const channel = supabase
-      .channel(`session-${session.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "sessions",
-          filter: `id=eq.${session.id}`,
-        },
-        (payload) => {
-          console.log("✏️ Session header update received:", payload.new);
-          setSession(payload.new as Session);
-        },
-      )
-      .subscribe((status, error) => {
-        console.log(
-          "📻 Session header subscription status:",
-          status,
-          "Error:",
-          error,
-        );
-        if (status === "SUBSCRIBED") {
-          console.log("✅ Successfully subscribed to session header updates");
-          console.log("📋 Channel details:", {
-            channel: channel.topic,
-            state: channel.state,
-            params: channel.params,
-          });
-        }
-      });
-
-    return () => {
-      console.log("🔌 Cleaning up session header subscription");
-      supabase.removeChannel(channel);
-    };
-  }, [session.id]);
-
   const formatDuration = (seconds: number | null) => {
     if (!seconds) return "N/A";
     const hours = Math.floor(seconds / 3600);
@@ -87,7 +33,7 @@ export function SessionHeaderClient({
   return (
     <div className="border-border mb-8 border-b pb-6">
       <Link
-        href={`/${projectSlug}`}
+        href={`/${project.slug}`}
         className="text-foreground-secondary hover:text-foreground mb-4 inline-flex items-center gap-2 text-sm transition-colors"
       >
         <ArrowLeft className="h-4 w-4" />
@@ -151,7 +97,7 @@ export function SessionHeaderClient({
             </div>
           )}
         </div>
-        <SessionStatusBadge status={session.status} size="lg" />
+        <SessionStatusBadge session={session} size="lg" />
       </div>
     </div>
   );

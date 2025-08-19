@@ -27,8 +27,8 @@ export async function POST(request: NextRequest) {
       console.log(
         `✅ [CALLBACK] Processing succeeded for recording ${successData.recording_id}`,
       );
-      console.log(`   Video URL: ${successData.public_url}`);
-      console.log(`   Duration: ${successData.duration_seconds}s`);
+      console.log(`   Video URL: ${successData.url}`);
+      console.log(`   Duration: ${successData.video_duration}s`);
 
       // Find session by recording_id
       const { data: session, error: findError } = await supabase
@@ -68,8 +68,8 @@ export async function POST(request: NextRequest) {
       // Update session with video data (embed_url already saved during pull)
       const updateData: Database["public"]["Tables"]["sessions"]["Update"] = {
         status: "processed",
-        video_url: successData.public_url,
-        video_duration: successData.duration_seconds,
+        video_url: successData.url,
+        video_duration: successData.video_duration,
       };
 
       const { error: updateError } = await supabase
@@ -84,8 +84,8 @@ export async function POST(request: NextRequest) {
 
       console.log(`✨ [CALLBACK] Successfully updated session ${session.id}`);
       console.log(`   Status: processing → processed`);
-      console.log(`   Video: ${successData.public_url}`);
-      console.log(`   Duration: ${successData.duration_seconds}s`);
+      console.log(`   Video: ${successData.url}`);
+      console.log(`   Duration: ${successData.video_duration}s`);
 
       // Trigger analysis for this session
       console.log(
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
           .lte("analyzed_at", billingPeriod.end.toISOString());
 
         const currentUsage = calculateTotalUsage(periodSessions || []);
-        const sessionDuration = successData.duration_seconds || 0;
+        const sessionDuration = successData.video_duration || 0;
 
         console.log(
           `⏱️ [CALLBACK] Project ${session.project_id}: Used ${formatSecondsToHours(currentUsage)}, Session duration: ${sessionDuration}s`,

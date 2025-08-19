@@ -1,14 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import adminSupabase from "@/lib/supabase/admin";
 import * as Sentry from "@sentry/nextjs";
-import { Database } from "@/types";
-import {
-  getWorkerLimit,
-  getBillingPeriod,
-  calculateTotalUsage,
-  getRemainingWorkerCapacity,
-  hasRemainingAllowance,
-} from "@/lib/limits";
 import {
   createPartFromUri,
   createUserContent,
@@ -69,7 +61,7 @@ export async function POST(request: NextRequest) {
     console.log(`   Duration: ${session.video_duration}s`);
 
     // Check if session is in processed state
-    if (session.status !== "processed") {
+    if (session.status === "pending" || session.status === "processing") {
       console.warn(
         `⚠️ [ANALYZE] Session ${session_id} is not processed (status: ${session.status})`,
       );
@@ -97,7 +89,7 @@ export async function POST(request: NextRequest) {
     );
     const { error: updateError } = await supabase
       .from("sessions")
-      .update({ status: "analyzing" })
+      .update({ status: "analyzing", analyzed_at: new Date().toISOString() })
       .eq("id", session_id);
 
     if (updateError) {
@@ -109,61 +101,53 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      const ai = new GoogleGenAI({});
+      const ai = new GoogleGenAI({
+        vertexai: true,
+        project: "ves-ai",
+        location: "us-central1",
+      });
 
       console.log(`🤖 [ANALYZE] AI video analysis`);
       console.log(`   Video to analyze: ${session.video_url}`);
       console.log(`   Embed URL: ${session.embed_url}`);
 
-      const videoFile = await ai.files.upload({
-        file: session.video_url,
-        config: { mimeType: "video/webm" },
-      });
-
-      if (!videoFile.uri || !videoFile.mimeType) {
-        console.error(`❌ [ANALYZE] Failed to upload video file`);
-        return NextResponse.json(
-          { error: "Failed to upload video file" },
-          { status: 500 },
-        );
-      }
-
       const response = await ai.models.generateContent({
         model: "gemini-2.5-pro",
         contents: createUserContent([
-          createPartFromUri(videoFile.uri, videoFile.mimeType),
-          "",
+          createPartFromUri(session.video_url, "video/webm"),
+          "You are analyzing a user session recording from a web application. Your goal is to identify bugs, UX friction points, user behavior patterns, and opportunities for product improvement. Watch the entire session carefully, noting user interactions, hesitations, errors, successful flows, and abandoned actions. Focus on providing actionable insights that product teams can use to improve the user experience. Be specific about what happened, when it happened, and why it matters. Consider both technical issues (bugs, errors, performance) and user experience issues (confusion, friction, inefficient workflows).",
         ]),
         config: {
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
             properties: {
-              type: Type.OBJECT,
-              properties: {
-                analysis: {
+              analysis: {
+                type: Type.STRING,
+                description:
+                  "A comprehensive analysis of the user session using markdown formatting with clear headings (## for main sections, ### for subsections) and bullet points. Structure your analysis with these sections: ## User Journey Overview - Describe the user's path and apparent goals. ## Technical Issues - List any bugs, errors, console warnings, failed API calls, or performance problems as bullet points with specific details. ## UX Friction Points - Use bullet points to identify confusion, hesitation, repeated actions, abandoned flows, or inefficient patterns. ## Feature Usage - Note which features worked well vs struggled with. ## Opportunities - Bullet point list of specific improvements based on observed pain points. ## User Success - Evaluate goal achievement and blockers. Use **bold** for emphasis, `code` for technical terms, and include timestamps where relevant. Ensure proper markdown formatting with consistent heading levels and bullet point structure.",
+              },
+              tldr: {
+                type: Type.STRING,
+                description:
+                  "A concise 1-2 sentence summary in markdown format. Use **bold** to emphasize key points, *italics* for secondary details, or bullet points if listing multiple brief items. Include the user's main goal, outcome (success/failure), and the most critical issue or insight. Focus on actionable takeaways. Keep under 200 characters while using markdown formatting effectively for readability.",
+              },
+              tags: {
+                type: Type.ARRAY,
+                items: {
                   type: Type.STRING,
-                  description: "",
-                },
-                tldr: {
-                  type: Type.STRING,
-                  description: "A TL;DR of the analysis",
-                },
-                tags: {
-                  type: Type.ARRAY,
-                  items: {
-                    type: Type.STRING,
-                    description: "A tag for the session",
-                  },
-                },
-                name: {
-                  type: Type.STRING,
-                  description: "A name for the session",
+                  description:
+                    "A relevant tag for categorizing this session. Use lowercase, hyphenated format. Examples: 'checkout-flow', 'onboarding', 'dashboard', 'bug-critical', 'ux-friction', 'performance-issue', 'user-confusion', 'feature-discovery', 'mobile-experience', 'form-error', 'navigation-issue', 'search-functionality', 'payment-flow', 'account-settings'. Choose tags that help filter and group similar sessions.",
                 },
               },
-              required: ["analysis", "tldr", "tags", "name"],
-              propertyOrdering: ["analysis", "tldr", "tags", "name"],
+              name: {
+                type: Type.STRING,
+                description:
+                  "A descriptive, scannable title for this session that captures the main user action and outcome. Format: [Action] + [Context/Feature] + [Outcome/Issue]. Examples: 'User completes checkout after payment retry', 'New user abandons onboarding at email verification', 'Dashboard filtering causes repeated errors', 'Successful project creation with team invite'. Keep it under 10 words, action-oriented, and specific enough to understand the session's key event without watching it.",
+              },
             },
+            required: ["analysis", "tldr", "tags", "name"],
+            propertyOrdering: ["analysis", "tldr", "tags", "name"],
           },
         },
       });
@@ -195,19 +179,15 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Update session with analysis results
-      const analysisUpdate: Database["public"]["Tables"]["sessions"]["Update"] =
-        {
-          name: name,
-          status: "analyzed",
-          analysis: analysis,
-          analyzed_at: new Date().toISOString(),
-          tags: tags,
-        };
-
       const { error: analysisError } = await supabase
         .from("sessions")
-        .update(analysisUpdate)
+        .update({
+          name,
+          status: "analyzed",
+          analysis,
+          tldr,
+          tags,
+        })
         .eq("id", session_id);
 
       if (analysisError) {

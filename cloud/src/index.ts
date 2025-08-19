@@ -1,10 +1,9 @@
 import express from "express";
-import { getRecordingMeta } from "./posthog";
+
 import { recordReplayToWebm } from "./renderer";
-import { uploadToSupabase } from "./uploader";
+import { uploadToGCS } from "./uploader";
 import { postCallback } from "./callback";
 import type { ErrorPayload, RenderRequest, SuccessPayload } from "./types";
-import { clampMs } from "./util";
 
 const app = express();
 app.use(express.json({ limit: "512kb" }));
@@ -20,13 +19,11 @@ app.post("/render", async (req, res) => {
     "source_host",
     "source_key",
     "source_project",
+    "project_id",
+    "session_id",
     "recording_id",
+    "active_duration",
     "embed_url",
-    "supabase_url",
-    "supabase_storage_url",
-    "supabase_service_role_key",
-    "supabase_bucket",
-    "supabase_file_path",
     "callback",
   ].filter(
     (k) =>
@@ -42,21 +39,21 @@ app.post("/render", async (req, res) => {
   console.log(
     `🎬 [START] Recording ${body.recording_id}\n` +
       `  📹 Source: ${body.source_type} | Host: ${body.source_host}\n` +
-      `  🗂️ Target: ${body.supabase_bucket}/${body.supabase_file_path}`,
+      `  🗂️ Target: ${body.project_id}/${body.session_id}`,
   );
 
   // Return 200 immediately to acknowledge receipt
-  res.status(200).json({ 
-    success: true, 
+  res.status(200).json({
+    success: true,
     message: "Recording job accepted and processing",
-    recording_id: body.recording_id 
+    recording_id: body.recording_id,
   });
 
   // Process the recording asynchronously
   processRecordingAsync(body).catch((err) => {
     console.error(
       `❌ [ASYNC ERROR] Failed to process recording ${body.recording_id}:`,
-      err
+      err,
     );
   });
 });
@@ -70,40 +67,20 @@ async function processRecordingAsync(body: RenderRequest) {
     // 1) Use the embed URL provided in the request
     const embedUrl = body.embed_url;
 
-    // 2) Fetch meta to estimate runtime
-    const meta = await getRecordingMeta(
-      body.source_host,
-      body.source_key,
-      body.source_project,
-      body.recording_id,
-    );
-
-    const expectedSeconds = Math.max(
-      5,
-      Math.floor(meta.active_seconds || meta.recording_duration || 60),
-    );
-    const expectedMs = clampMs(expectedSeconds * 1000);
-
-    console.log(
-      `📊 [META] Duration analysis:\n` +
-        `  ⏱️ Active: ${meta.active_seconds}s | Total: ${meta.recording_duration}s\n` +
-        `  🎯 Expected: ${expectedSeconds}s (clamped wait: ${Math.round(expectedMs / 1000)}s)`,
-    );
-
-    // 3) Record to WebM with retry logic for empty videos
-    let webmPath: string = "";
+    // 2) Record to WebM with retry logic for empty videos
+    let videoPath: string = "";
     let durationSeconds: number = 0;
     let retryCount = 0;
     const maxRetries = 2;
 
     while (retryCount <= maxRetries) {
       try {
-        const result = await recordReplayToWebm(embedUrl, expectedSeconds);
+        const result = await recordReplayToWebm(embedUrl, body.active_duration);
 
         // Check if the video is valid (not empty)
         const fs = await import("fs/promises");
-        const stats = await fs.stat(result.webmPath);
-        const minSize = expectedSeconds * 5000; // Minimum ~5KB per second
+        const stats = await fs.stat(result.videoPath);
+        const minSize = body.active_duration * 5000; // Minimum ~5KB per second
 
         if (stats.size < minSize && retryCount < maxRetries) {
           console.log(
@@ -113,7 +90,7 @@ async function processRecordingAsync(body: RenderRequest) {
           continue;
         }
 
-        webmPath = result.webmPath;
+        videoPath = result.videoPath;
         durationSeconds = result.durationSeconds;
         break;
       } catch (err) {
@@ -128,40 +105,35 @@ async function processRecordingAsync(body: RenderRequest) {
       }
     }
 
-    if (!webmPath) {
+    if (!videoPath) {
       throw new Error("Failed to create video after all retries");
     }
 
     console.log(
       `✅ [RENDERED] Video created:\n` +
         `  ⏱️ Duration: ${durationSeconds.toFixed(1)}s\n` +
-        `  📁 Path: ${webmPath}`,
+        `  📁 Path: ${videoPath}`,
     );
 
-    // 4) Upload to Supabase
-    const { publicUrl } = await uploadToSupabase({
-      supabaseUrl: body.supabase_url,
-      supabaseStorageUrl: body.supabase_storage_url,
-      supabaseServiceRoleKey: body.supabase_service_role_key,
-      bucket: body.supabase_bucket,
-      filePath: body.supabase_file_path,
-      localPath: webmPath,
+    // 3) Upload to Google Cloud Storage
+    const { url } = await uploadToGCS({
+      projectId: body.project_id,
+      sessionId: body.session_id,
+      localPath: videoPath,
     });
 
-    console.log(
-      `☁️ [UPLOADED] Successfully uploaded:\n` + `  🔗 URL: ${publicUrl}`,
-    );
+    console.log(`☁️ [UPLOADED] Successfully uploaded:\n` + `  🔗 URL: ${url}`);
 
     successPayload = {
       success: true,
       recording_id: body.recording_id,
-      public_url: publicUrl,
-      duration_seconds: Math.round(durationSeconds),
+      url,
+      video_duration: Math.round(durationSeconds),
     };
     await postCallback(body.callback, successPayload);
 
     console.log(
-      `✅ [COMPLETED] Recording ${body.recording_id} processed successfully`
+      `✅ [COMPLETED] Recording ${body.recording_id} processed successfully`,
     );
   } catch (err: any) {
     const message = err?.message || String(err);

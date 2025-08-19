@@ -2,10 +2,10 @@ import serverSupabase from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { SessionContentClient } from "./session-content-client";
 
-export async function SessionContent({ 
-  projectSlug, 
-  sessionId 
-}: { 
+export async function SessionContent({
+  projectSlug,
+  sessionId,
+}: {
   projectSlug: string;
   sessionId: string;
 }) {
@@ -44,41 +44,41 @@ export async function SessionContent({
     .select("*, tickets(*)")
     .eq("session_id", session.id);
 
-  const ticketsList = tickets ? tickets.map(t => t.tickets).filter(Boolean) : [];
+  const ticketsList = tickets
+    ? tickets.map((t) => t.tickets).filter(Boolean)
+    : [];
 
-  return (
-    <SessionContentClient 
-      initialSession={session} 
-      initialTickets={ticketsList}
-    />
-  );
+  return <SessionContentClient session={session} tickets={ticketsList} />;
 }
 
 export function SessionContentSkeleton() {
   return (
     <div className="grid gap-8 lg:grid-cols-3">
-      <div className="lg:col-span-2 space-y-8">
-        <div className="rounded-lg border border-border bg-surface p-6">
-          <div className="mb-4 h-7 w-32 animate-pulse rounded bg-surface-secondary" />
+      <div className="space-y-8 lg:col-span-2">
+        <div className="border-border bg-surface rounded-lg border p-6">
+          <div className="bg-surface-secondary mb-4 h-7 w-32 animate-pulse rounded" />
           <div className="aspect-video w-full animate-pulse rounded-lg bg-black/20" />
         </div>
 
-        <div className="rounded-lg border border-border bg-surface p-6">
-          <div className="mb-4 h-7 w-32 animate-pulse rounded bg-surface-secondary" />
+        <div className="border-border bg-surface rounded-lg border p-6">
+          <div className="bg-surface-secondary mb-4 h-7 w-32 animate-pulse rounded" />
           <div className="space-y-3">
-            <div className="h-4 w-full animate-pulse rounded bg-surface-secondary" />
-            <div className="h-4 w-5/6 animate-pulse rounded bg-surface-secondary" />
-            <div className="h-4 w-4/6 animate-pulse rounded bg-surface-secondary" />
+            <div className="bg-surface-secondary h-4 w-full animate-pulse rounded" />
+            <div className="bg-surface-secondary h-4 w-5/6 animate-pulse rounded" />
+            <div className="bg-surface-secondary h-4 w-4/6 animate-pulse rounded" />
           </div>
         </div>
       </div>
 
       <div className="space-y-8">
-        <div className="rounded-lg border border-border bg-surface p-6">
-          <div className="mb-4 h-6 w-32 animate-pulse rounded bg-surface-secondary" />
+        <div className="border-border bg-surface rounded-lg border p-6">
+          <div className="bg-surface-secondary mb-4 h-6 w-32 animate-pulse rounded" />
           <div className="space-y-3">
             {[1, 2].map((i) => (
-              <div key={i} className="h-16 animate-pulse rounded-lg bg-surface-secondary" />
+              <div
+                key={i}
+                className="bg-surface-secondary h-16 animate-pulse rounded-lg"
+              />
             ))}
           </div>
         </div>

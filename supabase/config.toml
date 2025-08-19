@@ -107,10 +107,6 @@ file_size_limit = "20MB"
 # enabled = true
 
 # Storage buckets
-[storage.buckets.sessions]
-public = true
-allowed_mime_types = ["video/webm"]
-
 [storage.buckets.projects]
 public = true
 allowed_mime_types = ["image/png", "image/jpeg", "image/gif", "image/webp"]
