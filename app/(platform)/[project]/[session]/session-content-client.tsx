@@ -27,28 +27,26 @@ export function SessionContentClient({
           <SessionObservations observations={session.observations} />
         )}
 
-        <div className="border-border bg-surface rounded-lg border p-6">
-          {session.analysis ? (
-            <SessionAnalysis analysis={session.analysis} />
-          ) : (
-            <>
-              <h2 className="font-display mb-4 text-xl font-semibold">
-                AI Analysis
-              </h2>
-              <div className="py-8 text-center">
-                <p className="text-foreground-secondary italic">
-                  {session.status === "analyzing"
-                    ? "Ready in ~1 min"
-                    : session.status === "processing" ||
-                        session.status === "processed" ||
-                        session.status === "pending"
-                      ? `Ready in ~${Math.max(5, Math.ceil((session.active_duration || 60) / 60))} mins`
-                      : "Analysis unavailable"}
-                </p>
-              </div>
-            </>
-          )}
-        </div>
+        {session.synthesis && <SessionAnalysis synthesis={session.synthesis} />}
+
+        {!session.synthesis && (
+          <>
+            <h2 className="font-display mb-4 text-xl font-semibold">
+              AI Analysis
+            </h2>
+            <div className="py-8 text-center">
+              <p className="text-foreground-secondary italic">
+                {session.status === "analyzing"
+                  ? "Ready in ~1 min"
+                  : session.status === "processing" ||
+                      session.status === "processed" ||
+                      session.status === "pending"
+                    ? `Ready in ~${Math.max(5, Math.ceil((session.active_duration || 60) / 60))} mins`
+                    : "Analysis unavailable"}
+              </p>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="lg:sticky lg:top-24 lg:h-fit">

@@ -1,17 +1,23 @@
 import { Markdown } from "@/components/markdown";
 
 interface SessionAnalysisProps {
-  analysis: string | null;
+  synthesis: string | null;
 }
 
-export function SessionAnalysis({ analysis }: SessionAnalysisProps) {
-  if (!analysis) {
+export function SessionAnalysis({ synthesis }: SessionAnalysisProps) {
+  if (!synthesis) {
     return (
-      <p className="text-sm text-foreground-secondary italic">
-        No analysis available yet.
-      </p>
+      <div className="border-border bg-surface rounded-lg border p-6">
+        <p className="text-foreground-secondary text-sm italic">
+          No analysis available yet.
+        </p>
+      </div>
     );
   }
 
-  return <Markdown>{analysis}</Markdown>;
+  return (
+    <div className="border-border bg-surface rounded-lg border p-6">
+      <Markdown>{synthesis}</Markdown>
+    </div>
+  );
 }

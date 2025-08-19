@@ -116,89 +116,107 @@ export async function POST(request: NextRequest) {
         model: "gemini-2.5-pro",
         contents: createUserContent([
           createPartFromUri(session.video_url, "video/webm"),
-          "You are analyzing a user session recording from a web application via a PostHog embed. The session replay will buffer at first, then play through periods of user activity, skipping periods of user inactivity. You can see the progress of the replay on the bottom.\n\nBegin by carefully observing user behaviors without immediately assuming problems. Many actions have multiple plausible explanations - a user who adds items to cart but doesn't check out might be browsing, comparing options, or saving for later, not necessarily encountering a bug. A user who hesitates might be reading content or thinking, not confused.\n\nYour goal is to identify bugs, UX friction points, user behavior patterns, and opportunities for product improvement. Watch the entire session carefully, noting user interactions, hesitations, errors, successful flows, and abandoned actions. For each observation, think deeply about why the user might be behaving this way before concluding there's an issue.\n\nFocus on providing actionable insights that product teams can use to improve the user experience. Be specific about what happened, when it happened, and why it matters. Consider both technical issues (bugs, errors, performance) and user experience issues (confusion, friction, inefficient workflows).",
+          "You are analyzing a user session recording from a web application via a PostHog embed.\n\nFirst, verify that the video contains a valid session replay.\n\nIf the video is invalid (corrupted, doesn't load, doesn't contain a replay, or the replay doesn't actually play):\n- Return: {valid_video: false, analysis: null}\n\nIf the session replay is valid and playable:\n- Return: {valid_video: true, analysis: {observations, synthesis, tldr, tags, name}}\n\nFor valid sessions:\nThe session replay will buffer at first, then play through periods of user activity, skipping periods of user inactivity. You can see the progress of the replay on the bottom.\n\nBegin by carefully observing user behaviors without immediately assuming problems. Many actions have multiple plausible explanations - a user who adds items to cart but doesn't check out might be browsing, comparing options, or saving for later, not necessarily encountering a bug. A user who hesitates might be reading content or thinking, not confused.\n\nYour goal is to identify bugs, UX friction points, user behavior patterns, and opportunities for product improvement. Watch the entire session carefully, noting user interactions, hesitations, errors, successful flows, and abandoned actions. For each observation, think deeply about why the user might be behaving this way before concluding there's an issue.\n\nFocus on providing actionable insights that product teams can use to improve the user experience. Be specific about what happened, when it happened, and why it matters. Consider both technical issues (bugs, errors, performance) and user experience issues (confusion, friction, inefficient workflows).",
         ]),
         config: {
+          thinkingConfig: {
+            thinkingBudget: 32768,
+          },
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
             properties: {
-              observations: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    observation: {
-                      type: Type.STRING,
-                      description:
-                        "A specific behavior or action you observed in the session. Be descriptive and precise about what happened.",
-                    },
-                    explanation: {
-                      type: Type.STRING,
-                      description:
-                        "A plausible explanation for why this behavior occurred. Consider multiple possibilities - don't jump to conclusions. For example, if a user added items to cart but didn't checkout, they might be browsing, comparing prices, or saving for later - not necessarily encountering a checkout bug.",
-                    },
-                    suggestion: {
-                      type: Type.STRING,
-                      description:
-                        "A specific, actionable suggestion for improvement based on this observation. Focus on what could be changed to better support the user's apparent intent.",
-                    },
-                    confidence: {
-                      type: Type.STRING,
-                      enum: ["low", "medium", "high"],
-                      description:
-                        "Your confidence level in this observation and its interpretation. High = clear pattern with obvious cause, Medium = likely pattern but multiple explanations possible, Low = unclear pattern or speculative interpretation.",
-                    },
-                    urgency: {
-                      type: Type.STRING,
-                      enum: ["low", "medium", "high"],
-                      description:
-                        "The urgency of addressing this issue. High = blocking user goals or causing errors, Medium = creating friction but users can work around it, Low = minor improvement opportunity.",
-                    },
-                  },
-                  required: [
-                    "observation",
-                    "explanation",
-                    "suggestion",
-                    "confidence",
-                    "urgency",
-                  ],
-                },
+              valid_video: {
+                type: Type.BOOLEAN,
                 description:
-                  "An array of detailed observations from the session. Think deeply about user behavior - consider multiple explanations before concluding something is a bug. Users might be browsing, exploring, comparing options, or intentionally abandoning actions. Look for patterns in hesitation, repeated actions, successful flows, and abandoned tasks.",
+                  "Whether the video contains a valid, playable session replay. Set to false if the video is corrupted, doesn't load, shows an error, or doesn't contain an actual replay.",
               },
               analysis: {
-                type: Type.STRING,
-                description:
-                  "A synthesis of your observations into a cohesive narrative using markdown formatting. DO NOT repeat individual observations - instead, weave them into a story. Structure with these sections: ## Session Story - Tell the story of what the user was trying to accomplish and how their journey unfolded. Connect the dots between observations to form a narrative. ## Key Patterns - Identify recurring themes across multiple observations. What broader patterns emerge? Group related observations into meaningful insights. ## Impact Assessment - Based on the confidence and urgency levels of your observations, what are the most critical areas needing attention? Prioritize based on user impact. ## Strategic Recommendations - Synthesize your suggestions into 3-5 strategic recommendations that address multiple observations. Focus on systemic improvements rather than individual fixes. Use **bold** for emphasis and ensure proper markdown formatting.",
-              },
-              tldr: {
-                type: Type.STRING,
-                description:
-                  "A concise 1-2 sentence summary in markdown format. Use **bold** to emphasize key points, *italics* for secondary details, or bullet points if listing multiple brief items. Include the user's main goal, outcome (success/failure), and the most critical issue or insight. Focus on actionable takeaways. Keep under 200 characters while using markdown formatting effectively for readability.",
-              },
-              tags: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.STRING,
-                  description:
-                    "A relevant tag for categorizing this session. Use lowercase, hyphenated format. Examples: 'checkout-flow', 'onboarding', 'dashboard', 'bug-critical', 'ux-friction', 'performance-issue', 'user-confusion', 'feature-discovery', 'mobile-experience', 'form-error', 'navigation-issue', 'search-functionality', 'payment-flow', 'account-settings'. Choose tags that help filter and group similar sessions.",
+                type: Type.OBJECT,
+                nullable: true,
+                properties: {
+                  observations: {
+                    type: Type.ARRAY,
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        observation: {
+                          type: Type.STRING,
+                          description:
+                            "A specific behavior or action you observed in the session. Be descriptive and precise about what happened.",
+                        },
+                        explanation: {
+                          type: Type.STRING,
+                          description:
+                            "A plausible explanation for why this behavior occurred. Consider multiple possibilities - don't jump to conclusions. For example, if a user added items to cart but didn't checkout, they might be browsing, comparing prices, or saving for later - not necessarily encountering a checkout bug.",
+                        },
+                        suggestion: {
+                          type: Type.STRING,
+                          description:
+                            "A specific, actionable suggestion for improvement based on this observation. Focus on what could be changed to better support the user's apparent intent.",
+                        },
+                        confidence: {
+                          type: Type.STRING,
+                          enum: ["low", "medium", "high"],
+                          description:
+                            "Your confidence level in this observation and its interpretation. High = clear pattern with obvious cause, Medium = likely pattern but multiple explanations possible, Low = unclear pattern or speculative interpretation.",
+                        },
+                        urgency: {
+                          type: Type.STRING,
+                          enum: ["low", "medium", "high"],
+                          description:
+                            "The urgency of addressing this issue. High = blocking user goals or causing errors, Medium = creating friction but users can work around it, Low = minor improvement opportunity.",
+                        },
+                      },
+                      required: [
+                        "observation",
+                        "explanation",
+                        "suggestion",
+                        "confidence",
+                        "urgency",
+                      ],
+                    },
+                    description:
+                      "An array of detailed observations from the session. Think deeply about user behavior - consider multiple explanations before concluding something is a bug. Users might be browsing, exploring, comparing options, or intentionally abandoning actions. Look for patterns in hesitation, repeated actions, successful flows, and abandoned tasks.",
+                  },
+                  synthesis: {
+                    type: Type.STRING,
+                    description:
+                      "A synthesis of your observations into a cohesive narrative using markdown formatting. DO NOT repeat individual observations - instead, weave them into a story. Structure with these sections: ## Session Story - Tell the story of what the user was trying to accomplish and how their journey unfolded. Connect the dots between observations to form a narrative. ## Key Patterns - Identify recurring themes across multiple observations. What broader patterns emerge? Group related observations into meaningful insights. ## Impact Assessment - Based on the confidence and urgency levels of your observations, what are the most critical areas needing attention? Prioritize based on user impact. ## Strategic Recommendations - Synthesize your suggestions into 3-5 strategic recommendations that address multiple observations. Focus on systemic improvements rather than individual fixes. Use **bold** for emphasis and ensure proper markdown formatting.",
+                  },
+                  tldr: {
+                    type: Type.STRING,
+                    description:
+                      "A concise 1-2 sentence summary in markdown format. Use **bold** to emphasize key points, *italics* for secondary details, or bullet points if listing multiple brief items. Include the user's main goal, outcome (success/failure), and the most critical issue or insight. Focus on actionable takeaways. Keep under 200 characters while using markdown formatting effectively for readability.",
+                  },
+                  tags: {
+                    type: Type.ARRAY,
+                    items: {
+                      type: Type.STRING,
+                      description:
+                        "A relevant tag for categorizing this session. Use lowercase, hyphenated format. Examples: 'checkout-flow', 'onboarding', 'dashboard', 'bug-critical', 'ux-friction', 'performance-issue', 'user-confusion', 'feature-discovery', 'mobile-experience', 'form-error', 'navigation-issue', 'search-functionality', 'payment-flow', 'account-settings'. Choose tags that help filter and group similar sessions.",
+                    },
+                  },
+                  name: {
+                    type: Type.STRING,
+                    description:
+                      "A descriptive, scannable title for this session that captures the main user action and outcome. Format: [Action] + [Context/Feature] + [Outcome/Issue]. Examples: 'User completes checkout after payment retry', 'New user abandons onboarding at email verification', 'Dashboard filtering causes repeated errors', 'Successful project creation with team invite'. Keep it under 10 words, action-oriented, and specific enough to understand the session's key event without watching it.",
+                  },
                 },
-              },
-              name: {
-                type: Type.STRING,
+                required: ["observations", "synthesis", "tldr", "tags", "name"],
+                propertyOrdering: [
+                  "observations",
+                  "synthesis",
+                  "tldr",
+                  "tags",
+                  "name",
+                ],
                 description:
-                  "A descriptive, scannable title for this session that captures the main user action and outcome. Format: [Action] + [Context/Feature] + [Outcome/Issue]. Examples: 'User completes checkout after payment retry', 'New user abandons onboarding at email verification', 'Dashboard filtering causes repeated errors', 'Successful project creation with team invite'. Keep it under 10 words, action-oriented, and specific enough to understand the session's key event without watching it.",
+                  "The full analysis object. Only provided if valid_video is true, otherwise must be null.",
               },
             },
-            required: ["observations", "analysis", "tldr", "tags", "name"],
-            propertyOrdering: [
-              "observations",
-              "analysis",
-              "tldr",
-              "tags",
-              "name",
-            ],
+            required: ["valid_video", "analysis"],
+            propertyOrdering: ["valid_video", "analysis"],
           },
         },
       });
@@ -211,28 +229,44 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      let data: Pick<
-        Session,
-        "observations" | "analysis" | "tldr" | "tags" | "name"
-      >;
+      let parsedResponse: {
+        valid_video: boolean;
+        notes: string | null;
+        analysis: Pick<
+          Session,
+          "observations" | "synthesis" | "tldr" | "tags" | "name"
+        > | null;
+      };
 
       try {
-        data = JSON.parse(response.text);
-        // validate the data
-        if (
-          !data.observations ||
-          !data.analysis ||
-          !data.tldr ||
-          !data.tags ||
-          !data.name
-        ) {
-          console.error(`❌ [ANALYZE] Invalid data:`, data);
-          return NextResponse.json({ error: "Invalid data" }, { status: 500 });
-        }
+        parsedResponse = JSON.parse(response.text);
       } catch (error) {
         console.error(`❌ [ANALYZE] Failed to parse JSON:`, error);
         return NextResponse.json(
           { error: "Failed to parse JSON" },
+          { status: 500 },
+        );
+      }
+
+      // Check if the session is valid
+      if (!parsedResponse.valid_video) {
+        console.error(`❌ [ANALYZE] Invalid session detected`);
+        throw new Error("Invalid session detected");
+      }
+
+      // Valid session - validate the analysis data
+      const data = parsedResponse.analysis;
+      if (
+        !data ||
+        !data.observations ||
+        !data.synthesis ||
+        !data.tldr ||
+        !data.tags ||
+        !data.name
+      ) {
+        console.error(`❌ [ANALYZE] Invalid analysis data:`, data);
+        return NextResponse.json(
+          { error: "Invalid analysis data" },
           { status: 500 },
         );
       }
@@ -243,7 +277,7 @@ export async function POST(request: NextRequest) {
           name: data.name,
           status: "analyzed",
           observations: data.observations,
-          analysis: data.analysis,
+          synthesis: data.synthesis,
           tldr: data.tldr,
           tags: data.tags,
         })

@@ -171,7 +171,6 @@ export type Database = {
       sessions: {
         Row: {
           active_duration: number | null
-          analysis: string | null
           analyzed_at: string | null
           created_at: string
           embed_url: string | null
@@ -185,6 +184,7 @@ export type Database = {
           session_at: string | null
           source_id: string
           status: Database["public"]["Enums"]["session_status"]
+          synthesis: string | null
           tags: string[] | null
           tldr: string | null
           total_duration: number | null
@@ -193,7 +193,6 @@ export type Database = {
         }
         Insert: {
           active_duration?: number | null
-          analysis?: string | null
           analyzed_at?: string | null
           created_at?: string
           embed_url?: string | null
@@ -207,6 +206,7 @@ export type Database = {
           session_at?: string | null
           source_id: string
           status: Database["public"]["Enums"]["session_status"]
+          synthesis?: string | null
           tags?: string[] | null
           tldr?: string | null
           total_duration?: number | null
@@ -215,7 +215,6 @@ export type Database = {
         }
         Update: {
           active_duration?: number | null
-          analysis?: string | null
           analyzed_at?: string | null
           created_at?: string
           embed_url?: string | null
@@ -229,6 +228,7 @@ export type Database = {
           session_at?: string | null
           source_id?: string
           status?: Database["public"]["Enums"]["session_status"]
+          synthesis?: string | null
           tags?: string[] | null
           tldr?: string | null
           total_duration?: number | null
