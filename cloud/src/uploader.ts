@@ -1,5 +1,6 @@
 import { Storage } from "@google-cloud/storage";
 import fs from "node:fs";
+import { pipeline } from "node:stream/promises";
 
 export async function uploadToGCS(params: {
   projectId: string;
@@ -33,12 +34,23 @@ export async function uploadToGCS(params: {
   // Initialize GCS client
   const storage = new Storage();
 
-  await storage.bucket(bucketName).upload(params.localPath, {
-    destination: filePath,
+  // Use streaming upload instead of loading entire file into memory
+  const bucket = storage.bucket(bucketName);
+  const file = bucket.file(filePath);
+
+  // Create a read stream from the local file
+  const readStream = fs.createReadStream(params.localPath);
+  
+  // Create a write stream to GCS
+  const writeStream = file.createWriteStream({
     metadata: {
       contentType: "video/webm",
     },
+    resumable: false, // Disable resumable uploads for smaller memory footprint
   });
+
+  // Stream the file to GCS
+  await pipeline(readStream, writeStream);
 
   console.log(`  ✅ Upload completed successfully`);
 

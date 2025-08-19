@@ -54,6 +54,14 @@ export async function recordReplayToWebm(
       "--disable-dev-shm-usage",
       "--disable-gpu",
       "--disable-software-rasterizer",
+      "--disable-web-security",
+      "--disable-features=IsolateOrigins,site-per-process",
+      "--disable-blink-features=AutomationControlled",
+      "--max_old_space_size=512", // Limit V8 memory
+      "--js-flags=--max-old-space-size=512", // Limit JS heap
+      "--disable-background-timer-throttling",
+      "--disable-backgrounding-occluded-windows",
+      "--disable-renderer-backgrounding",
     ],
   });
   console.log(`  🌐 Browser launched successfully`);
@@ -87,7 +95,22 @@ export async function recordReplayToWebm(
       `🎦 [RECORDING] Recording for ${(waitMs / 1000).toFixed(1)}s (${expectedSeconds}s + ${(bufferMs / 1000).toFixed(1)}s buffer)`,
     );
 
-    await page.waitForTimeout(waitMs);
+    // Set up heartbeat logging
+    const startTime = Date.now();
+    const heartbeatInterval = 10_000; // Log every 10 seconds
+    const heartbeat = setInterval(() => {
+      const elapsed = (Date.now() - startTime) / 1000;
+      const remaining = Math.max(0, (waitMs / 1000) - elapsed);
+      console.log(
+        `💓 [HEARTBEAT] Recording in progress... ${elapsed.toFixed(1)}s elapsed, ${remaining.toFixed(1)}s remaining`,
+      );
+    }, heartbeatInterval);
+
+    try {
+      await page.waitForTimeout(waitMs);
+    } finally {
+      clearInterval(heartbeat);
+    }
 
     // Get video path before closing
     const v = page.video();
@@ -102,6 +125,12 @@ export async function recordReplayToWebm(
 
     // Wait a bit for the video file to be fully written
     await new Promise((resolve) => setTimeout(resolve, 5000));
+
+    // Force garbage collection if available (V8 flag needed)
+    if (global.gc) {
+      global.gc();
+      console.log("♾️ [MEMORY] Forced garbage collection");
+    }
 
     const videoPath = await v.path();
 

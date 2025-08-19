@@ -1,5 +1,5 @@
 import express from "express";
-
+import fs from "fs/promises";
 import { recordReplayToWebm } from "./renderer";
 import { uploadToGCS } from "./uploader";
 import { postCallback } from "./callback";
@@ -62,51 +62,34 @@ app.post("/render", async (req, res) => {
 async function processRecordingAsync(body: RenderRequest) {
   let successPayload: SuccessPayload | null = null;
   let errorPayload: ErrorPayload | null = null;
+  const processStartTime = Date.now();
+
+  // Set up process heartbeat
+  const processHeartbeat = setInterval(() => {
+    const elapsed = (Date.now() - processStartTime) / 1000;
+    console.log(
+      `📡 [PROCESS HEARTBEAT] Recording ${body.recording_id} - ${elapsed.toFixed(0)}s elapsed`,
+    );
+  }, 30_000); // Log every 30 seconds
 
   try {
     // 1) Use the embed URL provided in the request
     const embedUrl = body.embed_url;
 
-    // 2) Record to WebM with retry logic for empty videos
-    let videoPath: string = "";
-    let durationSeconds: number = 0;
-    let retryCount = 0;
-    const maxRetries = 2;
+    // 2) Record to WebM (single attempt)
+    const result = await recordReplayToWebm(embedUrl, body.active_duration);
+    const videoPath = result.videoPath;
+    const durationSeconds = result.durationSeconds;
 
-    while (retryCount <= maxRetries) {
-      try {
-        const result = await recordReplayToWebm(embedUrl, body.active_duration);
+    // Check if the video is valid (not empty)
+    const stats = await fs.stat(videoPath);
+    const minSize = body.active_duration * 5000; // Minimum ~5KB per second
 
-        // Check if the video is valid (not empty)
-        const fs = await import("fs/promises");
-        const stats = await fs.stat(result.videoPath);
-        const minSize = body.active_duration * 5000; // Minimum ~5KB per second
-
-        if (stats.size < minSize && retryCount < maxRetries) {
-          console.log(
-            `⚠️ [RETRY] Video seems empty (${stats.size} bytes), retrying... (${retryCount + 1}/${maxRetries})`,
-          );
-          retryCount++;
-          continue;
-        }
-
-        videoPath = result.videoPath;
-        durationSeconds = result.durationSeconds;
-        break;
-      } catch (err) {
-        if (retryCount < maxRetries) {
-          console.log(
-            `⚠️ [RETRY] Recording failed, retrying... (${retryCount + 1}/${maxRetries})`,
-          );
-          retryCount++;
-        } else {
-          throw err;
-        }
-      }
-    }
-
-    if (!videoPath) {
-      throw new Error("Failed to create video after all retries");
+    if (stats.size < minSize) {
+      console.error(
+        `❌ [ERROR] Video seems empty or corrupted (${stats.size} bytes, expected minimum ${minSize} bytes)`,
+      );
+      throw new Error(`Video file is too small (${stats.size} bytes) - recording may have failed`);
     }
 
     console.log(
@@ -124,6 +107,14 @@ async function processRecordingAsync(body: RenderRequest) {
 
     console.log(`☁️ [UPLOADED] Successfully uploaded:\n` + `  🔗 URL: ${url}`);
 
+    // Clean up temporary video file
+    try {
+      await fs.unlink(videoPath);
+      console.log(`🧹 [CLEANUP] Deleted temporary video file: ${videoPath}`);
+    } catch (cleanupErr) {
+      console.warn(`⚠️ [CLEANUP] Failed to delete temp file: ${cleanupErr}`);
+    }
+
     successPayload = {
       success: true,
       recording_id: body.recording_id,
@@ -136,6 +127,7 @@ async function processRecordingAsync(body: RenderRequest) {
       `✅ [COMPLETED] Recording ${body.recording_id} processed successfully`,
     );
   } catch (err: any) {
+    clearInterval(processHeartbeat);
     const message = err?.message || String(err);
     console.error(
       `❌ [ERROR] Recording failed:\n` +
@@ -149,6 +141,12 @@ async function processRecordingAsync(body: RenderRequest) {
       recording_id: body.recording_id,
     };
     await postCallback(body.callback, errorPayload);
+  } finally {
+    clearInterval(processHeartbeat);
+    const totalTime = (Date.now() - processStartTime) / 1000;
+    console.log(
+      `⏱️ [TIMING] Total processing time for ${body.recording_id}: ${totalTime.toFixed(1)}s`,
+    );
   }
 }
 
