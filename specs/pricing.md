@@ -4,13 +4,13 @@ Pick the plan that matches how many sessions you want VES to watch each month.
 
 ## Plans
 
-| Plan       | Session Analysis Hours/mo | Analysis Workers | Est. Sessions/mo | Price/mo | Best for                      |
-| ---------- | ------------------------- | ---------------- | ---------------- | -------- | ----------------------------- |
-| Trial      | 1 hour                    | 1                | ~10 sessions     | $0       | Trying out VES                |
-| Starter    | 20 hours                  | 2                | ~200 sessions    | $199     | Early-stage startups          |
-| Growth     | 100 hours                 | 5                | ~1,000 sessions  | $699     | Growing product teams         |
-| Scale      | 300 hours                 | 10               | ~3,000 sessions  | $1,999   | Mid-market SaaS               |
-| Enterprise | Unlimited                 | Unlimited        | Unlimited        | Custom   | Large orgs with special needs |
+| Plan       | Session Analysis Hours/mo | Concurrent Workers | Est. Sessions/mo | Price/mo | Best for                      |
+| ---------- | ------------------------- | ------------------ | ---------------- | -------- | ----------------------------- |
+| Trial      | 1 hour                    | 2                  | ~10 sessions     | $0       | Trying out VES                |
+| Starter    | 20 hours                  | 5                  | ~200 sessions    | $199     | Early-stage startups          |
+| Growth     | 100 hours                 | 10                 | ~1,000 sessions  | $699     | Growing product teams         |
+| Scale      | 300 hours                 | 20                 | ~3,000 sessions  | $1,999   | Mid-market SaaS               |
+| Enterprise | Unlimited                 | Unlimited          | Unlimited        | Custom   | Large orgs with special needs |
 
 ## All plans include
 

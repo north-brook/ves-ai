@@ -178,6 +178,7 @@ export type Database = {
           embedding: string | null
           id: string
           name: string | null
+          observations: Json[] | null
           processed_at: string | null
           project_id: string
           recording_id: string
@@ -199,6 +200,7 @@ export type Database = {
           embedding?: string | null
           id?: string
           name?: string | null
+          observations?: Json[] | null
           processed_at?: string | null
           project_id: string
           recording_id: string
@@ -220,6 +222,7 @@ export type Database = {
           embedding?: string | null
           id?: string
           name?: string | null
+          observations?: Json[] | null
           processed_at?: string | null
           project_id?: string
           recording_id?: string

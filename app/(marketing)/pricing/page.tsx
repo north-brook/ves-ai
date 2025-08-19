@@ -7,14 +7,15 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Pricing • VES AI",
-  description: "Simple, transparent pricing for AI-powered session analysis. No overages, no surprises. Start with 1 hour free.",
+  description:
+    "Simple, transparent pricing for AI-powered session analysis. No overages, no surprises. Start with 1 hour free.",
 };
 
 const plans = [
   {
     name: "Starter",
     hours: "20 hours of monthly analysis",
-    workers: "2 analysis workers",
+    workers: "5 concurrent workers",
     sessions: "~200 monthly sessions",
     price: "$199",
     description: "Early-stage startups",
@@ -23,7 +24,7 @@ const plans = [
   {
     name: "Growth",
     hours: "100 hours of monthly analysis",
-    workers: "5 analysis workers",
+    workers: "10 concurrent workers",
     sessions: "~1,000 monthly sessions",
     price: "$699",
     description: "Growing product teams",
@@ -32,7 +33,7 @@ const plans = [
   {
     name: "Scale",
     hours: "300 hours of monthly analysis",
-    workers: "10 analysis workers",
+    workers: "20 concurrent workers",
     sessions: "~3,000 monthly sessions",
     price: "$1,999",
     description: "Mid-market SaaS",

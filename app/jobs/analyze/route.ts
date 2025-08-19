@@ -8,6 +8,7 @@ import {
   Type,
 } from "@google/genai";
 import nextJobs from "../run/next-job";
+import { Session } from "@/types";
 
 type AnalyzeRequest = {
   session_id: string;
@@ -115,17 +116,61 @@ export async function POST(request: NextRequest) {
         model: "gemini-2.5-pro",
         contents: createUserContent([
           createPartFromUri(session.video_url, "video/webm"),
-          "You are analyzing a user session recording from a web application. Your goal is to identify bugs, UX friction points, user behavior patterns, and opportunities for product improvement. Watch the entire session carefully, noting user interactions, hesitations, errors, successful flows, and abandoned actions. Focus on providing actionable insights that product teams can use to improve the user experience. Be specific about what happened, when it happened, and why it matters. Consider both technical issues (bugs, errors, performance) and user experience issues (confusion, friction, inefficient workflows).",
+          "You are analyzing a user session recording from a web application via a PostHog embed. The session replay will buffer at first, then play through periods of user activity, skipping periods of user inactivity. You can see the progress of the replay on the bottom.\n\nBegin by carefully observing user behaviors without immediately assuming problems. Many actions have multiple plausible explanations - a user who adds items to cart but doesn't check out might be browsing, comparing options, or saving for later, not necessarily encountering a bug. A user who hesitates might be reading content or thinking, not confused.\n\nYour goal is to identify bugs, UX friction points, user behavior patterns, and opportunities for product improvement. Watch the entire session carefully, noting user interactions, hesitations, errors, successful flows, and abandoned actions. For each observation, think deeply about why the user might be behaving this way before concluding there's an issue.\n\nFocus on providing actionable insights that product teams can use to improve the user experience. Be specific about what happened, when it happened, and why it matters. Consider both technical issues (bugs, errors, performance) and user experience issues (confusion, friction, inefficient workflows).",
         ]),
         config: {
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
             properties: {
+              observations: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    observation: {
+                      type: Type.STRING,
+                      description:
+                        "A specific behavior or action you observed in the session. Be descriptive and precise about what happened.",
+                    },
+                    explanation: {
+                      type: Type.STRING,
+                      description:
+                        "A plausible explanation for why this behavior occurred. Consider multiple possibilities - don't jump to conclusions. For example, if a user added items to cart but didn't checkout, they might be browsing, comparing prices, or saving for later - not necessarily encountering a checkout bug.",
+                    },
+                    suggestion: {
+                      type: Type.STRING,
+                      description:
+                        "A specific, actionable suggestion for improvement based on this observation. Focus on what could be changed to better support the user's apparent intent.",
+                    },
+                    confidence: {
+                      type: Type.STRING,
+                      enum: ["low", "medium", "high"],
+                      description:
+                        "Your confidence level in this observation and its interpretation. High = clear pattern with obvious cause, Medium = likely pattern but multiple explanations possible, Low = unclear pattern or speculative interpretation.",
+                    },
+                    urgency: {
+                      type: Type.STRING,
+                      enum: ["low", "medium", "high"],
+                      description:
+                        "The urgency of addressing this issue. High = blocking user goals or causing errors, Medium = creating friction but users can work around it, Low = minor improvement opportunity.",
+                    },
+                  },
+                  required: [
+                    "observation",
+                    "explanation",
+                    "suggestion",
+                    "confidence",
+                    "urgency",
+                  ],
+                },
+                description:
+                  "An array of detailed observations from the session. Think deeply about user behavior - consider multiple explanations before concluding something is a bug. Users might be browsing, exploring, comparing options, or intentionally abandoning actions. Look for patterns in hesitation, repeated actions, successful flows, and abandoned tasks.",
+              },
               analysis: {
                 type: Type.STRING,
                 description:
-                  "A comprehensive analysis of the user session using markdown formatting with clear headings (## for main sections, ### for subsections) and bullet points. Structure your analysis with these sections: ## User Journey Overview - Describe the user's path and apparent goals. ## Technical Issues - List any bugs, errors, console warnings, failed API calls, or performance problems as bullet points with specific details. ## UX Friction Points - Use bullet points to identify confusion, hesitation, repeated actions, abandoned flows, or inefficient patterns. ## Feature Usage - Note which features worked well vs struggled with. ## Opportunities - Bullet point list of specific improvements based on observed pain points. ## User Success - Evaluate goal achievement and blockers. Use **bold** for emphasis, `code` for technical terms, and include timestamps where relevant. Ensure proper markdown formatting with consistent heading levels and bullet point structure.",
+                  "A synthesis of your observations into a cohesive narrative using markdown formatting. DO NOT repeat individual observations - instead, weave them into a story. Structure with these sections: ## Session Story - Tell the story of what the user was trying to accomplish and how their journey unfolded. Connect the dots between observations to form a narrative. ## Key Patterns - Identify recurring themes across multiple observations. What broader patterns emerge? Group related observations into meaningful insights. ## Impact Assessment - Based on the confidence and urgency levels of your observations, what are the most critical areas needing attention? Prioritize based on user impact. ## Strategic Recommendations - Synthesize your suggestions into 3-5 strategic recommendations that address multiple observations. Focus on systemic improvements rather than individual fixes. Use **bold** for emphasis and ensure proper markdown formatting.",
               },
               tldr: {
                 type: Type.STRING,
@@ -146,8 +191,14 @@ export async function POST(request: NextRequest) {
                   "A descriptive, scannable title for this session that captures the main user action and outcome. Format: [Action] + [Context/Feature] + [Outcome/Issue]. Examples: 'User completes checkout after payment retry', 'New user abandons onboarding at email verification', 'Dashboard filtering causes repeated errors', 'Successful project creation with team invite'. Keep it under 10 words, action-oriented, and specific enough to understand the session's key event without watching it.",
               },
             },
-            required: ["analysis", "tldr", "tags", "name"],
-            propertyOrdering: ["analysis", "tldr", "tags", "name"],
+            required: ["observations", "analysis", "tldr", "tags", "name"],
+            propertyOrdering: [
+              "observations",
+              "analysis",
+              "tldr",
+              "tags",
+              "name",
+            ],
           },
         },
       });
@@ -160,17 +211,24 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      let analysis: string;
-      let tldr: string;
-      let tags: string[];
-      let name: string;
+      let data: Pick<
+        Session,
+        "observations" | "analysis" | "tldr" | "tags" | "name"
+      >;
 
       try {
-        const json = JSON.parse(response.text);
-        analysis = json.analysis;
-        tldr = json.tldr;
-        tags = json.tags;
-        name = json.name;
+        data = JSON.parse(response.text);
+        // validate the data
+        if (
+          !data.observations ||
+          !data.analysis ||
+          !data.tldr ||
+          !data.tags ||
+          !data.name
+        ) {
+          console.error(`❌ [ANALYZE] Invalid data:`, data);
+          return NextResponse.json({ error: "Invalid data" }, { status: 500 });
+        }
       } catch (error) {
         console.error(`❌ [ANALYZE] Failed to parse JSON:`, error);
         return NextResponse.json(
@@ -182,11 +240,12 @@ export async function POST(request: NextRequest) {
       const { error: analysisError } = await supabase
         .from("sessions")
         .update({
-          name,
+          name: data.name,
           status: "analyzed",
-          analysis,
-          tldr,
-          tags,
+          observations: data.observations,
+          analysis: data.analysis,
+          tldr: data.tldr,
+          tags: data.tags,
         })
         .eq("id", session_id);
 
@@ -199,8 +258,9 @@ export async function POST(request: NextRequest) {
         `✨ [ANALYZE] Successfully marked session ${session_id} as analyzed`,
       );
       console.log(`   Status: analyzing → analyzed`);
-      console.log(`   TLDR: ${tldr}`);
-      console.log(`   Tags: ${tags.join(", ")}`);
+      console.log(`   Observations: ${data.observations.length}`);
+      console.log(`   TLDR: ${data.tldr}`);
+      console.log(`   Tags: ${data.tags?.join(", ")}`);
 
       // Trigger processing for next pending session in the project
       console.log(`🔍 [ANALYZE] Checking for next pending session to process`);
@@ -211,10 +271,7 @@ export async function POST(request: NextRequest) {
         success: true,
         session_id,
         message: "Analysis completed",
-        analysis: analysis,
-        tldr: tldr,
-        tags: tags,
-        name: name,
+        ...data,
       });
     } catch (analysisError) {
       console.error(`❌ [ANALYZE] Analysis failed:`, analysisError);

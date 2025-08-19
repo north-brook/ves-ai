@@ -6,11 +6,11 @@ type Session = Database["public"]["Tables"]["sessions"]["Row"];
 
 // Worker limits per plan
 export const WORKER_LIMITS: Record<ProjectPlan, number> = {
-  trial: 1,
-  starter: 2,
-  growth: 5,
-  scale: 10,
-  enterprise: 999, // Effectively unlimited
+  trial: 2,
+  starter: 5,
+  growth: 10,
+  scale: 20,
+  enterprise: 100,
 };
 
 // Monthly hour limits per plan (in seconds for easier calculation)

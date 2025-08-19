@@ -4,6 +4,8 @@ import { PostHogReplay } from "./posthog-replay";
 import { SessionAnalysis } from "./session-analysis";
 import { LinearTickets } from "./linear-tickets";
 import { Session, Ticket } from "@/types";
+import { SessionObservations } from "./session-observations";
+import { SessionTldr } from "./session-tldr";
 
 interface SessionContentClientProps {
   session: Session;
@@ -18,6 +20,12 @@ export function SessionContentClient({
     <div className="grid gap-8 lg:grid-cols-3">
       <div className="space-y-8 lg:col-span-2">
         <PostHogReplay replayUrl={session.embed_url || ""} />
+
+        {session.tldr && <SessionTldr tldr={session.tldr} />}
+
+        {session.observations && session.observations.length > 0 && (
+          <SessionObservations observations={session.observations} />
+        )}
 
         <div className="border-border bg-surface rounded-lg border p-6">
           {session.analysis ? (

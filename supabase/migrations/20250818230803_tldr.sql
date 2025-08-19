@@ -1,0 +1,1 @@
+alter table "public"."sessions" add column "tldr" text;
