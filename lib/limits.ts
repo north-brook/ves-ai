@@ -14,7 +14,7 @@ export const WORKER_LIMITS: Record<ProjectPlan, number> = {
 };
 
 // Monthly hour limits per plan (in seconds for easier calculation)
-export const MONTHLY_HOUR_LIMITS: Record<ProjectPlan, number> = {
+export const MONTHLY_TIME_LIMITS: Record<ProjectPlan, number> = {
   trial: 1 * 60 * 60, // 1 hour in seconds
   starter: 20 * 60 * 60, // 20 hours in seconds
   growth: 100 * 60 * 60, // 100 hours in seconds
@@ -32,8 +32,8 @@ export function getWorkerLimit(plan: ProjectPlan): number {
 /**
  * Get the monthly hour limit for a project (in seconds)
  */
-export function getMonthlyHourLimit(plan: ProjectPlan): number {
-  return MONTHLY_HOUR_LIMITS[plan] || MONTHLY_HOUR_LIMITS.trial;
+export function getMonthlyTimeLimit(plan: ProjectPlan): number {
+  return MONTHLY_TIME_LIMITS[plan] || MONTHLY_TIME_LIMITS.trial;
 }
 
 /**
@@ -104,7 +104,7 @@ export function hasRemainingAllowance(
   currentUsageSeconds: number,
   sessionDurationSeconds: number = 0,
 ): boolean {
-  const limit = getMonthlyHourLimit(plan);
+  const limit = getMonthlyTimeLimit(plan);
   return currentUsageSeconds + sessionDurationSeconds <= limit;
 }
 
@@ -115,7 +115,7 @@ export function getRemainingAllowance(
   plan: ProjectPlan,
   currentUsageSeconds: number,
 ): number {
-  const limit = getMonthlyHourLimit(plan);
+  const limit = getMonthlyTimeLimit(plan);
   return Math.max(0, limit - currentUsageSeconds);
 }
 

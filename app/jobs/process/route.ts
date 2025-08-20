@@ -51,10 +51,11 @@ export async function POST(request: NextRequest) {
 
     // Check if already processing or processed
     if (session.status !== "pending") {
-      console.warn(
-        `⚠️ [PROCESS] Session ${session_id} is not pending (status: ${session.status})`,
+      console.warn(`⚠️ [PROCESS] Session ${session_id} is already processing`);
+      return NextResponse.json(
+        { error: "Session is already processing" },
+        { status: 200 },
       );
-      throw new Error(`Session is not pending (status: ${session.status})`);
     }
 
     if (!session.active_duration) {
@@ -103,55 +104,13 @@ export async function POST(request: NextRequest) {
 
     // Call cloud rendering service and verify it accepts the job
     console.log(`🚀 [PROCESS] Triggering cloud service`);
-    let cloudResponse: Response;
-    try {
-      cloudResponse = await fetch(`${process.env.CLOUD_URL}/process`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(cloudRequest),
-      });
-    } catch (fetchError) {
-      console.error(
-        `❌ [PROCESS] Failed to connect to cloud service:`,
-        fetchError instanceof Error ? fetchError.message : fetchError,
-      );
-
-      // Update session status back to failed
-      await supabase
-        .from("sessions")
-        .update({ status: "failed" })
-        .eq("id", session_id);
-
-      throw new Error(
-        `Failed to connect to cloud service: ${fetchError instanceof Error ? fetchError.message : fetchError}`,
-      );
-    }
-
-    // Check if cloud service accepted the job
-    if (!cloudResponse.ok) {
-      const errorText = await cloudResponse.text().catch(() => "Unknown error");
-      console.error(
-        `❌ [PROCESS] Cloud service rejected the job:`,
-        cloudResponse.status,
-        errorText,
-      );
-
-      // Update session status back to failed
-      await supabase
-        .from("sessions")
-        .update({ status: "failed" })
-        .eq("id", session_id);
-
-      throw new Error(`Cloud service failed to accept job: ${errorText}`);
-    }
-
-    const cloudResult = await cloudResponse.json().catch(() => null);
-    console.log(
-      `✅ [PROCESS] Cloud service accepted job:`,
-      cloudResult?.message || "Processing started",
-    );
+    fetch(`${process.env.CLOUD_URL}/process`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(cloudRequest),
+    }).catch((_) => {});
 
     return NextResponse.json({
       success: true,

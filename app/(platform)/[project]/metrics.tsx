@@ -2,7 +2,7 @@ import serverSupabase from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Activity, Clock, Ticket } from "lucide-react";
 import { MetricCard } from "./metric-card";
-import { getMonthlyHourLimit, formatSecondsToHours } from "@/lib/limits";
+import { getMonthlyTimeLimit, formatSecondsToHours } from "@/lib/limits";
 
 export async function Metrics({ projectSlug }: { projectSlug: string }) {
   const supabase = await serverSupabase();
@@ -61,7 +61,7 @@ export async function Metrics({ projectSlug }: { projectSlug: string }) {
   const ticketsCount = currentTickets?.length || 0;
 
   // Calculate hours remaining based on plan
-  const monthlyLimitSeconds = getMonthlyHourLimit(project.plan);
+  const monthlyLimitSeconds = getMonthlyTimeLimit(project.plan);
 
   return (
     <div className="mb-8 grid gap-4 md:grid-cols-3">

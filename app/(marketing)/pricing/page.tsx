@@ -72,8 +72,8 @@ export default function PricingPage() {
             </h1>
 
             <p className="text-foreground-secondary mx-auto max-w-2xl text-xl">
-              Pick the plan that matches how many sessions you want VES to watch
-              each month.
+              Get started for free with 1 hour of analysis, then pick the plan
+              that matches how many sessions you want VES to watch each month.
             </p>
           </div>
         </div>
