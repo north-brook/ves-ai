@@ -851,92 +851,106 @@ export async function constructWebm(params: Params): Promise<{
 
   // 3) Render via Playwright (in-house rrvideo)
   console.log(`🎬 [RENDER] Rendering with Playwright (no rrvideo)…`);
-  
+
   // Compress idle periods in events for accurate replay timing
   const allEvents = JSON.parse(await fs.readFile(jsonPath, "utf-8"));
   if (allEvents.length > 0) {
-    console.log(`🔄 [RENDER] Processing ${allEvents.length} events for idle period compression...`);
-    
+    console.log(
+      `🔄 [RENDER] Processing ${allEvents.length} events for idle period compression...`,
+    );
+
     // Identify idle periods from PostHog markers
-    const idlePeriods: Array<{start: number, end: number, reason: string}> = [];
-    
+    const idlePeriods: Array<{ start: number; end: number; reason: string }> =
+      [];
+
     for (let i = 0; i < allEvents.length; i++) {
       const event = allEvents[i];
-      
+
       // Detect start of idle period
       if (event.type === 5 && event.data?.tag === "sessionIdle") {
         // Find the end of this idle period (sessionNoLongerIdle or next user activity)
         let endTime = null;
         let reason = "session timeout";
-        
+
         for (let j = i + 1; j < allEvents.length; j++) {
           const nextEvent = allEvents[j];
-          
+
           // End on sessionNoLongerIdle
-          if (nextEvent.type === 5 && nextEvent.data?.tag === "sessionNoLongerIdle") {
+          if (
+            nextEvent.type === 5 &&
+            nextEvent.data?.tag === "sessionNoLongerIdle"
+          ) {
             endTime = nextEvent.timestamp;
             reason = "user returned";
             break;
           }
-          
+
           // Or end on actual user activity (mouse, click, input)
-          if (nextEvent.type === 3 && [1, 2, 3, 5].includes(nextEvent.data?.source)) {
+          if (
+            nextEvent.type === 3 &&
+            [1, 2, 3, 5].includes(nextEvent.data?.source)
+          ) {
             endTime = nextEvent.timestamp;
             reason = "user activity";
             break;
           }
         }
-        
+
         // If no end found, it's idle until the end
         if (!endTime && i < allEvents.length - 1) {
           endTime = allEvents[allEvents.length - 1].timestamp;
           reason = "recording ended";
         }
-        
+
         if (endTime && endTime > event.timestamp) {
           idlePeriods.push({
             start: event.timestamp,
             end: endTime,
-            reason
+            reason,
           });
         }
       }
-      
+
       // Also detect window hidden periods
       if (event.type === 5 && event.data?.tag === "window hidden") {
         // Find when window becomes visible or activity resumes
         let endTime = null;
-        
+
         for (let j = i + 1; j < allEvents.length; j++) {
           const nextEvent = allEvents[j];
-          
+
           // End on window visible or actual user activity
-          if ((nextEvent.type === 5 && nextEvent.data?.tag === "window visible") ||
-              (nextEvent.type === 3 && [1, 2, 3, 5].includes(nextEvent.data?.source))) {
+          if (
+            (nextEvent.type === 5 &&
+              nextEvent.data?.tag === "window visible") ||
+            (nextEvent.type === 3 &&
+              [1, 2, 3, 5].includes(nextEvent.data?.source))
+          ) {
             endTime = nextEvent.timestamp;
             break;
           }
         }
-        
+
         // If no activity after window hidden, idle until end
         if (!endTime && i < allEvents.length - 1) {
           endTime = allEvents[allEvents.length - 1].timestamp;
         }
-        
-        if (endTime && endTime > event.timestamp + 10000) { // Only if > 10s
+
+        if (endTime && endTime > event.timestamp + 10000) {
+          // Only if > 10s
           idlePeriods.push({
             start: event.timestamp,
             end: endTime,
-            reason: "window hidden"
+            reason: "window hidden",
           });
         }
       }
     }
-    
+
     // Merge overlapping periods
     idlePeriods.sort((a, b) => a.start - b.start);
     const mergedPeriods: typeof idlePeriods = [];
-    
+
     for (const period of idlePeriods) {
       if (mergedPeriods.length === 0) {
         mergedPeriods.push(period);
@@ -951,35 +965,37 @@ export async function constructWebm(params: Params): Promise<{
         }
       }
     }
-    
-    console.log(`🕐 [RENDER] Found ${mergedPeriods.length} idle period(s) to compress:`);
+
+    console.log(
+      `🕐 [RENDER] Found ${mergedPeriods.length} idle period(s) to compress:`,
+    );
     let totalIdleTime = 0;
     for (const period of mergedPeriods) {
       const duration = (period.end - period.start) / 1000;
       totalIdleTime += duration;
       console.log(`   - ${duration.toFixed(1)}s idle (${period.reason})`);
     }
-    
+
     // Now compress timestamps
     if (mergedPeriods.length > 0) {
       const COMPRESSED_GAP = 1000; // Replace idle periods with 1 second gap
-      
+
       for (const period of mergedPeriods) {
         const idleDuration = period.end - period.start;
         const compressionAmount = idleDuration - COMPRESSED_GAP;
-        
+
         // Adjust all timestamps after this idle period
         for (let i = 0; i < allEvents.length; i++) {
           if (allEvents[i].timestamp > period.end) {
             allEvents[i].timestamp -= compressionAmount;
-            
+
             // Also adjust nested timestamps in data if they exist
             if (allEvents[i].data) {
               adjustNestedTimestamps(allEvents[i].data, compressionAmount);
             }
           }
         }
-        
+
         // Update the end times of subsequent periods
         for (const nextPeriod of mergedPeriods) {
           if (nextPeriod.start > period.end) {
@@ -988,29 +1004,35 @@ export async function constructWebm(params: Params): Promise<{
           }
         }
       }
-      
+
       // Save compressed events back to file
       await fs.writeFile(jsonPath, JSON.stringify(allEvents), "utf-8");
-      
-      const newDuration = (allEvents[allEvents.length - 1].timestamp - allEvents[0].timestamp) / 1000;
-      console.log(`✅ [RENDER] Compressed ${totalIdleTime.toFixed(1)}s of idle time`);
-      console.log(`   Original duration: ${((allEvents[allEvents.length - 1].timestamp - allEvents[0].timestamp) / 1000 + totalIdleTime).toFixed(1)}s`);
+
+      const newDuration =
+        (allEvents[allEvents.length - 1].timestamp - allEvents[0].timestamp) /
+        1000;
+      console.log(
+        `✅ [RENDER] Compressed ${totalIdleTime.toFixed(1)}s of idle time`,
+      );
+      console.log(
+        `   Original duration: ${((allEvents[allEvents.length - 1].timestamp - allEvents[0].timestamp) / 1000 + totalIdleTime).toFixed(1)}s`,
+      );
       console.log(`   Compressed duration: ${newDuration.toFixed(1)}s`);
       console.log(`   Active time saved: ${totalIdleTime.toFixed(1)}s`);
     }
   }
-  
+
   // Helper function to adjust nested timestamps
   function adjustNestedTimestamps(obj: any, amount: number): void {
-    if (!obj || typeof obj !== 'object') return;
-    
+    if (!obj || typeof obj !== "object") return;
+
     // Known timestamp fields in rrweb events
-    const timestampFields = ['timestamp', 'timeOffset', 'delay'];
-    
+    const timestampFields = ["timestamp", "timeOffset", "delay"];
+
     for (const key in obj) {
-      if (timestampFields.includes(key) && typeof obj[key] === 'number') {
+      if (timestampFields.includes(key) && typeof obj[key] === "number") {
         obj[key] -= amount;
-      } else if (typeof obj[key] === 'object') {
+      } else if (typeof obj[key] === "object") {
         adjustNestedTimestamps(obj[key], amount);
       }
     }
@@ -1047,6 +1069,7 @@ export async function constructWebm(params: Params): Promise<{
   // Launch chromium with optimized memory settings
   const launchOptions: LaunchOptions = {
     headless: true,
+    timeout: 30000, // 30 second timeout for launch
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
@@ -1054,10 +1077,12 @@ export async function constructWebm(params: Params): Promise<{
       "--disable-gpu",
       "--disable-web-security",
       "--disable-features=IsolateOrigins,site-per-process",
-      "--single-process",  // Reduce process overhead
-      "--no-zygote",       // Reduce memory overhead
+      "--disable-blink-features=AutomationControlled",
+      "--disable-accelerated-2d-canvas",
+      "--disable-webgl",
+      "--disable-webgl2",
       "--memory-pressure-off",
-      "--max_old_space_size=512",  // Limit V8 heap per context
+      "--max_old_space_size=512", // Limit V8 heap per context
     ],
   };
   const browser = await chromium.launch(launchOptions);
@@ -1098,24 +1123,13 @@ export async function constructWebm(params: Params): Promise<{
       msg.args().forEach(async (arg) => {
         try {
           const value = await arg.jsonValue();
-          if (value && typeof value === 'object' && value.stack) {
+          if (value && typeof value === "object" && value.stack) {
             console.error(`  Stack trace:`, value.stack);
           }
         } catch (e) {
           // Ignore errors getting arg values
         }
       });
-      return;
-    }
-
-    // Skip node not found warnings - these are expected
-    if (type === "warning" && text.includes("Node with id")) {
-      return; // Silently ignore these common warnings
-    }
-    
-    // For other warnings about undefined/null, log them
-    if (type === "warning") {
-      console.warn(`⚠️ [BROWSER WARNING] ${text}`);
       return;
     }
 
