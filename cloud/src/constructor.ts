@@ -5,8 +5,7 @@ import { createWriteStream, promises as fs } from "node:fs";
 import { spawn } from "node:child_process";
 import { gunzipSync } from "node:zlib";
 import { decompressFromBase64 } from "lz-string";
-import type { LaunchOptions } from "playwright-core";
-import chromium from "@sparticuz/chromium";
+import { LaunchOptions } from "playwright-core";
 import { createRequire } from "node:module";
 
 type RrvideoConfig = {
@@ -319,18 +318,18 @@ function* toRrwebEventsGenerator(rawChunk: unknown): Generator<RrwebEvent> {
 // --------------------------------------------------------
 
 const requireFromHere = createRequire(__filename);
-function readRrwebPlayerAssets() {
+async function readRrwebPlayerAssets() {
   // Resolve rrweb-player - the main entry points to lib/index.js
   const rrwebPlayerPkgMain = requireFromHere.resolve("rrweb-player");
   // We need the UMD build which is in dist/index.js, and CSS in dist/style.css
   const rrwebUmdPath = pathResolve(rrwebPlayerPkgMain, "../../dist/index.js");
   const rrwebCssPath = pathResolve(rrwebUmdPath, "../style.css");
-  const rrwebRaw = fs.readFile(rrwebUmdPath, "utf-8");
-  const rrwebStyle = fs.readFile(rrwebCssPath, "utf-8");
-  return Promise.all([rrwebRaw, rrwebStyle]).then(([script, css]) => ({
-    script,
-    css,
-  }));
+  const rrwebRaw = await fs.readFile(rrwebUmdPath, "utf-8");
+  const rrwebStyle = await fs.readFile(rrwebCssPath, "utf-8");
+  return {
+    script: rrwebRaw,
+    css: rrwebStyle,
+  };
 }
 
 function buildReplayHtml(
@@ -1082,35 +1081,10 @@ export async function constructWebm(params: Params): Promise<{
   // Set Sparticuz chromium settings for serverless environments
   let chromiumPath: string | undefined = undefined;
 
-  if (isLinux) {
-    // Disable graphics mode for better performance in serverless
-    chromium.setGraphicsMode = false;
-
-    try {
-      console.log(`🔧 [BROWSER] Initializing Sparticuz Chromium...`);
-      chromiumPath = await chromium.executablePath();
-      console.log(`✅ [BROWSER] Sparticuz Chromium ready at: ${chromiumPath}`);
-
-      // Verify the binary exists and is executable
-      const { access, constants } = await import("node:fs/promises");
-      await access(chromiumPath, constants.X_OK);
-      console.log(`✅ [BROWSER] Chromium binary is executable`);
-    } catch (error) {
-      console.error(
-        `❌ [BROWSER] Failed to initialize Sparticuz Chromium:`,
-        error,
-      );
-      throw error;
-    }
-  } else {
-    console.log(`🔧 [BROWSER] Using system Chromium (local development)`);
-  }
-
   const launchOptions: LaunchOptions = {
     headless: true,
     executablePath: chromiumPath,
     args: [
-      ...(isLinux ? chromium.args : []),
       "--no-sandbox",
       "--disable-setuid-sandbox",
       "--disable-dev-shm-usage",
@@ -1126,7 +1100,7 @@ export async function constructWebm(params: Params): Promise<{
       "--single-process", // Important for serverless
       "--disable-dev-tools",
     ],
-    timeout: isLinux ? 60000 : 30000, // 60s timeout for Cloud Run, 30s for local
+    timeout: 30000,
   };
   console.log(
     `🚀 [BROWSER] Launching browser with timeout: ${launchOptions.timeout}ms`,
