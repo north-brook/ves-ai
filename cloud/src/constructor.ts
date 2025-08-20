@@ -5,7 +5,7 @@ import { createWriteStream, promises as fs } from "node:fs";
 import { spawn } from "node:child_process";
 import { gunzipSync } from "node:zlib";
 import { decompressFromBase64 } from "lz-string";
-import { chromium as playwrightChromium, LaunchOptions } from "playwright-core";
+import type { LaunchOptions } from "playwright-core";
 import chromium from "@sparticuz/chromium";
 import { createRequire } from "node:module";
 
@@ -1068,12 +1068,49 @@ export async function constructWebm(params: Params): Promise<{
   });
 
   // Launch chromium with optimized memory settings
-  // Use @sparticuz/chromium for better serverless compatibility
+  // Use @sparticuz/chromium for Linux environments (production/Docker)
+  // Use system chromium for local development (macOS/Windows)
+  const isLinux = process.platform === "linux";
+
+  // Dynamically import the right Playwright package
+  // playwright-core for production (we provide our own browser via Sparticuz)
+  // playwright for local dev (includes browsers)
+  const { chromium: playwrightChromium } = await import(
+    isLinux ? "playwright-core" : "playwright"
+  );
+
+  // Set Sparticuz chromium settings for serverless environments
+  let chromiumPath: string | undefined = undefined;
+
+  if (isLinux) {
+    // Disable graphics mode for better performance in serverless
+    chromium.setGraphicsMode = false;
+
+    try {
+      console.log(`🔧 [BROWSER] Initializing Sparticuz Chromium...`);
+      chromiumPath = await chromium.executablePath();
+      console.log(`✅ [BROWSER] Sparticuz Chromium ready at: ${chromiumPath}`);
+
+      // Verify the binary exists and is executable
+      const { access, constants } = await import("node:fs/promises");
+      await access(chromiumPath, constants.X_OK);
+      console.log(`✅ [BROWSER] Chromium binary is executable`);
+    } catch (error) {
+      console.error(
+        `❌ [BROWSER] Failed to initialize Sparticuz Chromium:`,
+        error,
+      );
+      throw error;
+    }
+  } else {
+    console.log(`🔧 [BROWSER] Using system Chromium (local development)`);
+  }
+
   const launchOptions: LaunchOptions = {
     headless: true,
-    executablePath: await chromium.executablePath(),
+    executablePath: chromiumPath,
     args: [
-      ...chromium.args,
+      ...(isLinux ? chromium.args : []),
       "--no-sandbox",
       "--disable-setuid-sandbox",
       "--disable-dev-shm-usage",
@@ -1086,10 +1123,16 @@ export async function constructWebm(params: Params): Promise<{
       "--disable-webgl2",
       "--memory-pressure-off",
       "--max_old_space_size=512", // Limit V8 heap per context
+      "--single-process", // Important for serverless
+      "--disable-dev-tools",
     ],
-    timeout: 30000, // 30 second timeout for launch
+    timeout: isLinux ? 60000 : 30000, // 60s timeout for Cloud Run, 30s for local
   };
+  console.log(
+    `🚀 [BROWSER] Launching browser with timeout: ${launchOptions.timeout}ms`,
+  );
   const browser = await playwrightChromium.launch(launchOptions);
+  console.log(`✅ [BROWSER] Browser launched successfully`);
   const context = await browser.newContext({
     viewport: { width: renderWidth, height: renderHeight },
     recordVideo: {
@@ -1102,7 +1145,7 @@ export async function constructWebm(params: Params): Promise<{
   let lastProgressPercent = -1;
 
   // Capture console messages from the browser with better deduplication
-  page.on("console", (msg) => {
+  page.on("console", (msg: any) => {
     const type = msg.type();
     const text = msg.text();
 
@@ -1124,7 +1167,7 @@ export async function constructWebm(params: Params): Promise<{
     if (type === "error") {
       console.error(`🌐 [BROWSER ERROR] ${text}`);
       // Try to get more info from the error
-      msg.args().forEach(async (arg) => {
+      msg.args().forEach(async (arg: any) => {
         try {
           const value = await arg.jsonValue();
           if (value && typeof value === "object" && value.stack) {
@@ -1149,7 +1192,7 @@ export async function constructWebm(params: Params): Promise<{
     }
   });
 
-  page.on("pageerror", (error) => {
+  page.on("pageerror", (error: any) => {
     console.error(`💥 [PAGE ERROR]`, error.message);
   });
 

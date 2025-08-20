@@ -51,20 +51,28 @@ app.post("/process", async (req, res) => {
       `  🗂️ Target: ${body.project_id}/${body.session_id}`,
   );
 
-  // Return 200 immediately to acknowledge receipt
-  res.status(200).json({
-    success: true,
-    message: "Recording job accepted and processing",
-    recording_id: body.recording_id,
-  });
-
-  // Process the recording asynchronously
-  processRecordingAsync(body).catch((err) => {
+  // Process the recording and hold connection open to ensure 1 recording per instance
+  // The callback will be sent from processRecordingAsync
+  try {
+    await processRecordingAsync(body);
+    // Only return 200 after processing is complete
+    res.status(200).json({
+      success: true,
+      message: "Recording processed and callback sent",
+      recording_id: body.recording_id,
+    });
+  } catch (err: any) {
     console.error(
-      `❌ [ASYNC ERROR] Failed to process recording ${body.recording_id}:`,
+      `❌ [ERROR] Failed to process recording ${body.recording_id}:`,
       err,
     );
-  });
+    // Return error but callback was already sent
+    res.status(500).json({
+      success: false,
+      error: err.message || "Recording processing failed",
+      recording_id: body.recording_id,
+    });
+  }
 });
 
 // Async function to process the recording
