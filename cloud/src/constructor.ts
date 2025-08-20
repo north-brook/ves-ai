@@ -5,7 +5,8 @@ import { createWriteStream, promises as fs } from "node:fs";
 import { spawn } from "node:child_process";
 import { gunzipSync } from "node:zlib";
 import { decompressFromBase64 } from "lz-string";
-import { chromium, LaunchOptions } from "playwright";
+import { chromium as playwrightChromium, LaunchOptions } from "playwright-core";
+import chromium from "@sparticuz/chromium";
 import { createRequire } from "node:module";
 
 type RrvideoConfig = {
@@ -1067,10 +1068,12 @@ export async function constructWebm(params: Params): Promise<{
   });
 
   // Launch chromium with optimized memory settings
+  // Use @sparticuz/chromium for better serverless compatibility
   const launchOptions: LaunchOptions = {
     headless: true,
-    timeout: 30000, // 30 second timeout for launch
+    executablePath: await chromium.executablePath(),
     args: [
+      ...chromium.args,
       "--no-sandbox",
       "--disable-setuid-sandbox",
       "--disable-dev-shm-usage",
@@ -1084,8 +1087,9 @@ export async function constructWebm(params: Params): Promise<{
       "--memory-pressure-off",
       "--max_old_space_size=512", // Limit V8 heap per context
     ],
+    timeout: 30000, // 30 second timeout for launch
   };
-  const browser = await chromium.launch(launchOptions);
+  const browser = await playwrightChromium.launch(launchOptions);
   const context = await browser.newContext({
     viewport: { width: renderWidth, height: renderHeight },
     recordVideo: {
