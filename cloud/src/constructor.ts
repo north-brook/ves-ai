@@ -5,8 +5,8 @@ import { createWriteStream, promises as fs } from "node:fs";
 import { spawn } from "node:child_process";
 import { gunzipSync } from "node:zlib";
 import { decompressFromBase64 } from "lz-string";
-import { LaunchOptions } from "playwright-core";
 import { createRequire } from "node:module";
+import { chromium, LaunchOptions } from "playwright";
 
 type RrvideoConfig = {
   width?: number;
@@ -1069,14 +1069,6 @@ export async function constructWebm(params: Params): Promise<{
   // Launch chromium with optimized memory settings
   // Use @sparticuz/chromium for Linux environments (production/Docker)
   // Use system chromium for local development (macOS/Windows)
-  const isLinux = process.platform === "linux";
-
-  // Dynamically import the right Playwright package
-  // playwright-core for production (we provide our own browser via Sparticuz)
-  // playwright for local dev (includes browsers)
-  const { chromium: playwrightChromium } = await import(
-    isLinux ? "playwright-core" : "playwright"
-  );
 
   // Set Sparticuz chromium settings for serverless environments
   let chromiumPath: string | undefined = undefined;
@@ -1105,7 +1097,7 @@ export async function constructWebm(params: Params): Promise<{
   console.log(
     `🚀 [BROWSER] Launching browser with timeout: ${launchOptions.timeout}ms`,
   );
-  const browser = await playwrightChromium.launch(launchOptions);
+  const browser = await chromium.launch(launchOptions);
   console.log(`✅ [BROWSER] Browser launched successfully`);
   const context = await browser.newContext({
     viewport: { width: renderWidth, height: renderHeight },
