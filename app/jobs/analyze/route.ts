@@ -104,8 +104,14 @@ export async function POST(request: NextRequest) {
     try {
       const ai = new GoogleGenAI({
         vertexai: true,
-        project: "ves-ai",
-        location: "us-central1",
+        project: process.env.GCP_PROJECT_ID,
+        location: process.env.GCP_LOCATION,
+        googleAuthOptions: {
+          credentials: {
+            client_email: process.env.GCP_CLIENT_EMAIL,
+            private_key: process.env.GCP_PRIVATE_KEY,
+          },
+        },
       });
 
       console.log(`🤖 [ANALYZE] AI video analysis`);
