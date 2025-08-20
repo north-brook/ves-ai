@@ -1179,7 +1179,13 @@ export async function constructWebm(params: Params): Promise<{
 
   try {
     await page.goto("about:blank");
-    await page.setContent(html, { waitUntil: "load" });
+    console.log(`📄 [BROWSER] Setting HTML content (${(html.length / 1024 / 1024).toFixed(2)} MB)...`);
+    const contentStartTime = Date.now();
+    await page.setContent(html, { 
+      waitUntil: "load",
+      timeout: 120000 // Increase timeout to 2 minutes for large event data
+    });
+    console.log(`✅ [BROWSER] HTML content loaded in ${((Date.now() - contentStartTime) / 1000).toFixed(1)}s`);
 
     // Add a timeout for the replay based on duration
     // The replay duration is affected by speed setting, so account for that
