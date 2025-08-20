@@ -2,10 +2,9 @@
   "name": "@vesai/cloud",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "start": "bun run dist/index.js"
+    "start": "node dist/index.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.864.0",
@@ -13,7 +12,9 @@
     "@google-cloud/storage": "^7.17.0",
     "@supabase/supabase-js": "^2.47.10",
     "express": "^4.19.2",
-    "playwright": "^1.46.0"
+    "lz-string": "^1.5.0",
+    "playwright": "1.46.1",
+    "rrweb-player": "latest"
   },
   "devDependencies": {
     "@types/express": "^5.0.3",

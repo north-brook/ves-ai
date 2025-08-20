@@ -1,31 +1,27 @@
 "use client";
 
-import { useState, useMemo, useEffect, useTransition, useRef } from "react";
+import { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import { Session } from "@/types";
 import { searchSessions, triggerRunJob } from "./actions";
 import clientSupabase from "@/lib/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 
-interface SessionWithTickets extends Session {
-  ticketCount?: number;
-  similarity?: number;
-}
 import { formatDistanceToNow, format } from "date-fns";
 import {
   Clock,
   Search,
   Tag,
-  Ticket,
   Activity,
   Calendar,
   LoaderCircle,
+  StickyNote,
 } from "lucide-react";
 import { SessionStatusBadge } from "@/components/session-status";
 import { RealtimeChannel } from "@supabase/supabase-js";
 
 interface SessionListProps {
-  sessions: SessionWithTickets[];
+  sessions: Session[];
   projectSlug: string;
   projectId: string;
 }
@@ -35,12 +31,9 @@ export function SessionList({
   projectSlug,
   projectId,
 }: SessionListProps) {
-  const [sessions, setSessions] =
-    useState<SessionWithTickets[]>(initialSessions);
+  const [sessions, setSessions] = useState<Session[]>(initialSessions);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<
-    SessionWithTickets[] | null
-  >(null);
+  const [searchResults, setSearchResults] = useState<Session[] | null>(null);
   const [isPending, startTransition] = useTransition();
 
   // Trigger run job on mount
@@ -101,13 +94,7 @@ export function SessionList({
                 if (prev.some((s) => s.id === newSession.id)) {
                   return prev;
                 }
-
-                const sessionWithTickets: SessionWithTickets = {
-                  ...newSession,
-                  ticketCount: 0, // Start with 0, will update async
-                };
-
-                const updated = [sessionWithTickets, ...prev];
+                const updated = [newSession, ...prev];
                 // Sort by session_at descending (most recent first)
                 return updated.sort((a, b) => {
                   const dateA = a.session_at
@@ -128,13 +115,9 @@ export function SessionList({
                 const existingSession = prev.find(
                   (s) => s.id === updatedSession.id,
                 );
-                const sessionWithTickets: SessionWithTickets = {
-                  ...updatedSession,
-                  ticketCount: existingSession?.ticketCount || 0,
-                };
 
                 const updated = prev.map((s) =>
-                  s.id === updatedSession.id ? sessionWithTickets : s,
+                  s.id === updatedSession.id ? updatedSession : s,
                 );
                 // Sort by session_at descending (most recent first)
                 return updated.sort((a, b) => {
@@ -387,10 +370,10 @@ export function SessionList({
                       </span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <Ticket className="h-3 w-3" />
+                      <StickyNote className="h-3 w-3" />
                       <span>
                         {session.status === "analyzed" ? (
-                          session.ticketCount || 0
+                          session.observations?.length || 0
                         ) : (
                           <span className="italic">Pending</span>
                         )}

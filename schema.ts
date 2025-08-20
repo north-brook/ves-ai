@@ -173,7 +173,6 @@ export type Database = {
           active_duration: number | null
           analyzed_at: string | null
           created_at: string
-          embed_url: string | null
           embedding: string | null
           id: string
           name: string | null
@@ -189,13 +188,12 @@ export type Database = {
           tldr: string | null
           total_duration: number | null
           video_duration: number | null
-          video_url: string | null
+          video_uri: string | null
         }
         Insert: {
           active_duration?: number | null
           analyzed_at?: string | null
           created_at?: string
-          embed_url?: string | null
           embedding?: string | null
           id?: string
           name?: string | null
@@ -211,13 +209,12 @@ export type Database = {
           tldr?: string | null
           total_duration?: number | null
           video_duration?: number | null
-          video_url?: string | null
+          video_uri?: string | null
         }
         Update: {
           active_duration?: number | null
           analyzed_at?: string | null
           created_at?: string
-          embed_url?: string | null
           embedding?: string | null
           id?: string
           name?: string | null
@@ -233,7 +230,7 @@ export type Database = {
           tldr?: string | null
           total_duration?: number | null
           video_duration?: number | null
-          video_url?: string | null
+          video_uri?: string | null
         }
         Relationships: [
           {

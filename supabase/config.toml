@@ -111,6 +111,10 @@ file_size_limit = "20MB"
 public = true
 allowed_mime_types = ["image/png", "image/jpeg", "image/gif", "image/webp"]
 
+[storage.buckets.sessions]
+public = false
+allowed_mime_types = ["application/json"]
+
 [auth]
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used

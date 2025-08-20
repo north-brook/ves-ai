@@ -1,12 +1,12 @@
 import { Storage } from "@google-cloud/storage";
 import fs from "node:fs";
-import { pipeline } from "node:stream/promises";
+import stream from "node:stream";
 
 export async function uploadToGCS(params: {
   projectId: string;
   sessionId: string;
   localPath: string;
-}): Promise<{ url: string }> {
+}): Promise<{ uri: string }> {
   const fileName = `${params.sessionId}.webm`;
   const bucketName = "ves.ai";
   const filePath = `${params.projectId}/${fileName}`;
@@ -34,25 +34,74 @@ export async function uploadToGCS(params: {
   // Initialize GCS client
   const storage = new Storage();
 
-  // Use streaming upload instead of loading entire file into memory
+  // Get a reference to the bucket and file
   const bucket = storage.bucket(bucketName);
   const file = bucket.file(filePath);
 
-  // Create a read stream from the local file
+  // Create a PassThrough stream for better control
+  const passthroughStream = new stream.PassThrough();
+
+  // Create read stream from the local file
   const readStream = fs.createReadStream(params.localPath);
-  
-  // Create a write stream to GCS
-  const writeStream = file.createWriteStream({
-    metadata: {
-      contentType: "video/webm",
-    },
-    resumable: false, // Disable resumable uploads for smaller memory footprint
+
+  // Set up progress tracking
+  let uploadedBytes = 0;
+  let lastProgress = 0;
+
+  passthroughStream.on("data", (chunk) => {
+    uploadedBytes += chunk.length;
+    const progress = Math.round((uploadedBytes / stats.size) * 100);
+
+    // Log progress every 10%
+    if (progress >= lastProgress + 10) {
+      console.log(
+        `  📊 Upload progress: ${progress}% (${(uploadedBytes / 1024 / 1024).toFixed(1)} MB / ${fileSizeMB.toFixed(1)} MB)`,
+      );
+      lastProgress = progress;
+    }
   });
 
-  // Stream the file to GCS
-  await pipeline(readStream, writeStream);
+  // Create the upload promise
+  const uploadPromise = new Promise<void>((resolve, reject) => {
+    // Create write stream to GCS with options
+    const writeStream = file.createWriteStream({
+      metadata: {
+        contentType: "video/webm",
+        cacheControl: "public, max-age=3600",
+      },
+      resumable: false, // Disable resumable uploads for Cloud Run (stateless)
+      validation: false, // Disable validation for better performance
+      gzip: false, // Don't gzip video files
+    });
 
-  console.log(`  ✅ Upload completed successfully`);
+    // Handle write stream events
+    writeStream.on("error", (err) => {
+      console.error(`  ❌ [UPLOAD ERROR] ${err.message}`);
+      reject(err);
+    });
 
-  return { url: `gs://${bucketName}/${filePath}` };
+    writeStream.on("finish", () => {
+      console.log(`  ✅ Upload completed successfully`);
+      resolve();
+    });
+
+    // Pipe the passthrough stream to GCS write stream
+    passthroughStream.pipe(writeStream);
+  });
+
+  // Handle read stream errors
+  readStream.on("error", (err) => {
+    console.error(`  ❌ [READ ERROR] Failed to read file: ${err.message}`);
+    passthroughStream.destroy(err);
+  });
+
+  // Pipe the file through the passthrough stream
+  readStream.pipe(passthroughStream);
+
+  // Wait for upload to complete
+  await uploadPromise;
+
+  return {
+    uri: `gs://${bucketName}/${filePath}`,
+  };
 }

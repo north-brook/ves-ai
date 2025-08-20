@@ -10,7 +10,7 @@ import {
 import nextJobs from "../run/next-job";
 import { Session } from "@/types";
 
-type AnalyzeRequest = {
+export type AnalyzeJobRequest = {
   session_id: string;
 };
 
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body: AnalyzeRequest = await request.json();
+    const body: AnalyzeJobRequest = await request.json();
     const { session_id } = body;
 
     if (!session_id) {
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     const { data: session, error: sessionError } = await supabase
       .from("sessions")
       .select(
-        "id,recording_id,status,video_url,video_duration,embed_url,project:projects(id,name,slug,plan,subscribed_at,created_at)",
+        "id,recording_id,status,video_uri,video_duration,project:projects(id,name,slug,plan,subscribed_at,created_at)",
       )
       .eq("id", session_id)
       .single();
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     console.log(`   Recording: ${session.recording_id}`);
     console.log(`   Status: ${session.status}`);
     console.log(`   Project: ${session.project.name}`);
-    console.log(`   Video URL: ${session.video_url}`);
+    console.log(`   Video URL: ${session.video_uri}`);
     console.log(`   Duration: ${session.video_duration}s`);
 
     // Check if session is in processed state
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!session.video_url) {
+    if (!session.video_uri) {
       console.error(`❌ [ANALYZE] Session ${session_id} has no video URL`);
       return NextResponse.json(
         {
@@ -109,13 +109,12 @@ export async function POST(request: NextRequest) {
       });
 
       console.log(`🤖 [ANALYZE] AI video analysis`);
-      console.log(`   Video to analyze: ${session.video_url}`);
-      console.log(`   Embed URL: ${session.embed_url}`);
+      console.log(`   Video to analyze: ${session.video_uri}`);
 
       const response = await ai.models.generateContent({
         model: "gemini-2.5-pro",
         contents: createUserContent([
-          createPartFromUri(session.video_url, "video/webm"),
+          createPartFromUri(session.video_uri, "video/webm"),
           "You are analyzing a user session recording from a web application via a PostHog embed.\n\nFirst, verify that the video contains a valid session replay.\n\nIf the video is invalid (corrupted, doesn't load, doesn't contain a replay, or the replay doesn't actually play):\n- Return: {valid_video: false, analysis: null}\n\nIf the session replay is valid and playable:\n- Return: {valid_video: true, analysis: {observations, synthesis, tldr, tags, name}}\n\nFor valid sessions:\nThe session replay will buffer at first, then play through periods of user activity, skipping periods of user inactivity. You can see the progress of the replay on the bottom.\n\nBegin by carefully observing user behaviors without immediately assuming problems. Many actions have multiple plausible explanations - a user who adds items to cart but doesn't check out might be browsing, comparing options, or saving for later, not necessarily encountering a bug. A user who hesitates might be reading content or thinking, not confused.\n\nYour goal is to identify bugs, UX friction points, user behavior patterns, and opportunities for product improvement. Watch the entire session carefully, noting user interactions, hesitations, errors, successful flows, and abandoned actions. For each observation, think deeply about why the user might be behaving this way before concluding there's an issue.\n\nFocus on providing actionable insights that product teams can use to improve the user experience. Be specific about what happened, when it happened, and why it matters. Consider both technical issues (bugs, errors, performance) and user experience issues (confusion, friction, inefficient workflows).",
         ]),
         config: {

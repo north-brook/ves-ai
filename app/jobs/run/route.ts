@@ -3,7 +3,6 @@ import adminSupabase from "@/lib/supabase/admin";
 import * as Sentry from "@sentry/nextjs";
 import { Database } from "@/types";
 import nextJobs from "./next-job";
-import enableSharingAndGetEmbedUrl from "./share-session";
 
 type Source = Database["public"]["Tables"]["sources"]["Row"] & {
   projects: {
@@ -403,51 +402,17 @@ async function pullSessionsFromSource(
 
     // Enable sharing and get embed URLs in parallel for all recordings
     if (recordingsToProcess.length > 0) {
-      console.log(
-        `🔄 [PULL] Enabling sharing for ${recordingsToProcess.length} recordings in parallel...`,
-      );
-
-      const embedUrlPromises = recordingsToProcess.map(async (recording) => {
-        try {
-          const embedUrl = await enableSharingAndGetEmbedUrl(
-            source.source_host!,
-            source.source_key!,
-            source.source_project!,
-            recording.id,
-          );
-          return { recording, embedUrl, success: true };
-        } catch (error) {
-          console.error(
-            `❌ [PULL] Failed to enable sharing for recording ${recording.id}:`,
-            error,
-          );
-          return { recording, embedUrl: null, success: false, error };
-        }
-      });
-
-      const embedUrlResults = await Promise.all(embedUrlPromises);
-
       // Create sessions with embed URLs
-      for (const result of embedUrlResults) {
-        if (!result.success) {
-          // Log error but continue with other recordings
-          Sentry.captureException(result.error, {
-            tags: { job: "pull_sessions", step: "enable_sharing" },
-            extra: { recordingId: result.recording.id, sourceId: source.id },
-          });
-          continue;
-        }
-
+      for (const recording of recordingsToProcess) {
         const sessionInsert: Database["public"]["Tables"]["sessions"]["Insert"] =
           {
             source_id: source.id,
             project_id: source.project_id,
-            recording_id: result.recording.id,
-            status: result.embedUrl ? "pending" : "failed",
-            session_at: result.recording.end_time,
-            embed_url: result.embedUrl,
-            total_duration: result.recording.recording_duration, // Total recording duration
-            active_duration: result.recording.active_seconds, // Active seconds only
+            recording_id: recording.id,
+            status: "pending",
+            session_at: recording.end_time,
+            total_duration: recording.recording_duration,
+            active_duration: recording.active_seconds,
           };
 
         const { data: newSession, error: insertError } = await supabase
@@ -458,12 +423,12 @@ async function pullSessionsFromSource(
 
         if (insertError) {
           console.error(
-            `❌ [PULL] Error creating session for recording ${result.recording.id}:`,
+            `❌ [PULL] Error creating session for recording ${recording.id}:`,
             insertError,
           );
           Sentry.captureException(insertError, {
             tags: { job: "pull_sessions", step: "insert" },
-            extra: { recordingId: result.recording.id, sourceId: source.id },
+            extra: { recordingId: recording.id, sourceId: source.id },
           });
         } else {
           pageNewCount++;

@@ -6,6 +6,7 @@ import {
   getWorkerLimit,
   hasRemainingAllowance,
 } from "@/lib/limits";
+import { ProcessJobRequest } from "../process/route";
 
 export default async function nextJobs(
   projectId: string,
@@ -95,7 +96,7 @@ export default async function nextJobs(
             "Content-Type": "application/json",
             Authorization: `Bearer ${process.env.CRON_SECRET}`,
           },
-          body: JSON.stringify({ session_id: session.id }),
+          body: JSON.stringify({ session_id: session.id } as ProcessJobRequest),
         },
       );
 

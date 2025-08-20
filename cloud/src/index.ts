@@ -1,17 +1,27 @@
 import express from "express";
 import fs from "fs/promises";
-import { recordReplayToWebm } from "./renderer";
 import { uploadToGCS } from "./uploader";
 import { postCallback } from "./callback";
-import type { ErrorPayload, RenderRequest, SuccessPayload } from "./types";
+import type { ErrorPayload, ProcessRequest, SuccessPayload } from "./types";
+import { constructWebm } from "./constructor";
 
 const app = express();
 app.use(express.json({ limit: "512kb" }));
 
+// Track active recordings for cleanup
+const activeRecordings = new Map<
+  string,
+  {
+    body: ProcessRequest;
+    callbackUrl: string;
+    startTime: number;
+  }
+>();
+
 app.get("/health", (_req, res) => res.status(200).send("ok"));
 
-app.post("/render", async (req, res) => {
-  const body = req.body as RenderRequest;
+app.post("/process", async (req, res) => {
+  const body = req.body as ProcessRequest;
 
   // Basic validation
   const missing = [
@@ -23,7 +33,6 @@ app.post("/render", async (req, res) => {
     "session_id",
     "recording_id",
     "active_duration",
-    "embed_url",
     "callback",
   ].filter(
     (k) =>
@@ -59,27 +68,53 @@ app.post("/render", async (req, res) => {
 });
 
 // Async function to process the recording
-async function processRecordingAsync(body: RenderRequest) {
+async function processRecordingAsync(body: ProcessRequest) {
   let successPayload: SuccessPayload | null = null;
   let errorPayload: ErrorPayload | null = null;
   const processStartTime = Date.now();
+
+  // Fix callback URL for Docker containers to reach host
+  let callbackUrl = body.callback;
+  if (callbackUrl.includes("localhost") && process.env.DOCKERIZED === "true") {
+    callbackUrl = callbackUrl.replace("localhost", "host.docker.internal");
+    console.log(`🔄 [DOCKER] Rewriting callback URL to: ${callbackUrl}`);
+  }
+
+  // Track this recording as active
+  activeRecordings.set(body.recording_id, {
+    body,
+    callbackUrl,
+    startTime: processStartTime,
+  });
 
   // Set up process heartbeat
   const processHeartbeat = setInterval(() => {
     const elapsed = (Date.now() - processStartTime) / 1000;
     console.log(
-      `📡 [PROCESS HEARTBEAT] Recording ${body.recording_id} - ${elapsed.toFixed(0)}s elapsed`,
+      `⏰ [HEARTBEAT] Recording ${body.recording_id} - ${elapsed.toFixed(0)}s elapsed`,
     );
   }, 30_000); // Log every 30 seconds
 
   try {
-    // 1) Use the embed URL provided in the request
-    const embedUrl = body.embed_url;
-
-    // 2) Record to WebM (single attempt)
-    const result = await recordReplayToWebm(embedUrl, body.active_duration);
-    const videoPath = result.videoPath;
-    const durationSeconds = result.durationSeconds;
+    // 1) Record to WebM (single attempt)
+    const { videoPath, videoDuration } = await constructWebm({
+      source_type: "posthog",
+      source_host: body.source_host,
+      source_key: body.source_key,
+      source_project: body.source_project,
+      recording_id: body.recording_id,
+      active_duration: body.active_duration,
+      rrvideo_config: {
+        skipInactive: true,
+        speed: 1,
+        width: 1400,
+        height: 900,
+        mouseTail: {
+          strokeStyle: "green",
+          lineWidth: 2,
+        },
+      },
+    });
 
     // Check if the video is valid (not empty)
     const stats = await fs.stat(videoPath);
@@ -89,23 +124,25 @@ async function processRecordingAsync(body: RenderRequest) {
       console.error(
         `❌ [ERROR] Video seems empty or corrupted (${stats.size} bytes, expected minimum ${minSize} bytes)`,
       );
-      throw new Error(`Video file is too small (${stats.size} bytes) - recording may have failed`);
+      throw new Error(
+        `Video file is too small (${stats.size} bytes) - recording may have failed`,
+      );
     }
 
     console.log(
       `✅ [RENDERED] Video created:\n` +
-        `  ⏱️ Duration: ${durationSeconds.toFixed(1)}s\n` +
+        `  ⏱️ Duration: ${videoDuration.toFixed(1)}s\n` +
         `  📁 Path: ${videoPath}`,
     );
 
-    // 3) Upload to Google Cloud Storage
-    const { url } = await uploadToGCS({
+    // 2) Upload to Google Cloud Storage
+    const { uri } = await uploadToGCS({
       projectId: body.project_id,
       sessionId: body.session_id,
       localPath: videoPath,
     });
 
-    console.log(`☁️ [UPLOADED] Successfully uploaded:\n` + `  🔗 URL: ${url}`);
+    console.log(`☁️ [UPLOADED] Successfully uploaded:\n` + `  🔗 URL: ${uri}`);
 
     // Clean up temporary video file
     try {
@@ -115,13 +152,16 @@ async function processRecordingAsync(body: RenderRequest) {
       console.warn(`⚠️ [CLEANUP] Failed to delete temp file: ${cleanupErr}`);
     }
 
+    // Clear the heartbeat before sending success callback
+    clearInterval(processHeartbeat);
+
     successPayload = {
       success: true,
       recording_id: body.recording_id,
-      url,
-      video_duration: Math.round(durationSeconds),
+      uri,
+      video_duration: Math.round(videoDuration),
     };
-    await postCallback(body.callback, successPayload);
+    await postCallback(callbackUrl, successPayload);
 
     console.log(
       `✅ [COMPLETED] Recording ${body.recording_id} processed successfully`,
@@ -132,6 +172,7 @@ async function processRecordingAsync(body: RenderRequest) {
     console.error(
       `❌ [ERROR] Recording failed:\n` +
         `  🆔 Recording: ${body.recording_id}\n` +
+        `  ⏱️ Duration: ${body.active_duration}s\n` +
         `  💥 Error: ${message}\n` +
         `  📚 Stack: ${err?.stack || "No stack trace"}`,
     );
@@ -140,9 +181,10 @@ async function processRecordingAsync(body: RenderRequest) {
       error: message,
       recording_id: body.recording_id,
     };
-    await postCallback(body.callback, errorPayload);
+    await postCallback(callbackUrl, errorPayload);
   } finally {
     clearInterval(processHeartbeat);
+    activeRecordings.delete(body.recording_id);
     const totalTime = (Date.now() - processStartTime) / 1000;
     console.log(
       `⏱️ [TIMING] Total processing time for ${body.recording_id}: ${totalTime.toFixed(1)}s`,
@@ -150,8 +192,100 @@ async function processRecordingAsync(body: RenderRequest) {
   }
 }
 
+// Track if we're already shutting down to prevent multiple shutdown attempts
+let isShuttingDown = false;
+
+// Graceful shutdown handler
+async function gracefulShutdown(signal: string) {
+  if (isShuttingDown) {
+    console.log(`⚠️ [SHUTDOWN] Already shutting down, ignoring ${signal}`);
+    return;
+  }
+
+  isShuttingDown = true;
+  console.log(
+    `\n⚠️ [SHUTDOWN] Received ${signal}, starting graceful shutdown...`,
+  );
+
+  // Close the server to stop accepting new connections
+  if (server) {
+    server.close(() => {
+      console.log(`🚪 [SHUTDOWN] HTTP server closed`);
+    });
+  }
+
+  // Send error callbacks for all active recordings
+  const promises: Promise<void>[] = [];
+  for (const [recordingId, recording] of activeRecordings) {
+    const elapsed = ((Date.now() - recording.startTime) / 1000).toFixed(1);
+    console.log(
+      `🔔 [SHUTDOWN] Sending error callback for recording ${recordingId} (was running for ${elapsed}s)`,
+    );
+
+    const errorPayload: ErrorPayload = {
+      success: false,
+      error: `Service shutdown (${signal}) - recording interrupted after ${elapsed}s`,
+      recording_id: recordingId,
+    };
+
+    promises.push(
+      postCallback(recording.callbackUrl, errorPayload)
+        .then(() => {
+          console.log(`✅ [SHUTDOWN] Callback sent for ${recordingId}`);
+          activeRecordings.delete(recordingId);
+        })
+        .catch((err) => {
+          console.error(
+            `❌ [SHUTDOWN] Failed to send callback for ${recordingId}:`,
+            err,
+          );
+        }),
+    );
+  }
+
+  if (promises.length === 0) {
+    console.log(`👍 [SHUTDOWN] No active recordings to clean up`);
+  } else {
+    // Wait for all callbacks to be sent (with timeout)
+    await Promise.race([
+      Promise.all(promises),
+      new Promise((resolve) => setTimeout(resolve, 10000)), // 10 second timeout
+    ]);
+  }
+
+  // Give a small delay to ensure HTTP responses are sent
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+
+  console.log(`👋 [SHUTDOWN] Graceful shutdown complete`);
+  process.exit(0);
+}
+
+// Register signal handlers
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+process.on("SIGHUP", () => gracefulShutdown("SIGHUP"));
+
+// Handle uncaught exceptions
+process.on("uncaughtException", async (error) => {
+  console.error("💥 [FATAL] Uncaught exception:", error);
+  await gracefulShutdown("uncaughtException");
+});
+
+// Handle unhandled promise rejections
+process.on("unhandledRejection", async (reason, promise) => {
+  console.error(
+    "💥 [FATAL] Unhandled rejection at:",
+    promise,
+    "reason:",
+    reason,
+  );
+  await gracefulShutdown("unhandledRejection");
+});
+
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
+let server: any; // Store server instance for graceful shutdown
+
+server = app.listen(PORT, () => {
   console.log(
     `🚀 [SERVER] Cloud recording service started:\n` +
       `  🌐 Port: ${PORT}\n` +

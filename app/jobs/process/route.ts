@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import adminSupabase from "@/lib/supabase/admin";
 import * as Sentry from "@sentry/nextjs";
-import type { RenderRequest } from "@/cloud/src/types";
+import type { ProcessRequest } from "@/cloud/src/types";
 
-type ProcessRequest = {
+export type ProcessJobRequest = {
   session_id: string;
 };
 
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body: ProcessRequest = await request.json();
+    const body: ProcessJobRequest = await request.json();
     const { session_id } = body;
 
     if (!session_id) {
@@ -27,11 +27,11 @@ export async function POST(request: NextRequest) {
     console.log(`🎬 [PROCESS] Starting processing for session ${session_id}`);
     const supabase = adminSupabase();
 
-    // Fetch session with source details and embed_url
+    // Fetch session with source details
     const { data: session, error: sessionError } = await supabase
       .from("sessions")
       .select(
-        "id,recording_id,status,embed_url,active_duration,project_id,source_id,source:sources(id,source_host,source_key,source_project,type),project:projects(slug)",
+        "id,recording_id,status,active_duration,project_id,source_id,source:sources(id,source_host,source_key,source_project,type),project:projects(slug)",
       )
       .eq("id", session_id)
       .single();
@@ -48,7 +48,6 @@ export async function POST(request: NextRequest) {
     console.log(`   Recording: ${session.recording_id}`);
     console.log(`   Status: ${session.status}`);
     console.log(`   Source: ${session.source_id}`);
-    console.log(`   Embed URL: ${session.embed_url ? "Present" : "Missing"}`);
 
     // Check if already processing or processed
     if (session.status !== "pending") {
@@ -56,12 +55,6 @@ export async function POST(request: NextRequest) {
         `⚠️ [PROCESS] Session ${session_id} is not pending (status: ${session.status})`,
       );
       throw new Error(`Session is not pending (status: ${session.status})`);
-    }
-
-    // Check if embed_url exists
-    if (!session.embed_url) {
-      console.error(`❌ [PROCESS] Session ${session_id} missing embed_url`);
-      throw new Error("Session missing embed_url");
     }
 
     if (!session.active_duration) {
@@ -89,7 +82,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Prepare cloud service request
-    const cloudRequest: RenderRequest = {
+    const cloudRequest: ProcessRequest = {
       project_id: session.project_id,
       session_id: session.id,
       source_type: "posthog",
@@ -97,7 +90,6 @@ export async function POST(request: NextRequest) {
       source_key: session.source.source_key!,
       source_project: session.source.source_project!,
       recording_id: session.recording_id,
-      embed_url: session.embed_url, // Pass the embed URL from the session
       active_duration: session.active_duration,
       callback: `${process.env.NEXT_PUBLIC_URL}/jobs/process/callback`,
     };
@@ -113,7 +105,7 @@ export async function POST(request: NextRequest) {
     console.log(`🚀 [PROCESS] Triggering cloud service`);
     let cloudResponse: Response;
     try {
-      cloudResponse = await fetch(`${process.env.CLOUD_URL}/render`, {
+      cloudResponse = await fetch(`${process.env.CLOUD_URL}/process`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

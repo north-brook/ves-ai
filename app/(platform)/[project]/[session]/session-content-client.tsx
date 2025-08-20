@@ -1,6 +1,6 @@
 "use client";
 
-import { PostHogReplay } from "./posthog-replay";
+import { SessionReplay } from "./session-replay";
 import { SessionAnalysis } from "./session-analysis";
 import { LinearTickets } from "./linear-tickets";
 import { Session, Ticket } from "@/types";
@@ -19,7 +19,7 @@ export function SessionContentClient({
   return (
     <div className="grid gap-8 lg:grid-cols-3">
       <div className="space-y-8 lg:col-span-2">
-        <PostHogReplay replayUrl={session.embed_url || ""} />
+        {session.video_uri && <SessionReplay sessionId={session.id} />}
 
         {session.tldr && <SessionTldr tldr={session.tldr} />}
 

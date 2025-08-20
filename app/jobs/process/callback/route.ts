@@ -11,6 +11,7 @@ import {
   hasRemainingAllowance,
   formatSecondsToHours,
 } from "@/lib/limits";
+import { AnalyzeJobRequest } from "../../analyze/route";
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
       console.log(
         `✅ [CALLBACK] Processing succeeded for recording ${successData.recording_id}`,
       );
-      console.log(`   Video URL: ${successData.url}`);
+      console.log(`   Video URL: ${successData.uri}`);
       console.log(`   Duration: ${successData.video_duration}s`);
 
       // Find session by recording_id
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
       // Update session with video data (embed_url already saved during pull)
       const updateData: Database["public"]["Tables"]["sessions"]["Update"] = {
         status: "processed",
-        video_url: successData.url,
+        video_uri: successData.uri,
         video_duration: successData.video_duration,
       };
 
@@ -84,7 +85,7 @@ export async function POST(request: NextRequest) {
 
       console.log(`✨ [CALLBACK] Successfully updated session ${session.id}`);
       console.log(`   Status: processing → processed`);
-      console.log(`   Video: ${successData.url}`);
+      console.log(`   Video: ${successData.uri}`);
       console.log(`   Duration: ${successData.video_duration}s`);
 
       // Trigger analysis for this session
@@ -154,7 +155,9 @@ export async function POST(request: NextRequest) {
                   "Content-Type": "application/json",
                   Authorization: `Bearer ${process.env.CRON_SECRET}`,
                 },
-                body: JSON.stringify({ session_id: session.id }),
+                body: JSON.stringify({
+                  session_id: session.id,
+                } as AnalyzeJobRequest),
               },
             );
 
