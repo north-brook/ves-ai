@@ -22,7 +22,7 @@ RUN npx playwright install --with-deps chromium
 RUN mkdir -p /ms-playwright/ffmpeg-1011 && \
     ln -sf /usr/bin/ffmpeg /ms-playwright/ffmpeg-1011/ffmpeg-linux
 
-# Build
+# Build TypeScript server
 COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build

@@ -222,7 +222,7 @@ export function ProjectSetupForm({
 
       <div>
         <label htmlFor="domain" className="mb-2 block text-sm font-medium">
-          Project Domain
+          Product URL
         </label>
         <input
           type="text"

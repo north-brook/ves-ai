@@ -26,28 +26,28 @@ export async function POST(request: NextRequest) {
       // Handle successful processing
       const successData = payload as SuccessPayload;
       console.log(
-        `✅ [CALLBACK] Processing succeeded for recording ${successData.recording_id}`,
+        `✅ [CALLBACK] Processing succeeded for recording ${successData.external_id}`,
       );
       console.log(`   Video URL: ${successData.uri}`);
       console.log(`   Duration: ${successData.video_duration}s`);
 
-      // Find session by recording_id
+      // Find session by external_id
       const { data: session, error: findError } = await supabase
         .from("sessions")
         .select("id, status, project_id, project:projects(slug)")
-        .eq("recording_id", successData.recording_id)
+        .eq("external_id", successData.external_id)
         .eq("status", "processing")
         .single();
 
       if (findError || !session) {
         console.error(
-          `❌ [CALLBACK] Session not found for recording ${successData.recording_id}`,
+          `❌ [CALLBACK] Session not found for recording ${successData.external_id}`,
         );
         console.error(`   Error:`, findError);
 
         // Log but don't fail - the recording might have been processed already
         Sentry.captureMessage(
-          `Callback for unknown session: ${successData.recording_id}`,
+          `Callback for unknown session: ${successData.external_id}`,
           {
             level: "warning",
             tags: { job: "callback" },
@@ -71,6 +71,7 @@ export async function POST(request: NextRequest) {
         status: "processed",
         video_uri: successData.uri,
         video_duration: successData.video_duration,
+        events: successData.events,
       };
 
       const { error: updateError } = await supabase
@@ -210,12 +211,12 @@ export async function POST(request: NextRequest) {
       console.error(`❌ [CALLBACK] Processing failed:`, errorData.error);
 
       // Try to find and update session to failed status
-      // Check if error payload contains recording_id
-      if ("recording_id" in errorData && errorData.recording_id) {
+      // Check if error payload contains external_id
+      if ("external_id" in errorData && errorData.external_id) {
         const { data: session, error: findError } = await supabase
           .from("sessions")
           .select("id")
-          .eq("recording_id", errorData.recording_id)
+          .eq("external_id", errorData.external_id)
           .eq("status", "processing")
           .single();
 
@@ -238,12 +239,12 @@ export async function POST(request: NextRequest) {
           }
         } else {
           console.error(
-            `⚠️ [CALLBACK] Unable to find session for recording ${errorData.recording_id}`,
+            `⚠️ [CALLBACK] Unable to find session for recording ${errorData.external_id}`,
           );
         }
       } else {
         console.error(
-          `⚠️ [CALLBACK] No recording_id in error payload, unable to update session`,
+          `⚠️ [CALLBACK] No external_id in error payload, unable to update session`,
         );
       }
 

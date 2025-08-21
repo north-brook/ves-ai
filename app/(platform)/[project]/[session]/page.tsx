@@ -5,6 +5,8 @@ import serverSupabase from "@/lib/supabase/server";
 import type { Metadata } from "next";
 import { format } from "date-fns";
 
+export const revalidate = 0;
+
 export async function generateMetadata({
   params,
 }: {

@@ -1,11 +1,10 @@
 "use client";
 
 import { SessionReplay } from "./session-replay";
-import { SessionAnalysis } from "./session-analysis";
+import { SessionStory } from "./session-story";
 import { LinearTickets } from "./linear-tickets";
 import { Session, Ticket } from "@/types";
 import { SessionObservations } from "./session-observations";
-import { SessionTldr } from "./session-tldr";
 
 interface SessionContentClientProps {
   session: Session;
@@ -21,15 +20,13 @@ export function SessionContentClient({
       <div className="space-y-8 lg:col-span-2">
         {session.video_uri && <SessionReplay sessionId={session.id} />}
 
-        {session.tldr && <SessionTldr tldr={session.tldr} />}
+        {session.story && <SessionStory story={session.story} />}
 
-        {session.observations && session.observations.length > 0 && (
+        {session.observations && (
           <SessionObservations observations={session.observations} />
         )}
 
-        {session.synthesis && <SessionAnalysis synthesis={session.synthesis} />}
-
-        {!session.synthesis && (
+        {!session.story && (
           <>
             <h2 className="font-display mb-4 text-xl font-semibold">
               AI Analysis

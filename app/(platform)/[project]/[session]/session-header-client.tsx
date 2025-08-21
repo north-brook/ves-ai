@@ -1,6 +1,14 @@
 "use client";
 
-import { ArrowLeft, Calendar, Clock, Tag, Activity } from "lucide-react";
+import {
+  ArrowLeft,
+  Calendar,
+  Clock,
+  Tag,
+  Activity,
+  Building,
+  User,
+} from "lucide-react";
 import Link from "next/link";
 import { formatDistanceToNow, format } from "date-fns";
 import { SessionStatusBadge } from "@/components/session-status";
@@ -71,27 +79,28 @@ export function SessionHeaderClient({
               <Activity className="h-4 w-4" />
               <span>{formatDuration(session.active_duration)}</span>
             </div>
-            <div className="flex items-center gap-1">
-              <Tag className="h-4 w-4" />
-              {session.tags && session.tags.length > 0 ? (
-                <span>
-                  {session.tags.length} tag
-                  {session.tags.length !== 1 ? "s" : ""}
-                </span>
-              ) : (
-                <span className="italic">Pending</span>
-              )}
-            </div>
+            {session.external_user_name && (
+              <div className="flex items-center gap-1">
+                <User className="h-4 w-4" />
+                <span>{session.external_user_name}</span>
+              </div>
+            )}
+            {session.external_group_name && (
+              <div className="flex items-center gap-1">
+                <Building className="h-4 w-4" />
+                <span>{session.external_group_name}</span>
+              </div>
+            )}
           </div>
 
-          {session.tags && session.tags.length > 0 && (
+          {session.features && session.features.length > 0 && (
             <div className="mt-4 flex flex-wrap gap-2">
-              {session.tags.map((tag, index) => (
+              {session.features.map((feature, index) => (
                 <span
                   key={index}
                   className="from-accent-purple/10 to-accent-pink/10 text-foreground rounded-full bg-gradient-to-r px-3 py-1 text-sm font-medium"
                 >
-                  {tag}
+                  {feature}
                 </span>
               ))}
             </div>

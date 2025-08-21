@@ -15,7 +15,9 @@ import {
   Activity,
   Calendar,
   LoaderCircle,
-  StickyNote,
+  Bubbles,
+  User,
+  Building,
 } from "lucide-react";
 import { SessionStatusBadge } from "@/components/session-status";
 import { RealtimeChannel } from "@supabase/supabase-js";
@@ -360,25 +362,15 @@ export function SessionList({
                       </span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <Tag className="h-3 w-3" />
-                      <span>
-                        {session.tags?.length ? (
-                          session.tags.length
-                        ) : (
-                          <span className="italic">Pending</span>
-                        )}
-                      </span>
+                      <User className="h-3 w-3" />
+                      <span>{session.external_user_name || "Anonymous"}</span>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <StickyNote className="h-3 w-3" />
-                      <span>
-                        {session.status === "analyzed" ? (
-                          session.observations?.length || 0
-                        ) : (
-                          <span className="italic">Pending</span>
-                        )}
-                      </span>
-                    </div>
+                    {session.external_group_name && (
+                      <div className="flex items-center gap-1">
+                        <Building className="h-3 w-3" />
+                        <span>{session.external_group_name}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <SessionStatusBadge

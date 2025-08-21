@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     const { data: session, error: sessionError } = await supabase
       .from("sessions")
       .select(
-        "id,recording_id,status,video_uri,video_duration,project:projects(id,name,slug,plan,subscribed_at,created_at)",
+        "id,external_id,status,events,video_uri,video_duration,project:projects(id,name,slug,plan,subscribed_at,created_at)",
       )
       .eq("id", session_id)
       .single();
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`📋 [ANALYZE] Session details:`);
-    console.log(`   Recording: ${session.recording_id}`);
+    console.log(`   External ID: ${session.external_id}`);
     console.log(`   Status: ${session.status}`);
     console.log(`   Project: ${session.project.name}`);
     console.log(`   Video URL: ${session.video_uri}`);
@@ -79,6 +79,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: "Session has no video URL",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (!session.events) {
+      console.error(`❌ [ANALYZE] Session ${session_id} has no events`);
+      return NextResponse.json(
+        {
+          error: "Session has no events",
         },
         { status: 400 },
       );
@@ -121,7 +131,8 @@ export async function POST(request: NextRequest) {
         model: "gemini-2.5-pro",
         contents: createUserContent([
           createPartFromUri(session.video_uri, "video/webm"),
-          "You are analyzing a user session recording from a web application.\n\nFirst, verify that the video contains a valid session replay.\n\nIf the video is invalid (corrupted, doesn't load, doesn't contain a replay, or the replay doesn't actually play):\n- Return: {valid_video: false, analysis: null}\n\nIf the session replay is valid and playable:\n- Return: {valid_video: true, analysis: {observations, synthesis, tldr, tags, name}}\n\nFor valid sessions:\nThe session replay will buffer at first, then play through periods of user activity, skipping periods of user inactivity. You can see the progress of the replay on the bottom.\n\nBegin by carefully observing user behaviors without immediately assuming problems. Many actions have multiple plausible explanations - a user who adds items to cart but doesn't check out might be browsing, comparing options, or saving for later, not necessarily encountering a bug. A user who hesitates might be reading content or thinking, not confused.\n\nYour goal is to identify bugs, UX friction points, user behavior patterns, and opportunities for product improvement. Watch the entire session carefully, noting user interactions, hesitations, errors, successful flows, and abandoned actions. For each observation, think deeply about why the user might be behaving this way before concluding there's an issue.\n\nFocus on providing actionable insights that product teams can use to improve the user experience. Be specific about what happened, when it happened, and why it matters. Consider both technical issues (bugs, errors, performance) and user experience issues (confusion, friction, inefficient workflows).",
+          session.events.map((e) => `${e.time} - ${e.description}`).join("\n"),
+          "You are analyzing a user session recording from a web application to understand and recount the user's story.\n\nFirst, verify that the video contains a valid session replay.\n\nIf the video is invalid (corrupted, doesn't load, doesn't contain a replay, or the replay doesn't actually play):\n- Return: {valid_video: false, analysis: null}\n\nIf the session replay is valid and playable:\n- Return: {valid_video: true, analysis: {story, features, name}}\n\nFor valid sessions:\nThe session replay will play through periods of user activity, skipping periods of user inactivity. Keep in mind that you cannot see external web pages (eg. Google authentication) and that the user may toggle between different tabs in the same replay.\n\nYour primary goal is to precisely and qualitatively recount the user's story through the product. Focus on:\n\n1. **User Journey Path**: Document the exact sequence of pages, features, and interactions the user navigated through\n2. **Inferred Intent**: What was the user trying to accomplish? What goals were they pursuing?\n3. **Friction & Bugs**: What specific obstacles, errors, or confusing moments did they encounter?\n4. **User Success**: How successful was the user in achieving their apparent goals?\n5. **Product Effectiveness**: How well did the product support the user's journey and intent?\n\nBegin by carefully observing user behaviors without immediately assuming problems. Many actions have multiple plausible explanations - a user who adds items to cart but doesn't check out might be browsing, comparing options, or saving for later, not necessarily encountering a bug. A user who hesitates might be reading content or thinking, not confused. Think deeply about plausible explanations for user behavior and avoid jumping to conclusions.\n\nWatch the entire session carefully, noting the complete narrative arc of the user's experience. Be specific about what happened, when it happened, and how it fits into the overall story of their session.",
         ]),
         config: {
           thinkingConfig: {
@@ -184,38 +195,27 @@ export async function POST(request: NextRequest) {
                     description:
                       "An array of detailed observations from the session. Think deeply about user behavior - consider multiple explanations before concluding something is a bug. Users might be browsing, exploring, comparing options, or intentionally abandoning actions. Look for patterns in hesitation, repeated actions, successful flows, and abandoned tasks.",
                   },
-                  synthesis: {
+                  story: {
                     type: Type.STRING,
                     description:
-                      "A synthesis of your observations into a cohesive narrative using markdown formatting. DO NOT repeat individual observations - instead, weave them into a story. Structure with these sections: ## Session Story - Tell the story of what the user was trying to accomplish and how their journey unfolded. Connect the dots between observations to form a narrative. ## Key Patterns - Identify recurring themes across multiple observations. What broader patterns emerge? Group related observations into meaningful insights. ## Impact Assessment - Based on the confidence and urgency levels of your observations, what are the most critical areas needing attention? Prioritize based on user impact. ## Strategic Recommendations - Synthesize your suggestions into 3-5 strategic recommendations that address multiple observations. Focus on systemic improvements rather than individual fixes. Use **bold** for emphasis and ensure proper markdown formatting.",
+                      "A comprehensive user story using markdown formatting that recounts the session narrative. Structure with these sections: ## User Journey - Chronologically describe the exact path the user took through the product, including all pages visited, features engaged with, and actions taken. ## Intent & Goals - What was the user trying to accomplish? Provide your best inference of their objectives based on their behavior patterns. ## Friction Points & Bugs - Detail any specific issues, errors, confusion, or obstacles the user encountered. Be precise about when and where these occurred. ## Success & Effectiveness - Assess how successful the user was in achieving their apparent goals and how effectively the product supported their journey. Was the user able to complete their intended tasks? ## Key Insights - What does this session reveal about the product experience? What patterns or opportunities for improvement emerge from this user's story? Use **bold** for emphasis and ensure proper markdown formatting.",
                   },
-                  tldr: {
-                    type: Type.STRING,
-                    description:
-                      "A concise 1-2 sentence summary in markdown format. Use **bold** to emphasize key points, *italics* for secondary details, or bullet points if listing multiple brief items. Include the user's main goal, outcome (success/failure), and the most critical issue or insight. Focus on actionable takeaways. Keep under 200 characters while using markdown formatting effectively for readability.",
-                  },
-                  tags: {
+                  features: {
                     type: Type.ARRAY,
                     items: {
                       type: Type.STRING,
                       description:
-                        "A relevant tag for categorizing this session. Use lowercase, hyphenated format. Examples: 'checkout-flow', 'onboarding', 'dashboard', 'bug-critical', 'ux-friction', 'performance-issue', 'user-confusion', 'feature-discovery', 'mobile-experience', 'form-error', 'navigation-issue', 'search-functionality', 'payment-flow', 'account-settings'. Choose tags that help filter and group similar sessions.",
+                        "A product feature the user engaged with during their session. Use title case format (e.g., 'Product Catalog', 'Shopping Cart', 'User Dashboard'). Focus on identifying the specific product capabilities and functionalities the user interacted with. Examples: 'Product Creator', 'Lesson Planner', 'Checkout Flow', 'Search Filters', 'User Profile', 'Analytics Dashboard', 'Email Composer', 'Payment Processing', 'Inventory Management', 'Content Editor', 'Navigation Menu', 'Settings Panel'. Choose features that represent the actual product modules and tools the user utilized.",
                     },
                   },
                   name: {
                     type: Type.STRING,
                     description:
-                      "A descriptive, scannable title for this session that captures the main user action and outcome. Format: [Action] + [Context/Feature] + [Outcome/Issue]. Examples: 'User completes checkout after payment retry', 'New user abandons onboarding at email verification', 'Dashboard filtering causes repeated errors', 'Successful project creation with team invite'. Keep it under 10 words, action-oriented, and specific enough to understand the session's key event without watching it.",
+                      "A sentence case (no punctuation) concise summary of the user story. Focus on capturing the essence of what the user attempted and what happened. Examples: 'User successfully completes purchase after address validation issue', 'New visitor explores pricing but leaves without signing up', 'Customer encounters repeated errors while configuring dashboard filters', 'User navigates complex checkout flow and abandons at payment'. Keep it under 10 words and make it a complete narrative summary without any punctuation marks.",
                   },
                 },
-                required: ["observations", "synthesis", "tldr", "tags", "name"],
-                propertyOrdering: [
-                  "observations",
-                  "synthesis",
-                  "tldr",
-                  "tags",
-                  "name",
-                ],
+                required: ["observations", "story", "features", "name"],
+                propertyOrdering: ["observations", "story", "features", "name"],
                 description:
                   "The full analysis object. Only provided if valid_video is true, otherwise must be null.",
               },
@@ -239,7 +239,7 @@ export async function POST(request: NextRequest) {
         notes: string | null;
         analysis: Pick<
           Session,
-          "observations" | "synthesis" | "tldr" | "tags" | "name"
+          "story" | "features" | "name" | "observations"
         > | null;
       };
 
@@ -261,14 +261,7 @@ export async function POST(request: NextRequest) {
 
       // Valid session - validate the analysis data
       const data = parsedResponse.analysis;
-      if (
-        !data ||
-        !data.observations ||
-        !data.synthesis ||
-        !data.tldr ||
-        !data.tags ||
-        !data.name
-      ) {
+      if (!data || !data.story || !data.features || !data.name) {
         console.error(`❌ [ANALYZE] Invalid analysis data:`, data);
         return NextResponse.json(
           { error: "Invalid analysis data" },
@@ -281,10 +274,9 @@ export async function POST(request: NextRequest) {
         .update({
           name: data.name,
           status: "analyzed",
+          story: data.story,
+          features: data.features,
           observations: data.observations,
-          synthesis: data.synthesis,
-          tldr: data.tldr,
-          tags: data.tags,
         })
         .eq("id", session_id);
 
@@ -297,9 +289,8 @@ export async function POST(request: NextRequest) {
         `✨ [ANALYZE] Successfully marked session ${session_id} as analyzed`,
       );
       console.log(`   Status: analyzing → analyzed`);
-      console.log(`   Observations: ${data.observations.length}`);
-      console.log(`   TLDR: ${data.tldr}`);
-      console.log(`   Tags: ${data.tags?.join(", ")}`);
+      console.log(`   Story: ${data.story}`);
+      console.log(`   Features: ${data.features?.join(", ")}`);
 
       // Trigger processing for next pending session in the project
       console.log(`🔍 [ANALYZE] Checking for next pending session to process`);

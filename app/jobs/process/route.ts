@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     const { data: session, error: sessionError } = await supabase
       .from("sessions")
       .select(
-        "id,recording_id,status,active_duration,project_id,source_id,source:sources(id,source_host,source_key,source_project,type),project:projects(slug)",
+        "id,external_id,status,active_duration,project_id,source_id,source:sources(id,source_host,source_key,source_project,type),project:projects(slug)",
       )
       .eq("id", session_id)
       .single();
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`📋 [PROCESS] Session details:`);
-    console.log(`   Recording: ${session.recording_id}`);
+    console.log(`   Recording: ${session.external_id}`);
     console.log(`   Status: ${session.status}`);
     console.log(`   Source: ${session.source_id}`);
 
@@ -90,14 +90,14 @@ export async function POST(request: NextRequest) {
       source_host: session.source.source_host!,
       source_key: session.source.source_key!,
       source_project: session.source.source_project!,
-      recording_id: session.recording_id,
+      external_id: session.external_id,
       active_duration: session.active_duration,
       callback: `${process.env.NEXT_PUBLIC_URL}/jobs/process/callback`,
     };
 
     console.log(`☁️ [PROCESS] Sending request to cloud service`);
     console.log(`   Cloud URL: ${process.env.CLOUD_URL}/render`);
-    console.log(`   Recording: ${cloudRequest.recording_id}`);
+    console.log(`   Recording: ${cloudRequest.external_id}`);
     console.log(
       `   File path: ${cloudRequest.project_id}/${cloudRequest.session_id}.webm`,
     );

@@ -5,6 +5,8 @@ import { Sessions, SessionsSkeleton } from "./sessions";
 import serverSupabase from "@/lib/supabase/server";
 import type { Metadata } from "next";
 
+export const revalidate = 0;
+
 export async function generateMetadata({
   params,
 }: {

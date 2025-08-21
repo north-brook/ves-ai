@@ -32,7 +32,7 @@ export default async function nextJobs(
   // Get all pending sessions for this project (latest first)
   const { data: pendingSessions } = await supabase
     .from("sessions")
-    .select("id, recording_id, active_duration, session_at")
+    .select("id, external_id, active_duration, session_at")
     .eq("project_id", projectId)
     .eq("status", "pending")
     .order("session_at", { ascending: false })
@@ -86,7 +86,7 @@ export default async function nextJobs(
     // Trigger processing
     try {
       console.log(
-        `🎯 [PROCESS] Triggering processing for session ${session.id} (recording: ${session.recording_id})`,
+        `🎯 [PROCESS] Triggering processing for session ${session.id} (recording: ${session.external_id})`,
       );
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_URL}/jobs/process`,
@@ -134,10 +134,10 @@ async function enableSharingAndGetEmbedUrl(
   sourceHost: string,
   sourceKey: string,
   sourceProject: string,
-  recordingId: string,
+  externalId: string,
 ): Promise<string> {
   const host = sourceHost.replace(/\/+$/, "");
-  const base = `${host}/api/projects/${sourceProject}/session_recordings/${recordingId}`;
+  const base = `${host}/api/projects/${sourceProject}/session_recordings/${externalId}`;
 
   const headers = {
     "Content-Type": "application/json",

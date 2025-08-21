@@ -201,7 +201,7 @@ CREATE TABLE IF NOT EXISTS "public"."sessions" (
     "project_id" "uuid" NOT NULL,
     "source_id" "uuid" NOT NULL,
     "status" "public"."session_status" NOT NULL,
-    "recording_id" "text" NOT NULL,
+    "external_id" "text" NOT NULL,
     "embed_url" "text",
     "video_url" "text",
     "name" "text",

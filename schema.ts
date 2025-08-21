@@ -174,18 +174,22 @@ export type Database = {
           analyzed_at: string | null
           created_at: string
           embedding: string | null
+          events: Json[] | null
+          external_group_id: string | null
+          external_group_name: string | null
+          external_id: string
+          external_user_id: string | null
+          external_user_name: string | null
+          features: string[] | null
           id: string
           name: string | null
           observations: Json[] | null
           processed_at: string | null
           project_id: string
-          recording_id: string
           session_at: string | null
           source_id: string
           status: Database["public"]["Enums"]["session_status"]
-          synthesis: string | null
-          tags: string[] | null
-          tldr: string | null
+          story: string | null
           total_duration: number | null
           video_duration: number | null
           video_uri: string | null
@@ -195,18 +199,22 @@ export type Database = {
           analyzed_at?: string | null
           created_at?: string
           embedding?: string | null
+          events?: Json[] | null
+          external_group_id?: string | null
+          external_group_name?: string | null
+          external_id: string
+          external_user_id?: string | null
+          external_user_name?: string | null
+          features?: string[] | null
           id?: string
           name?: string | null
           observations?: Json[] | null
           processed_at?: string | null
           project_id: string
-          recording_id: string
           session_at?: string | null
           source_id: string
           status: Database["public"]["Enums"]["session_status"]
-          synthesis?: string | null
-          tags?: string[] | null
-          tldr?: string | null
+          story?: string | null
           total_duration?: number | null
           video_duration?: number | null
           video_uri?: string | null
@@ -216,18 +224,22 @@ export type Database = {
           analyzed_at?: string | null
           created_at?: string
           embedding?: string | null
+          events?: Json[] | null
+          external_group_id?: string | null
+          external_group_name?: string | null
+          external_id?: string
+          external_user_id?: string | null
+          external_user_name?: string | null
+          features?: string[] | null
           id?: string
           name?: string | null
           observations?: Json[] | null
           processed_at?: string | null
           project_id?: string
-          recording_id?: string
           session_at?: string | null
           source_id?: string
           status?: Database["public"]["Enums"]["session_status"]
-          synthesis?: string | null
-          tags?: string[] | null
-          tldr?: string | null
+          story?: string | null
           total_duration?: number | null
           video_duration?: number | null
           video_uri?: string | null

@@ -7,10 +7,10 @@ export default async function enableSharingAndGetEmbedUrl(
   sourceHost: string,
   sourceKey: string,
   sourceProject: string,
-  recordingId: string,
+  externalId: string,
 ): Promise<string> {
   const host = sourceHost.replace(/\/+$/, "");
-  const base = `${host}/api/projects/${sourceProject}/session_recordings/${recordingId}`;
+  const base = `${host}/api/projects/${sourceProject}/session_recordings/${externalId}`;
 
   const headers = {
     "Content-Type": "application/json",

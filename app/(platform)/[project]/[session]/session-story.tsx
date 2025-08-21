@@ -1,11 +1,11 @@
 import { Markdown } from "@/components/markdown";
 
-interface SessionAnalysisProps {
-  synthesis: string | null;
+interface SessionStoryProps {
+  story: string | null;
 }
 
-export function SessionAnalysis({ synthesis }: SessionAnalysisProps) {
-  if (!synthesis) {
+export function SessionStory({ story }: SessionStoryProps) {
+  if (!story) {
     return (
       <div className="border-border bg-surface rounded-lg border p-6">
         <p className="text-foreground-secondary text-sm italic">
@@ -17,7 +17,7 @@ export function SessionAnalysis({ synthesis }: SessionAnalysisProps) {
 
   return (
     <div className="border-border bg-surface rounded-lg border p-6">
-      <Markdown>{synthesis}</Markdown>
+      <Markdown>{story}</Markdown>
     </div>
   );
 }

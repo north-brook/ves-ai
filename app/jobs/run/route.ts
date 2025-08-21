@@ -30,7 +30,7 @@ type PostHogRecording = {
   console_error_count: number;
   start_url: string;
   person: {
-    id: number;
+    id: string;
     name: string;
     distinct_ids: string[];
     properties: Record<string, unknown> | null;
@@ -289,10 +289,48 @@ async function pullSessionsFromSource(
     return [];
   }
 
+  let groupNames: Record<string, string> = {};
+  let query: string | null =
+    `https://us.posthog.com/api/projects/${source.source_project}/groups/?group_type_index=0`;
+
+  while (true) {
+    // get posthog groups
+    const groupResponse = await fetch(query, {
+      headers: {
+        Authorization: `Bearer ${source.source_key}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    const groupData = (await groupResponse.json()) as {
+      next: string | null;
+      previous: string | null;
+      results: {
+        group_type_index: number;
+        group_key: string;
+        group_properties: Record<string, unknown>;
+        group_created_at: string;
+      }[];
+    };
+
+    for (const group of groupData.results) {
+      if (group.group_properties?.name)
+        groupNames[group.group_key] = group.group_properties.name as string;
+    }
+
+    if (groupData.next) {
+      query = groupData.next;
+    } else {
+      break;
+    }
+  }
+
+  console.log(`🔍 [PULL] Group names:`, groupNames);
+
   // Get the most recent session we've pulled from this source
   const { data: latestSession } = await supabase
     .from("sessions")
-    .select("session_at, recording_id")
+    .select("session_at, external_id")
     .eq("source_id", source.id)
     .not("session_at", "is", null)
     .order("session_at", { ascending: false })
@@ -325,6 +363,7 @@ async function pullSessionsFromSource(
   let nextUrl: string | null =
     `${source.source_host}/api/projects/${source.source_project}/session_recordings?limit=100&date_from=${sinceDate}`;
   let pageNumber = 1;
+  const DEBUG_MAX_PAGES = 10;
 
   // Paginate through all recordings
   while (nextUrl) {
@@ -346,6 +385,11 @@ async function pullSessionsFromSource(
     }
 
     const data: PostHogRecordingsResponse = await response.json();
+
+    // log data without the results
+    const { results, ...rest } = data;
+    console.log(`🔍 [PULL] PostHog API response:`, rest);
+
     const recordings: PostHogRecording[] = data.results || [];
 
     console.log(
@@ -390,7 +434,7 @@ async function pullSessionsFromSource(
         .from("sessions")
         .select("id")
         .eq("source_id", source.id)
-        .eq("recording_id", recording.id)
+        .eq("external_id", recording.id)
         .single();
 
       if (!existing) {
@@ -400,43 +444,84 @@ async function pullSessionsFromSource(
       }
     }
 
-    // Enable sharing and get embed URLs in parallel for all recordings
     if (recordingsToProcess.length > 0) {
-      // Create sessions with embed URLs
-      for (const recording of recordingsToProcess) {
-        const sessionInsert: Database["public"]["Tables"]["sessions"]["Insert"] =
-          {
-            source_id: source.id,
-            project_id: source.project_id,
-            recording_id: recording.id,
-            status: "pending",
-            session_at: recording.end_time,
-            total_duration: recording.recording_duration,
-            active_duration: recording.active_seconds,
-          };
+      // Create sessions
+      await Promise.all(
+        recordingsToProcess.map(async (recording) => {
+          let groupId: string | null = null;
+          let groupName: string | null = null;
 
-        const { data: newSession, error: insertError } = await supabase
-          .from("sessions")
-          .insert(sessionInsert)
-          .select()
-          .single();
+          if (Object.keys(groupNames).length > 0) {
+            // get the user's latest event (as it will contain group key)
+            const personResponse = await fetch(
+              `https://us.posthog.com/api/projects/${source.source_project}/query/`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${source.source_key}`,
+                },
+                body: JSON.stringify({
+                  query: {
+                    kind: "HogQLQuery",
+                    query: `
+                  SELECT $group_0
+                  FROM events
+                  WHERE distinct_id = '${recording.person?.id}'
+                  ORDER BY timestamp DESC
+                  LIMIT 1
+                `,
+                  },
+                }),
+              },
+            );
 
-        if (insertError) {
-          console.error(
-            `❌ [PULL] Error creating session for recording ${recording.id}:`,
-            insertError,
-          );
-          Sentry.captureException(insertError, {
-            tags: { job: "pull_sessions", step: "insert" },
-            extra: { recordingId: recording.id, sourceId: source.id },
-          });
-        } else {
-          pageNewCount++;
-          if (newSession) {
-            createdSessionIds.push(newSession.id);
+            const data = (await personResponse.json()) as {
+              results: any[][];
+            };
+            console.log(`🔍 [PULL] Last event response:`, data);
+            groupId = data.results?.[0]?.[0] || null;
+            groupName = groupId ? groupNames[groupId] : null;
           }
-        }
-      }
+
+          const sessionInsert: Database["public"]["Tables"]["sessions"]["Insert"] =
+            {
+              source_id: source.id,
+              project_id: source.project_id,
+              external_id: recording.id,
+              external_user_id: recording.person?.id,
+              external_user_name: recording.person?.name,
+              external_group_id: groupId,
+              external_group_name: groupName,
+              status: "pending",
+              session_at: recording.end_time,
+              total_duration: recording.recording_duration,
+              active_duration: recording.active_seconds,
+            };
+
+          const { data: newSession, error: insertError } = await supabase
+            .from("sessions")
+            .insert(sessionInsert)
+            .select()
+            .single();
+
+          if (insertError) {
+            console.error(
+              `❌ [PULL] Error creating session for recording ${recording.id}:`,
+              insertError,
+            );
+            Sentry.captureException(insertError, {
+              tags: { job: "pull_sessions", step: "insert" },
+              extra: { externalId: recording.id, sourceId: source.id },
+            });
+          } else {
+            pageNewCount++;
+            if (newSession) {
+              createdSessionIds.push(newSession.id);
+            }
+          }
+        }),
+      );
     }
 
     console.log(
@@ -457,6 +542,13 @@ async function pullSessionsFromSource(
         `🔍 [PULL] No new sessions on page ${pageNumber - 1}, checking if we should continue...`,
       );
       // Continue to next page to ensure we get all recordings
+    }
+
+    if (pageNumber > DEBUG_MAX_PAGES) {
+      console.log(
+        `🔍 [PULL] Reached max pages, stopping pagination for source ${source.id}`,
+      );
+      break;
     }
   }
 

@@ -10,7 +10,7 @@ export async function Navigation() {
     <nav className="border-border bg-background/80 fixed top-0 z-50 w-full border-b backdrop-blur-lg">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
         <div className="flex items-center gap-6">
-          <Link href="/home">
+          <Link href="/">
             <Logo />
           </Link>
 
@@ -65,9 +65,9 @@ async function LoadedUserAvatar() {
 }
 
 function ProjectSelectorSkeleton() {
-  return <div className="h-10 w-48 animate-pulse rounded-lg bg-surface" />;
+  return <div className="bg-surface h-10 w-48 animate-pulse rounded-lg" />;
 }
 
 function UserAvatarSkeleton() {
-  return <div className="h-10 w-10 animate-pulse rounded-full bg-surface" />;
+  return <div className="bg-surface h-10 w-10 animate-pulse rounded-full" />;
 }

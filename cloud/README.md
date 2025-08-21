@@ -51,7 +51,7 @@ docker stop $(docker ps -q --filter "publish=8080") 2>/dev/null || true
 # Run the container with Google Cloud credentials
 # macOS/Linux (with same resources as Cloud Run):
 docker run -p 8080:8080 \
-  --memory="8g" \
+  --memory="4g" \
   --cpus="2" \
   --add-host=host.docker.internal:host-gateway \
   -e PORT=8080 \
@@ -99,7 +99,7 @@ Send a POST request to `/process` with:
   "source_project": "project_id",
   "project_id": "gcs_project_id",
   "session_id": "session_uuid",
-  "recording_id": "recording_uuid",
+  "external_id": "recording_uuid",
   "active_duration": 120,
   "callback": "https://your-app.com/callback"
 }
