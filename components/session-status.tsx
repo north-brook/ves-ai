@@ -48,7 +48,7 @@ export function SessionStatusBadge({
         const estimatedDuration = (session.active_duration || 60) + 30;
         return Math.min((elapsed / estimatedDuration) * 90, 90); // Max 90%
       } else if (session.status === "analyzing") {
-        const estimatedDuration = (session.active_duration || 60) * 0.5;
+        const estimatedDuration = (session.active_duration || 60) + 30;
         return Math.min((elapsed / estimatedDuration) * 90, 90); // Max 90%
       }
       return 0;

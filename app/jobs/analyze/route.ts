@@ -9,6 +9,8 @@ import {
 } from "@google/genai";
 import nextJobs from "../run/next-job";
 import { Session } from "@/types";
+import { embed } from "ai";
+import { openai } from "@ai-sdk/openai";
 
 export type AnalyzeJobRequest = {
   session_id: string;
@@ -269,6 +271,12 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // embed the session name, features, and story
+      const { embedding } = await embed({
+        model: openai.textEmbeddingModel("text-embedding-3-small"),
+        value: `${data.name}\n${data.features.join(", ")}\n${data.story}`,
+      });
+
       const { error: analysisError } = await supabase
         .from("sessions")
         .update({
@@ -277,6 +285,7 @@ export async function POST(request: NextRequest) {
           story: data.story,
           features: data.features,
           observations: data.observations,
+          embedding: embedding as unknown as string,
         })
         .eq("id", session_id);
 
@@ -285,12 +294,7 @@ export async function POST(request: NextRequest) {
         throw analysisError;
       }
 
-      console.log(
-        `✨ [ANALYZE] Successfully marked session ${session_id} as analyzed`,
-      );
-      console.log(`   Status: analyzing → analyzed`);
-      console.log(`   Story: ${data.story}`);
-      console.log(`   Features: ${data.features?.join(", ")}`);
+      console.log(`✨ [ANALYZE] Successfully analyzed session ${session_id}`);
 
       // Trigger processing for next pending session in the project
       console.log(`🔍 [ANALYZE] Checking for next pending session to process`);

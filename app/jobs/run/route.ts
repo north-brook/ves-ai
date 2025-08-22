@@ -45,9 +45,10 @@ type PostHogRecording = {
 
 type PostHogRecordingsResponse = {
   results: PostHogRecording[];
-  next: string | null;
-  count?: number;
+  has_next: boolean;
 };
+
+const ACTIVE_SECONDS_THRESHOLD = 5;
 
 export async function GET(request: NextRequest) {
   const jobStartTime = Date.now();
@@ -289,7 +290,7 @@ async function pullSessionsFromSource(
     return [];
   }
 
-  let groupNames: Record<string, string> = {};
+  const groupNames: Record<string, string> = {};
   let query: string | null =
     `https://us.posthog.com/api/projects/${source.source_project}/groups/?group_type_index=0`;
 
@@ -360,21 +361,23 @@ async function pullSessionsFromSource(
   const createdSessionIds: string[] = [];
   let totalNewSessionCount = 0;
   let totalSkippedCount = 0;
-  let nextUrl: string | null =
-    `${source.source_host}/api/projects/${source.source_project}/session_recordings?limit=100&date_from=${sinceDate}`;
+  let offset = 0;
   let pageNumber = 1;
-  const DEBUG_MAX_PAGES = 10;
+  const DEBUG_MAX_PAGES = 1;
 
   // Paginate through all recordings
-  while (nextUrl) {
+  while (true) {
     console.log(`📄 [PULL] Fetching page ${pageNumber} from PostHog...`);
 
-    const response = await fetch(nextUrl, {
-      headers: {
-        Authorization: `Bearer ${source.source_key}`,
-        "Content-Type": "application/json",
+    const response = await fetch(
+      `${source.source_host}/api/projects/${source.source_project}/session_recordings?limit=100&date_from=${sinceDate}&offset=${offset}`,
+      {
+        headers: {
+          Authorization: `Bearer ${source.source_key}`,
+          "Content-Type": "application/json",
+        },
       },
-    });
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -395,8 +398,7 @@ async function pullSessionsFromSource(
     console.log(
       `📹 [PULL] Page ${pageNumber}: Found ${recordings.length} recordings`,
     );
-    console.log(`   Total count: ${data.count || "not provided"}`);
-    console.log(`   Has next page: ${data.next ? "yes" : "no"}`);
+    console.log(`   Has next page: ${data.has_next ? "yes" : "no"}`);
 
     // Process recordings on this page
     let pageNewCount = 0;
@@ -424,7 +426,7 @@ async function pullSessionsFromSource(
       }
 
       // Filter by active seconds
-      if (recording.active_seconds < 30) {
+      if (recording.active_seconds < ACTIVE_SECONDS_THRESHOLD) {
         activeSecondsFilteredCount++;
         continue;
       }
@@ -467,7 +469,7 @@ async function pullSessionsFromSource(
                     query: `
                   SELECT $group_0
                   FROM events
-                  WHERE distinct_id = '${recording.person?.id}'
+                  WHERE person_id = '${recording.person?.uuid}'
                   ORDER BY timestamp DESC
                   LIMIT 1
                 `,
@@ -477,10 +479,13 @@ async function pullSessionsFromSource(
             );
 
             const data = (await personResponse.json()) as {
-              results: any[][];
+              results: (number | string | null)[][];
             };
             console.log(`🔍 [PULL] Last event response:`, data);
-            groupId = data.results?.[0]?.[0] || null;
+            groupId =
+              typeof data.results?.[0]?.[0] === "string"
+                ? data.results?.[0]?.[0]
+                : null;
             groupName = groupId ? groupNames[groupId] : null;
           }
 
@@ -489,8 +494,13 @@ async function pullSessionsFromSource(
               source_id: source.id,
               project_id: source.project_id,
               external_id: recording.id,
-              external_user_id: recording.person?.id,
-              external_user_name: recording.person?.name,
+              external_user_id: recording.person?.uuid,
+              // only save name if it is not a uuid
+              external_user_name: !recording.person?.name?.match(
+                /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+              )
+                ? recording.person?.name
+                : null,
               external_group_id: groupId,
               external_group_name: groupName,
               status: "pending",
@@ -532,7 +542,7 @@ async function pullSessionsFromSource(
     totalSkippedCount += pageSkippedCount;
 
     // Move to next page
-    nextUrl = data.next;
+    offset += 100;
     pageNumber++;
 
     // If we've created sessions on this page, we might want to continue
@@ -548,6 +558,11 @@ async function pullSessionsFromSource(
       console.log(
         `🔍 [PULL] Reached max pages, stopping pagination for source ${source.id}`,
       );
+      break;
+    }
+
+    if (!data.has_next) {
+      console.log(`🔍 [PULL] No next page, stopping...`);
       break;
     }
   }

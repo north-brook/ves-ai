@@ -349,7 +349,11 @@ export function SessionList({
                     </div>
                     <div className="flex items-center gap-1">
                       <Activity className="h-3 w-3" />
-                      <span>{formatDuration(session.active_duration)}</span>
+                      <span>
+                        {formatDuration(
+                          session.video_duration || session.active_duration,
+                        )}
+                      </span>
                     </div>
                     <div className="flex items-center gap-1">
                       <Calendar className="h-3 w-3" />
