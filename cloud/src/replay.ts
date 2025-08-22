@@ -123,9 +123,9 @@ function buildReplayHtml(
             speed: ${opts.speed},
             maxSpeed: 360,
             mouseTail: ${opts.mouseTail ? JSON.stringify(opts.mouseTail) : "false"},
-            triggerFocus: false,
+            triggerFocus: true,
+            pauseAnimation: true,
             UNSAFE_replayCanvas: false,
-            pauseAnimation: false,
             showWarning: true,
             showDebug: true,  // Enable debug to see skip messages
             blockClass: 'rr-block',
@@ -158,6 +158,28 @@ function buildReplayHtml(
             } catch(e) {
               console.error('Error in onReplayFinish:', e);
             }
+          });
+
+          replayer.on('fullsnapshot-rebuilded', () => {
+            const doc = replayer.iframe.contentDocument;
+            if (!doc) return;
+
+            // Use the recorded page URL as the base
+            const baseHref = (__events.find(e => e.type === 4 /* Meta */)?.data?.href) || '';
+            if (baseHref && !doc.querySelector('base')) {
+              const base = doc.createElement('base');
+              base.href = baseHref;
+              doc.head.prepend(base);
+            }
+
+            // Rewrite root-relative <link href="/..."> to absolute
+            const origin = baseHref ? new URL(baseHref).origin : '';
+            doc.querySelectorAll('link[rel="stylesheet"]').forEach(link => {
+              const href = link.getAttribute('href');
+              if (href && href.startsWith('/') && origin) {
+                link.href = origin + href;
+              }
+            });
           });
           
           replayer.on('skip-start', (payload) => {
@@ -383,6 +405,7 @@ export default async function constructVideo(params: {
         size: { width, height },
       },
       ignoreHTTPSErrors: true,
+      reducedMotion: "no-preference",
     });
 
     const page = await context.newPage();
