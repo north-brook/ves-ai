@@ -1,8 +1,10 @@
 import { join, resolve as pathResolve } from "node:path";
-import { createWriteStream, promises as fs } from "node:fs";
+import { createReadStream, createWriteStream, promises as fs } from "node:fs";
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
 import { chromium, LaunchOptions } from "playwright";
+import { pipeline } from "node:stream/promises";
+import { Storage } from "@google-cloud/storage";
 
 // rrweb EventType.Meta = 4
 const RRWEB_EVENT_META = 4;
@@ -119,7 +121,7 @@ function buildReplayHtml(
             skipInactive: ${opts.skipInactive},
             inactivePeriodThreshold: ${opts.inactiveThreshold || 10000},
             speed: ${opts.speed},
-            maxSpeed: 60,
+            maxSpeed: 360,
             mouseTail: ${opts.mouseTail ? JSON.stringify(opts.mouseTail) : "false"},
             triggerFocus: false,
             UNSAFE_replayCanvas: false,
@@ -245,6 +247,8 @@ async function moveFile(src: string, dest: string) {
 // --------------------------------------------------------
 
 export default async function constructVideo(params: {
+  projectId: string;
+  sessionId: string;
   eventsPath: string;
   config?: {
     width?: number;
@@ -260,6 +264,7 @@ export default async function constructVideo(params: {
 }): Promise<{
   videoPath: string;
   videoDuration: number;
+  videoUri: string;
 }> {
   const { eventsPath, config = {} } = params;
 
@@ -538,10 +543,65 @@ export default async function constructVideo(params: {
       console.warn(`⚠️ [REPLAY] Could not get actual video duration:`, err);
     }
 
-    return {
-      videoPath: outPath,
-      videoDuration: actualDuration,
-    };
+    const fileName = `${params.sessionId}.webm`;
+    const bucketName = "ves.ai";
+    const filePath = `${params.projectId}/${fileName}`;
+
+    console.log(`  🗂️ Bucket: ${bucketName}`);
+    console.log(`  📁 File path: ${filePath}`);
+    console.log(`  📊 File size: ${(stats.size / 1024 / 1024).toFixed(2)} MB`);
+
+    // Initialize GCS client
+    const storage = new Storage();
+    const bucket = storage.bucket(bucketName);
+    const file = bucket.file(filePath);
+
+    // Create read stream from the local file
+    const readStream = createReadStream(outPath);
+
+    // Track upload progress
+    let uploadedBytes = 0;
+    let lastProgress = 0;
+
+    readStream.on("data", (chunk) => {
+      uploadedBytes += chunk.length;
+      const progress = Math.round((uploadedBytes / stats.size) * 100);
+
+      // Log progress every 10%
+      if (progress >= lastProgress + 10) {
+        console.log(
+          `  📊 Upload progress: ${progress}% (${(uploadedBytes / 1024 / 1024).toFixed(1)} MB / ${(stats.size / 1024 / 1024).toFixed(1)} MB)`,
+        );
+        lastProgress = progress;
+      }
+    });
+
+    // Create write stream to GCS
+    const writeStream = file.createWriteStream({
+      metadata: {
+        contentType: "video/webm",
+        cacheControl: "public, max-age=3600",
+      },
+      resumable: false, // Disable resumable uploads for Cloud Run (stateless)
+      validation: false, // Disable validation for better performance
+      gzip: false, // Don't gzip video files
+    });
+
+    // Stream the video to GCS
+    try {
+      await pipeline(readStream, writeStream);
+      console.log(`  ✅ Upload completed successfully`);
+      const videoUri = `gs://${bucketName}/${filePath}`;
+
+      return {
+        videoPath: outPath,
+        videoDuration: actualDuration,
+        videoUri,
+      };
+    } catch (error) {
+      console.error(`  ❌ [UPLOAD ERROR] Failed to upload video:`, error);
+      throw error;
+    }
   } finally {
     await browser.close();
   }

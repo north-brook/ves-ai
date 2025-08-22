@@ -49,18 +49,18 @@ export function Markdown({ children }: MarkdownProps) {
         
         // Lists
         ul: ({ children }) => (
-          <ul className="list-disc list-inside space-y-1 mb-4 text-foreground-secondary">
+          <ul className="list-disc list-outside ml-6 space-y-1 mb-4 text-foreground-secondary">
             {children}
           </ul>
         ),
         ol: ({ children }) => (
-          <ol className="list-decimal list-inside space-y-1 mb-4 text-foreground-secondary">
+          <ol className="list-decimal list-outside ml-6 space-y-1 mb-4 text-foreground-secondary">
             {children}
           </ol>
         ),
         li: ({ children }) => (
-          <li className="text-foreground-secondary">
-            <span className="ml-2">{children}</span>
+          <li className="text-foreground-secondary pl-1">
+            {children}
           </li>
         ),
         

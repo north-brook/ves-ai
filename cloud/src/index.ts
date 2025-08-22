@@ -1,11 +1,9 @@
 import express from "express";
 import fs from "fs/promises";
-import { uploadToGCS } from "./uploader";
 import { postCallback } from "./callback";
 import type { ErrorPayload, ProcessRequest, SuccessPayload } from "./types";
 import constructEvents from "./events";
 import constructVideo from "./replay";
-import constructContext from "./context";
 
 const app = express();
 app.use(express.json({ limit: "512kb" }));
@@ -107,62 +105,40 @@ async function processRecordingAsync(body: ProcessRequest) {
 
   try {
     // 1) Fetch and process events
-    const { eventsPath, deviceWidth, deviceHeight } = await constructEvents({
-      source_type: body.source_type,
-      source_host: body.source_host,
-      source_key: body.source_key,
-      source_project: body.source_project,
-      external_id: body.external_id,
-    });
+    const { eventsPath, deviceWidth, deviceHeight, eventsUri } =
+      await constructEvents({
+        source_type: body.source_type,
+        source_host: body.source_host,
+        source_key: body.source_key,
+        source_project: body.source_project,
+        external_id: body.external_id,
+        project_id: body.project_id,
+        session_id: body.session_id,
+      });
 
-    // 2) In parallel: construct activity log and render video
-    const [contextEvents, { videoPath, videoDuration }] = await Promise.all([
-      constructContext({
-        sessionId: body.session_id,
-        eventsPath,
-      }),
-      constructVideo({
-        eventsPath,
-        config: {
-          skipInactive: true,
-          speed: 1,
-          width: deviceWidth,
-          height: deviceHeight,
-          mouseTail: {
-            strokeStyle: "green",
-            lineWidth: 2,
-          },
-        },
-      }),
-    ]);
-
-    // Check if the video is valid (not empty)
-    const stats = await fs.stat(videoPath);
-    const minSize = body.active_duration * 5000; // Minimum ~5KB per second
-
-    if (stats.size < minSize) {
-      console.error(
-        `❌ [ERROR] Video seems empty or corrupted (${stats.size} bytes, expected minimum ${minSize} bytes)`,
-      );
-      throw new Error(
-        `Video file is too small (${stats.size} bytes) - recording may have failed`,
-      );
-    }
-
-    console.log(
-      `✅ [RENDERED] Video created:\n` +
-        `  ⏱️ Duration: ${videoDuration.toFixed(1)}s\n` +
-        `  📁 Path: ${videoPath}`,
-    );
-
-    // 2) Upload to Google Cloud Storage
-    const { uri } = await uploadToGCS({
+    // 2) Render video (context is no longer needed since we're uploading raw events)
+    const { videoPath, videoDuration, videoUri } = await constructVideo({
       projectId: body.project_id,
       sessionId: body.session_id,
-      localPath: videoPath,
+      eventsPath,
+      config: {
+        skipInactive: true,
+        speed: 1,
+        width: deviceWidth,
+        height: deviceHeight,
+        mouseTail: {
+          strokeStyle: "green",
+          lineWidth: 2,
+        },
+      },
     });
 
-    console.log(`☁️ [UPLOADED] Successfully uploaded:\n` + `  🔗 URL: ${uri}`);
+    console.log(
+      `✅ [RENDERED] Video created and uploaded:\n` +
+        `  ⏱️ Duration: ${videoDuration.toFixed(1)}s\n` +
+        `  📁 Local Path: ${videoPath}\n` +
+        `  ☁️ GCS URI: ${videoUri}`,
+    );
 
     // Clean up temporary video and events files
     try {
@@ -185,9 +161,9 @@ async function processRecordingAsync(body: ProcessRequest) {
     successPayload = {
       success: true,
       external_id: body.external_id,
-      uri,
+      video_uri: videoUri,
       video_duration: Math.round(videoDuration),
-      events: contextEvents,
+      events_uri: eventsUri,
     };
     await postCallback(callbackUrl, successPayload);
 

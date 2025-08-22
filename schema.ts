@@ -174,7 +174,7 @@ export type Database = {
           analyzed_at: string | null
           created_at: string
           embedding: string | null
-          events: Json[] | null
+          event_uri: string | null
           external_group_id: string | null
           external_group_name: string | null
           external_id: string
@@ -199,7 +199,7 @@ export type Database = {
           analyzed_at?: string | null
           created_at?: string
           embedding?: string | null
-          events?: Json[] | null
+          event_uri?: string | null
           external_group_id?: string | null
           external_group_name?: string | null
           external_id: string
@@ -224,7 +224,7 @@ export type Database = {
           analyzed_at?: string | null
           created_at?: string
           embedding?: string | null
-          events?: Json[] | null
+          event_uri?: string | null
           external_group_id?: string | null
           external_group_name?: string | null
           external_id?: string

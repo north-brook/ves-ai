@@ -3,6 +3,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promises as fs } from "node:fs";
 import { gunzipSync } from "node:zlib";
+import { Storage } from "@google-cloud/storage";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 
 // Types
 type EventProcessingParams = {
@@ -11,6 +14,8 @@ type EventProcessingParams = {
   source_key: string;
   source_project: string;
   external_id: string;
+  project_id: string;
+  session_id: string;
 };
 
 type SnapshotSource = {
@@ -35,7 +40,6 @@ type RrwebEvent = {
 
 const MAX_V2_KEYS_PER_CALL = 20;
 const RRWEB_EVENT_META = 4;
-const RRWEB_EVENT_FULLSNAPSHOT = 2;
 // Event types: 0=DomContentLoaded, 1=Load, 2=FullSnapshot, 3=IncrementalSnapshot, 4=Meta, 5=Custom, 6=Plugin
 
 // --------------------------------------------------------
@@ -126,9 +130,21 @@ async function getJSON<T>(
 
 export default async function constructEvents(
   params: EventProcessingParams,
-): Promise<{ eventsPath: string; deviceWidth: number; deviceHeight: number }> {
-  const { source_type, source_host, source_key, source_project, external_id } =
-    params;
+): Promise<{
+  eventsPath: string;
+  deviceWidth: number;
+  deviceHeight: number;
+  eventsUri: string;
+}> {
+  const {
+    source_type,
+    source_host,
+    source_key,
+    source_project,
+    external_id,
+    project_id,
+    session_id,
+  } = params;
 
   if (source_type !== "posthog") {
     throw new Error(`Unsupported source_type: ${source_type}`);
@@ -404,7 +420,6 @@ export default async function constructEvents(
   console.log(
     `📊 [EVENTS] Filtered ${allEvents.length - filteredEvents.length} custom events, ${filteredEvents.length} events remaining`,
   );
-  allEvents = filteredEvents;
 
   // Sort events by timestamp
   allEvents.sort((a, b) => {
@@ -413,16 +428,38 @@ export default async function constructEvents(
     if (a.type !== 2 && b.type === 2) return 1;
     return a.timestamp - b.timestamp;
   });
-
-  // Write events to file
-  console.log(`📊 [WRITE] Writing ${allEvents.length} events to file...`);
-  await fs.writeFile(jsonPath, JSON.stringify(allEvents), "utf-8");
+  filteredEvents.sort((a, b) => {
+    // Ensure FullSnapshot (type 2) comes first
+    if (a.type === 2 && b.type !== 2) return -1;
+    if (a.type !== 2 && b.type === 2) return 1;
+    return a.timestamp - b.timestamp;
+  });
 
   if (allEvents.length === 0) {
     throw new Error("No rrweb events were parsed from the snapshots.");
   }
 
-  console.log(`✅ [EVENTS] Events saved to: ${jsonPath}`);
+  // Convert events to JSON string
+  const eventsJson = JSON.stringify(allEvents);
+  const filteredEventsJson = JSON.stringify(filteredEvents);
+
+  // Write filtered events to local file (for video processing)
+  console.log(
+    `📊 [WRITE] Writing ${filteredEvents.length} filtered events to file...`,
+  );
+  await fs.writeFile(jsonPath, filteredEventsJson, "utf-8");
+  console.log(`✅ [EVENTS] Events saved locally to: ${jsonPath}`);
+
+  // Upload raw events to Google Cloud Storage
+  console.log(`☁️ [UPLOAD] Uploading raw events to GCS...`);
+  const eventsUri = await uploadEventsToGCS({
+    projectId: project_id,
+    sessionId: session_id,
+    eventsJson,
+    eventsCount: allEvents.length,
+  });
+  console.log(`✅ [UPLOAD] Raw events uploaded to: ${eventsUri}`);
+
   console.log(
     `📱 [EVENTS] Device dimensions: ${maxViewportWidth}x${maxViewportHeight}`,
   );
@@ -431,7 +468,60 @@ export default async function constructEvents(
     eventsPath: jsonPath,
     deviceWidth: maxViewportWidth,
     deviceHeight: maxViewportHeight,
+    eventsUri,
   };
+}
+
+// Upload events to Google Cloud Storage with streaming
+async function uploadEventsToGCS(params: {
+  projectId: string;
+  sessionId: string;
+  eventsJson: string;
+  eventsCount: number;
+}): Promise<string> {
+  const { projectId, sessionId, eventsJson, eventsCount } = params;
+  const fileName = `${sessionId}.json`;
+  const bucketName = "ves.ai";
+  const filePath = `${projectId}/${fileName}`;
+
+  console.log(`  🗂️ Bucket: ${bucketName}`);
+  console.log(`  📁 File path: ${filePath}`);
+  console.log(`  📊 Events count: ${eventsCount}`);
+  console.log(
+    `  📏 JSON size: ${(Buffer.byteLength(eventsJson) / 1024 / 1024).toFixed(2)} MB`,
+  );
+
+  // Initialize GCS client
+  const storage = new Storage();
+  const bucket = storage.bucket(bucketName);
+  const file = bucket.file(filePath);
+
+  // Create a readable stream from the JSON string
+  const jsonStream = Readable.from([eventsJson]);
+
+  // Create write stream to GCS
+  const writeStream = file.createWriteStream({
+    metadata: {
+      contentType: "application/json",
+      cacheControl: "public, max-age=3600",
+      metadata: {
+        eventsCount: String(eventsCount),
+      },
+    },
+    resumable: false, // Disable resumable uploads for Cloud Run (stateless)
+    validation: false, // Disable validation for better performance
+    gzip: true, // Enable gzip compression for JSON
+  });
+
+  // Stream the JSON to GCS
+  try {
+    await pipeline(jsonStream, writeStream);
+    console.log(`  ✅ Upload completed successfully`);
+    return `gs://${bucketName}/${filePath}`;
+  } catch (error) {
+    console.error(`  ❌ [UPLOAD ERROR] Failed to upload events:`, error);
+    throw error;
+  }
 }
 
 // Export types for use in other modules

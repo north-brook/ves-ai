@@ -1,5 +1,4 @@
 import { Database as DatabaseGenerated, Enums, Tables } from "@/schema";
-import { ContextEvent } from "@/cloud/src/context";
 import { MergeDeep } from "type-fest";
 
 export type User = Tables<"users">;
@@ -19,7 +18,6 @@ export type Session = MergeDeep<
   Tables<"sessions">,
   {
     observations: Observation[] | null;
-    events: ContextEvent[] | null;
   }
 >;
 export type Ticket = Tables<"tickets">;
@@ -38,15 +36,12 @@ export type Database = MergeDeep<
         sessions: {
           Row: {
             observations: Observation[] | null;
-            events: ContextEvent[] | null;
           };
           Insert: {
             observations?: Observation[] | null;
-            events?: ContextEvent[] | null;
           };
           Update: {
             observations?: Observation[] | null;
-            events?: ContextEvent[] | null;
           };
         };
       };

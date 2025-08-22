@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   Calendar,
   Clock,
-  Tag,
   Activity,
   Building,
   User,
@@ -14,15 +13,13 @@ import { formatDistanceToNow, format } from "date-fns";
 import { SessionStatusBadge } from "@/components/session-status";
 import { Project, Session } from "@/types";
 
-interface SessionHeaderClientProps {
-  session: Session;
-  project: Project;
-}
-
-export function SessionHeaderClient({
+export function SessionHeader({
   session,
   project,
-}: SessionHeaderClientProps) {
+}: {
+  session: Session;
+  project: Project;
+}) {
   const formatDuration = (seconds: number | null) => {
     if (!seconds) return "N/A";
     const hours = Math.floor(seconds / 3600);

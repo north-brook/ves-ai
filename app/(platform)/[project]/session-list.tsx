@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { SessionStatusBadge } from "@/components/session-status";
 import { RealtimeChannel } from "@supabase/supabase-js";
+import { cn } from "@/lib/utils";
 
 interface SessionListProps {
   sessions: Session[];
@@ -367,7 +368,11 @@ export function SessionList({
                     </div>
                     <div className="flex items-center gap-1">
                       <User className="h-3 w-3" />
-                      <span>{session.external_user_name || "Anonymous"}</span>
+                      <span
+                        className={cn(!session.external_user_name && "italic")}
+                      >
+                        {session.external_user_name || "Anonymous"}
+                      </span>
                     </div>
                     {session.external_group_name && (
                       <div className="flex items-center gap-1">

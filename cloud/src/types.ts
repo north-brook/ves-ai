@@ -1,5 +1,3 @@
-import { ContextEvent } from "./context";
-
 export type ProcessRequest = {
   source_type: "posthog";
   source_host: string; // e.g. "https://us.posthog.com"
@@ -15,9 +13,9 @@ export type ProcessRequest = {
 export type SuccessPayload = {
   success: true;
   external_id: string;
-  uri: string;
+  video_uri: string;
   video_duration: number;
-  events: ContextEvent[];
+  events_uri: string;
 };
 
 export type ErrorPayload = {

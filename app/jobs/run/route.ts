@@ -496,11 +496,10 @@ async function pullSessionsFromSource(
               external_id: recording.id,
               external_user_id: recording.person?.uuid,
               // only save name if it is not a uuid
-              external_user_name: !recording.person?.name?.match(
-                /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
-              )
-                ? recording.person?.name
-                : null,
+              external_user_name:
+                recording.person?.uuid !== recording.person?.name
+                  ? recording.person?.name
+                  : null,
               external_group_id: groupId,
               external_group_name: groupName,
               status: "pending",

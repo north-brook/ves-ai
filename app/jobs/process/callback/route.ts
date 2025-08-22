@@ -28,8 +28,6 @@ export async function POST(request: NextRequest) {
       console.log(
         `✅ [CALLBACK] Processing succeeded for recording ${successData.external_id}`,
       );
-      console.log(`   Video URL: ${successData.uri}`);
-      console.log(`   Duration: ${successData.video_duration}s`);
 
       // Find session by external_id
       const { data: session, error: findError } = await supabase
@@ -69,9 +67,9 @@ export async function POST(request: NextRequest) {
       // Update session with video data (embed_url already saved during pull)
       const updateData: Database["public"]["Tables"]["sessions"]["Update"] = {
         status: "processed",
-        video_uri: successData.uri,
+        video_uri: successData.video_uri,
         video_duration: successData.video_duration,
-        events: successData.events,
+        event_uri: successData.events_uri,
       };
 
       const { error: updateError } = await supabase
@@ -86,8 +84,9 @@ export async function POST(request: NextRequest) {
 
       console.log(`✨ [CALLBACK] Successfully updated session ${session.id}`);
       console.log(`   Status: processing → processed`);
-      console.log(`   Video: ${successData.uri}`);
+      console.log(`   Video: ${successData.video_uri}`);
       console.log(`   Duration: ${successData.video_duration}s`);
+      console.log(`   Events: ${successData.events_uri}`);
 
       // Trigger analysis for this session
       console.log(

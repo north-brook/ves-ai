@@ -1,5 +1,6 @@
 "use server";
 
+import storage from "@/lib/storage";
 import serverSupabase from "@/lib/supabase/server";
 import { Storage } from "@google-cloud/storage";
 
@@ -16,14 +17,6 @@ export async function getVideoUrl(
 
   if (sessionError) return { error: sessionError.message };
   if (!session.video_uri) return { error: "Video URI not found" };
-
-  const storage = new Storage({
-    projectId: process.env.GCP_PROJECT_ID,
-    credentials: {
-      client_email: process.env.GCP_CLIENT_EMAIL,
-      private_key: process.env.GCP_PRIVATE_KEY,
-    },
-  });
 
   const parts = session.video_uri.replace("gs://", "").split("/");
   const bucketName = parts[0];
