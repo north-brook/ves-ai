@@ -52,22 +52,6 @@ export async function searchSessions(
     return [];
   }
 
-  // Get ticket counts for all sessions
-  const { data: sessionTickets } = await supabase
-    .from("session_tickets")
-    .select("session_id")
-    .in("session_id", sessionIds);
-
-  // Count tickets per session
-  const ticketCounts =
-    sessionTickets?.reduce(
-      (acc, st) => {
-        acc[st.session_id] = (acc[st.session_id] || 0) + 1;
-        return acc;
-      },
-      {} as Record<string, number>,
-    ) || {};
-
   // Add ticket count and similarity score to each session
   const sessionsWithTickets = sessions.map((session) => {
     const matchInfo = matchedSessions.find(
@@ -75,7 +59,6 @@ export async function searchSessions(
     );
     return {
       ...session,
-      ticketCount: ticketCounts[session.id] || 0,
       similarity: matchInfo?.similarity || 0,
     };
   });

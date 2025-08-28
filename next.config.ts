@@ -5,6 +5,18 @@ import dotenvExpand from "dotenv-expand";
 dotenvExpand.expand({ parsed: { ...process.env } as Record<string, string> });
 
 const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "www.google.com",
+      },
+      {
+        protocol: "https",
+        hostname: "*.supabase.co",
+      },
+    ],
+  },
   /* config options here */
   async rewrites() {
     return [

@@ -50,6 +50,86 @@ export type Database = {
           },
         ]
       }
+      project_groups: {
+        Row: {
+          created_at: string
+          external_id: string
+          id: string
+          name: string | null
+          project_id: string
+          properties: Json | null
+        }
+        Insert: {
+          created_at?: string
+          external_id: string
+          id?: string
+          name?: string | null
+          project_id: string
+          properties?: Json | null
+        }
+        Update: {
+          created_at?: string
+          external_id?: string
+          id?: string
+          name?: string | null
+          project_id?: string
+          properties?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_groups_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_users: {
+        Row: {
+          created_at: string
+          external_id: string
+          id: string
+          name: string | null
+          project_group_id: string | null
+          project_id: string
+          properties: Json | null
+        }
+        Insert: {
+          created_at?: string
+          external_id: string
+          id?: string
+          name?: string | null
+          project_group_id?: string | null
+          project_id: string
+          properties?: Json | null
+        }
+        Update: {
+          created_at?: string
+          external_id?: string
+          id?: string
+          name?: string | null
+          project_group_id?: string | null
+          project_id?: string
+          properties?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_users_project_group_id_fkey"
+            columns: ["project_group_id"]
+            isOneToOne: false
+            referencedRelation: "project_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_users_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           created_at: string
@@ -122,52 +202,6 @@ export type Database = {
           },
         ]
       }
-      session_tickets: {
-        Row: {
-          created_at: string
-          id: string
-          project_id: string
-          session_id: string
-          ticket_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          project_id: string
-          session_id: string
-          ticket_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          project_id?: string
-          session_id?: string
-          ticket_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "session_tickets_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "session_tickets_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "sessions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "session_tickets_ticket_id_fkey"
-            columns: ["ticket_id"]
-            isOneToOne: false
-            referencedRelation: "tickets"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       sessions: {
         Row: {
           active_duration: number | null
@@ -175,17 +209,15 @@ export type Database = {
           created_at: string
           embedding: string | null
           event_uri: string | null
-          external_group_id: string | null
-          external_group_name: string | null
           external_id: string
-          external_user_id: string | null
-          external_user_name: string | null
           features: string[] | null
           id: string
           name: string | null
           observations: Json[] | null
           processed_at: string | null
+          project_group_id: string | null
           project_id: string
+          project_user_id: string
           session_at: string | null
           source_id: string
           status: Database["public"]["Enums"]["session_status"]
@@ -200,17 +232,15 @@ export type Database = {
           created_at?: string
           embedding?: string | null
           event_uri?: string | null
-          external_group_id?: string | null
-          external_group_name?: string | null
           external_id: string
-          external_user_id?: string | null
-          external_user_name?: string | null
           features?: string[] | null
           id?: string
           name?: string | null
           observations?: Json[] | null
           processed_at?: string | null
+          project_group_id?: string | null
           project_id: string
+          project_user_id: string
           session_at?: string | null
           source_id: string
           status: Database["public"]["Enums"]["session_status"]
@@ -225,17 +255,15 @@ export type Database = {
           created_at?: string
           embedding?: string | null
           event_uri?: string | null
-          external_group_id?: string | null
-          external_group_name?: string | null
           external_id?: string
-          external_user_id?: string | null
-          external_user_name?: string | null
           features?: string[] | null
           id?: string
           name?: string | null
           observations?: Json[] | null
           processed_at?: string | null
+          project_group_id?: string | null
           project_id?: string
+          project_user_id?: string
           session_at?: string | null
           source_id?: string
           status?: Database["public"]["Enums"]["session_status"]
@@ -246,10 +274,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "sessions_project_group_id_fkey"
+            columns: ["project_group_id"]
+            isOneToOne: false
+            referencedRelation: "project_groups"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "sessions_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sessions_project_user_id_fkey"
+            columns: ["project_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
@@ -295,63 +337,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "sources_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      tickets: {
-        Row: {
-          created_at: string
-          description: string
-          destination_id: string
-          external_id: string
-          id: string
-          labels: string[]
-          links: string[]
-          name: string
-          project_id: string
-          status: string
-          url: string
-        }
-        Insert: {
-          created_at?: string
-          description: string
-          destination_id: string
-          external_id: string
-          id?: string
-          labels: string[]
-          links: string[]
-          name: string
-          project_id: string
-          status: string
-          url: string
-        }
-        Update: {
-          created_at?: string
-          description?: string
-          destination_id?: string
-          external_id?: string
-          id?: string
-          labels?: string[]
-          links?: string[]
-          name?: string
-          project_id?: string
-          status?: string
-          url?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "tickets_destination_id_fkey"
-            columns: ["destination_id"]
-            isOneToOne: false
-            referencedRelation: "destinations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "tickets_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"

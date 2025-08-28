@@ -10,8 +10,10 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useState } from "react";
+import Image from "next/image";
+import { cn } from "@/lib/utils";
 
-export function ProjectSelector({ projects }: { projects: Project[] }) {
+export default function ProjectSelector({ projects }: { projects: Project[] }) {
   const [isOpen, setIsOpen] = useState(false);
   const params = useParams();
   const router = useRouter();
@@ -23,6 +25,14 @@ export function ProjectSelector({ projects }: { projects: Project[] }) {
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <button className="border-border bg-background hover:bg-surface flex items-center gap-2 rounded-lg border px-4 py-2 font-medium transition-colors">
+          {currentProject?.image && (
+            <Image
+              src={currentProject?.image || ""}
+              alt={currentProject?.name || ""}
+              width={20}
+              height={20}
+            />
+          )}
           <span className="text-foreground">
             {currentProject ? currentProject.name : "Select Project"}
           </span>
@@ -41,12 +51,21 @@ export function ProjectSelector({ projects }: { projects: Project[] }) {
               router.push(`/${project.slug}`);
               setIsOpen(false);
             }}
-            className={`hover:bg-surface flex w-full items-center rounded px-3 py-2 text-left transition-colors ${
+            className={cn(
+              "hover:bg-surface flex w-full items-center gap-2 rounded px-3 py-2 text-left transition-colors",
               project.slug === currentProjectSlug
                 ? "bg-surface text-foreground"
-                : "text-foreground-secondary"
-            }`}
+                : "text-foreground-secondary",
+            )}
           >
+            {project.image && (
+              <Image
+                src={project.image}
+                alt={project.name}
+                width={20}
+                height={20}
+              />
+            )}
             <span className="font-medium">{project.name}</span>
           </button>
         ))}

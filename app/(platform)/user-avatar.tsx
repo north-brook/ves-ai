@@ -9,7 +9,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-export function UserAvatar({ user }: { user: User | null }) {
+export default function UserAvatar({ user }: { user: User | null }) {
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -28,7 +28,9 @@ export function UserAvatar({ user }: { user: User | null }) {
       <PopoverContent className="w-64" align="end">
         <div className="border-border border-b pb-3">
           <p className="text-foreground font-medium">
-            {user?.first_name || "User"}
+            {user?.first_name && user?.last_name
+              ? `${user.first_name} ${user.last_name}`
+              : "User"}
           </p>
           <p className="text-foreground-secondary text-sm">{user?.email}</p>
         </div>

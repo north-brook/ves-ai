@@ -1,7 +1,7 @@
 "use client";
 
-import { ProgressBar } from "./progress-bar";
-import { Logo } from "@/app/(marketing)/logo";
+import ProgressBar from "./progress-bar";
+import Logo from "@/app/(marketing)/logo";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 

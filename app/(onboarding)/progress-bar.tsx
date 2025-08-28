@@ -7,7 +7,7 @@ interface ProgressBarProps {
   currentStep: number;
 }
 
-export function ProgressBar({ currentStep }: ProgressBarProps) {
+export default function ProgressBar({ currentStep }: ProgressBarProps) {
   const steps = [
     { number: 1, label: "Setup" },
     { number: 2, label: "PostHog" },

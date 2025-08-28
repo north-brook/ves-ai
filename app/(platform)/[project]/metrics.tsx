@@ -49,16 +49,9 @@ export async function Metrics({ projectSlug }: { projectSlug: string }) {
     .eq("status", "analyzed")
     .gte("analyzed_at", startOfMonth.toISOString());
 
-  const { data: currentTickets } = await supabase
-    .from("tickets")
-    .select("id")
-    .eq("project_id", project.id)
-    .gte("created_at", startOfMonth.toISOString());
-
   const currentSeconds =
     analyzedSessions?.reduce((acc, s) => acc + (s.video_duration || 0), 0) || 0;
   const sessionsCount = analyzedSessions?.length || 0;
-  const ticketsCount = currentTickets?.length || 0;
 
   // Calculate hours remaining based on plan
   const monthlyLimitSeconds = getMonthlyTimeLimit(project.plan);
@@ -80,7 +73,7 @@ export async function Metrics({ projectSlug }: { projectSlug: string }) {
 
       <MetricCard
         title="Linked Tickets"
-        value={ticketsCount.toString()}
+        value={"0"}
         icon={<Ticket className="h-5 w-5" />}
       />
     </div>

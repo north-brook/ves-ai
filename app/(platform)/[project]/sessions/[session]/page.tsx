@@ -81,23 +81,20 @@ async function LoadedSession({
   if (roleError) console.error(roleError);
   if (!role) redirect("/home");
 
-  const { data: sessionData, error: sessionError } = await supabase
+  const { data: session, error: sessionError } = await supabase
     .from("sessions")
-    .select("*,session_tickets(ticket:tickets(*))")
+    .select("*")
     .eq("id", sessionId)
     .eq("project_id", project.id)
     .single();
 
   if (sessionError) console.error(sessionError);
-  if (!sessionData) redirect(`/${projectSlug}`);
-
-  const { session_tickets, ...session } = sessionData;
-  const tickets = session_tickets?.map((st) => st.ticket);
+  if (!session) redirect(`/${projectSlug}`);
 
   return (
     <>
       <SessionHeader session={session} project={project} />
-      <SessionContent session={session} tickets={tickets} />
+      <SessionContent session={session} tickets={[]} />
     </>
   );
 }

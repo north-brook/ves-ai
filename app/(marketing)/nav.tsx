@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { Logo } from "./logo";
+import Logo from "./logo";
 import serverSupabase from "@/lib/supabase/server";
 import { Suspense } from "react";
 import LogInButton, { LoadingLogInButton } from "../auth/log-in-button";
 
-export async function Navigation() {
+export default async function MarketingNav() {
   return (
-    <nav className="border-border bg-background/80 fixed top-0 z-50 w-full border-b backdrop-blur-lg">
+    <nav className="border-border bg-background/80 sticky top-0 z-50 w-full border-b backdrop-blur-lg">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
         <Link href="/">
           <Logo />

@@ -3,6 +3,7 @@ import adminSupabase from "@/lib/supabase/admin";
 import * as Sentry from "@sentry/nextjs";
 import { Database } from "@/types";
 import nextJobs from "./next-job";
+import { Json } from "@/schema";
 
 type Source = Database["public"]["Tables"]["sources"]["Row"] & {
   projects: {
@@ -291,6 +292,7 @@ async function pullSessionsFromSource(
   }
 
   const groupNames: Record<string, string> = {};
+  const groupProperties: Record<string, Json> = {};
   let query: string | null =
     `https://us.posthog.com/api/projects/${source.source_project}/groups/?group_type_index=0`;
 
@@ -315,8 +317,8 @@ async function pullSessionsFromSource(
     };
 
     for (const group of groupData.results) {
-      if (group.group_properties?.name)
-        groupNames[group.group_key] = group.group_properties.name as string;
+      groupNames[group.group_key] = group.group_properties.name as string;
+      groupProperties[group.group_key] = group.group_properties as Json;
     }
 
     if (groupData.next) {
@@ -326,7 +328,7 @@ async function pullSessionsFromSource(
     }
   }
 
-  console.log(`🔍 [PULL] Group names:`, groupNames);
+  console.log(`🔍 [PULL] Groups: ${Object.keys(groupNames).length}`);
 
   // Get the most recent session we've pulled from this source
   const { data: latestSession } = await supabase
@@ -489,28 +491,105 @@ async function pullSessionsFromSource(
             groupName = groupId ? groupNames[groupId] : null;
           }
 
-          const sessionInsert: Database["public"]["Tables"]["sessions"]["Insert"] =
-            {
+          if (!recording.person?.uuid) {
+            // recording is not associated with a person, so we will skip it
+            return null;
+          }
+
+          // check if the project user exists
+          let projectUserId: string | null = null;
+          const { data: projectUser } = await supabase
+            .from("project_users")
+            .select("id")
+            .eq("project_id", source.project_id)
+            .eq("external_id", recording.person?.uuid)
+            .single();
+
+          if (projectUser) projectUserId = projectUser.id;
+          else {
+            // create the project user
+            const { data: newProjectUser, error: insertError } = await supabase
+              .from("project_users")
+              .insert({
+                project_id: source.project_id,
+                external_id: recording.person?.uuid,
+                name: recording.person?.name,
+                properties: recording.person?.properties as Json,
+              })
+              .select("id")
+              .single();
+
+            if (insertError) {
+              console.error(
+                `❌ [PULL] Error creating project user for recording ${recording.id}:`,
+                insertError,
+              );
+              Sentry.captureException(insertError, {
+                tags: { job: "pull_sessions", step: "insert" },
+                extra: { externalId: recording.id, sourceId: source.id },
+              });
+            } else {
+              projectUserId = newProjectUser.id;
+            }
+          }
+
+          // if we couldn't create a project user, we will skip this recording
+          if (!projectUserId) return null;
+
+          // check if the project group exists
+          let projectGroupId: string | null = null;
+          if (groupId) {
+            const { data: projectGroup } = await supabase
+              .from("project_groups")
+              .select("id")
+              .eq("project_id", source.project_id)
+              .eq("external_id", groupId)
+              .single();
+
+            if (projectGroup) projectGroupId = projectGroup.id;
+
+            if (!projectGroupId) {
+              // create the project group
+              const { data: newProjectGroup, error: insertError } =
+                await supabase
+                  .from("project_groups")
+                  .insert({
+                    project_id: source.project_id,
+                    external_id: groupId,
+                    name: groupName,
+                    properties: groupProperties[groupId] || null,
+                  })
+                  .select("id")
+                  .single();
+
+              if (insertError) {
+                console.error(
+                  `❌ [PULL] Error creating project group for recording ${recording.id}:`,
+                  insertError,
+                );
+                Sentry.captureException(insertError, {
+                  tags: { job: "pull_sessions", step: "insert" },
+                  extra: { externalId: recording.id, sourceId: source.id },
+                });
+              } else {
+                projectGroupId = newProjectGroup.id;
+              }
+            }
+          }
+
+          const { data: newSession, error: insertError } = await supabase
+            .from("sessions")
+            .insert({
               source_id: source.id,
               project_id: source.project_id,
               external_id: recording.id,
-              external_user_id: recording.person?.uuid,
-              // only save name if it is not a uuid
-              external_user_name:
-                recording.person?.uuid !== recording.person?.name
-                  ? recording.person?.name
-                  : null,
-              external_group_id: groupId,
-              external_group_name: groupName,
+              project_user_id: projectUserId,
+              project_group_id: projectGroupId,
               status: "pending",
               session_at: recording.end_time,
               total_duration: recording.recording_duration,
               active_duration: recording.active_seconds,
-            };
-
-          const { data: newSession, error: insertError } = await supabase
-            .from("sessions")
-            .insert(sessionInsert)
+            })
             .select()
             .single();
 
@@ -544,15 +623,6 @@ async function pullSessionsFromSource(
     offset += 100;
     pageNumber++;
 
-    // If we've created sessions on this page, we might want to continue
-    // If we've only skipped sessions, we might be caught up
-    if (pageNewCount === 0 && recordings.length > 0) {
-      console.log(
-        `🔍 [PULL] No new sessions on page ${pageNumber - 1}, checking if we should continue...`,
-      );
-      // Continue to next page to ensure we get all recordings
-    }
-
     if (pageNumber > DEBUG_MAX_PAGES) {
       console.log(
         `🔍 [PULL] Reached max pages, stopping pagination for source ${source.id}`,
@@ -582,8 +652,6 @@ async function pullSessionsFromSource(
       updateError,
     );
   }
-
-  // Don't process here - let the main loop handle all pending sessions
 
   return createdSessionIds;
 }

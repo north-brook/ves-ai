@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import { Session } from "@/types";
-import { searchSessions, triggerRunJob } from "./actions";
+import { searchSessions, triggerRunJob } from "./(overview)/actions";
 import clientSupabase from "@/lib/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 
@@ -142,55 +142,6 @@ export function SessionList({
             }
           },
         )
-        // .on(
-        //   "postgres_changes",
-        //   {
-        //     event: "*",
-        //     schema: "public",
-        //     table: "session_tickets",
-        //   },
-        //   (payload) => {
-        //     console.log(
-        //       "🎫 Session ticket change detected:",
-        //       payload.eventType,
-        //       payload,
-        //     );
-        //     // Update ticket counts when session_tickets change
-        //     if (
-        //       payload.eventType === "INSERT" ||
-        //       payload.eventType === "DELETE"
-        //     ) {
-        //       const sessionId =
-        //         payload.eventType === "INSERT"
-        //           ? (payload.new as { session_id: string }).session_id
-        //           : (payload.old as { session_id: string }).session_id;
-
-        //       // Fetch updated ticket count asynchronously
-        //       (async () => {
-        //         try {
-        //           const { data: tickets } = await supabase
-        //             .from("session_tickets")
-        //             .select("session_id")
-        //             .eq("session_id", sessionId);
-
-        //           setSessions((prev) => {
-        //             // Check if this session is in our list
-        //             const sessionExists = prev.some((s) => s.id === sessionId);
-        //             if (!sessionExists) return prev;
-
-        //             return prev.map((s) =>
-        //               s.id === sessionId
-        //                 ? { ...s, ticketCount: tickets?.length || 0 }
-        //                 : s,
-        //             );
-        //           });
-        //         } catch (error) {
-        //           console.error("❌ Failed to fetch ticket count:", error);
-        //         }
-        //       })();
-        //     }
-        //   },
-        // )
         .subscribe((status, error) => {
           console.log("📻 Subscription status:", status, "Error:", error);
           if (status === "SUBSCRIBED") {
@@ -323,7 +274,7 @@ export function SessionList({
           displaySessions.map((session) => (
             <Link
               key={session.id}
-              href={`/${projectSlug}/${session.id}`}
+              href={`/${projectSlug}/sessions/${session.id}`}
               className="hover:bg-foreground/5 block p-4 transition-colors duration-200"
             >
               <div className="flex items-start justify-between">

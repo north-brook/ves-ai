@@ -33,7 +33,7 @@ A Cloud Run service that converts PostHog session recordings into WebM video fil
 gcloud auth login
 
 # Set your project
-gcloud config set project YOUR_PROJECT_ID
+gcloud config set project ves-ai
 
 # Create application default credentials for local development
 gcloud auth application-default login
@@ -59,17 +59,6 @@ docker run -p 8080:8080 \
   -v ~/.config/gcloud/application_default_credentials.json:/tmp/keys/credentials.json:ro \
   -e GCS_BUCKET=ves.ai \
   vesai-cloud
-
-# Note: When testing locally, use http://host.docker.internal:3000 as the callback URL
-# instead of http://localhost:3000 so the container can reach your local dev server
-
-# Alternative: Use service account key (if you have one)
-docker run -p 8080:8080 \
-  -e PORT=8080 \
-  -e GOOGLE_APPLICATION_CREDENTIALS=/tmp/keys/sa-key.json \
-  -v /path/to/your/service-account-key.json:/tmp/keys/sa-key.json:ro \
-  -e GCS_BUCKET=ves.ai \
-  vesai-cloud
 ```
 
 #### Using Node.js (macOS/Linux)
@@ -85,8 +74,6 @@ npm run build
 npm start
 ```
 
-**Note:** On macOS, you may encounter Chromium path issues. Using Docker is recommended for local development.
-
 ### API Usage
 
 Send a POST request to `/process` with:
@@ -96,8 +83,8 @@ Send a POST request to `/process` with:
   "source_type": "posthog",
   "source_host": "https://us.posthog.com",
   "source_key": "phx_your_api_key",
-  "source_project": "project_id",
-  "project_id": "gcs_project_id",
+  "source_project": "posthog_project_id",
+  "project_id": "project_uuid",
   "session_id": "session_uuid",
   "external_id": "recording_uuid",
   "active_duration": 120,
@@ -107,15 +94,8 @@ Send a POST request to `/process` with:
 
 The service will:
 
-1. Return 200 OK immediately to acknowledge the request
-2. Process the recording asynchronously
-3. POST the result to your callback URL when complete
-
-### Environment Variables
-
-- `PORT`: Server port (default: 8080)
-- `GOOGLE_APPLICATION_CREDENTIALS`: Path to GCS credentials JSON
-- `GCS_BUCKET`: Google Cloud Storage bucket name (default: ves.ai)
+1. Process the recording asynchronously
+2. POST the result to your callback URL when complete
 
 ## Architecture
 
@@ -124,35 +104,3 @@ The service will:
 - **Video Rendering**: rrvideo with Playwright Chromium
 - **Storage**: Google Cloud Storage
 - **Deployment**: Cloud Run (auto-deployed from GitHub)
-
-## Troubleshooting
-
-### JSON Parse Errors
-
-If you see "Failed to parse JSON" errors, ensure your PostHog API key has the correct permissions and the recording has finished processing (wait 24+ hours after recording).
-
-### Chromium Not Found
-
-On local development without Docker, install Playwright browsers:
-
-```bash
-npx playwright install chromium
-```
-
-### Recording Failed
-
-Check the logs for detailed error messages. Common issues:
-
-- Recording too fresh (wait for PostHog to process)
-- Invalid API credentials
-- GCS permissions issues
-- Large/complex recordings may fail with "Target closed" - try increasing memory/timeout
-
-### Local Development Tips
-
-When running locally with Docker:
-
-- The service automatically rewrites `localhost` callbacks to `host.docker.internal`
-- Use the memory and CPU flags to match Cloud Run settings
-- Check Docker logs for detailed processing information
-- Successful callbacks will show `✅ Callback sent successfully (200)`
