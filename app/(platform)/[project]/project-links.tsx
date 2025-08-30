@@ -8,7 +8,7 @@ const NAV_ITEMS = (projectSlug: string) => [
   { href: `/${projectSlug}`, label: "Overview" },
   { href: `/${projectSlug}/sessions`, label: "Sessions" },
   { href: `/${projectSlug}/features`, label: "Features" },
-  { href: `/${projectSlug}/recommendations`, label: "Recommendations" },
+  { href: `/${projectSlug}/issues`, label: "Issues" },
   { href: `/${projectSlug}/users`, label: "Users" },
   { href: `/${projectSlug}/settings`, label: "Settings" },
 ];

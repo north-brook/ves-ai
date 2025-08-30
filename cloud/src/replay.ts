@@ -74,10 +74,41 @@ function buildReplayHtml(
       .replayer-mouse-tail {
         display: ${opts.mouseTail ? "block" : "none"};
       }
+      /* Skipping overlay */
+      #skip-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        pointer-events: none;
+      }
+      #skip-overlay.active {
+        display: flex;
+      }
+      #skip-overlay-text {
+        color: white;
+        font-size: 48px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-weight: 600;
+        text-align: center;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+      }
     </style>
   </head>
   <body>
-    <div id="replayer" class="replayer-wrapper"></div>
+    <div id="replayer" class="replayer-wrapper">
+      <div id="skip-overlay">
+        <div>
+          <div id="skip-overlay-text">Skipping inactivity...</div>
+        </div>
+      </div>
+    </div>
     <script>
       ${assets.script}
       
@@ -85,26 +116,39 @@ function buildReplayHtml(
       (async function() {
         const __events = ${safeEvents};
         
-        console.log('Initializing Replayer with skipInactive: ${opts.skipInactive}, threshold: ${opts.inactiveThreshold || 10000}');
-        console.log('Starting replay with', __events.length, 'events');
-        
-        // Debug: Check for user interactions and gaps
-        let lastUserInteraction = null;
-        let gaps = [];
+        // Extract segments from custom event
+        let segments = [];
+        let segmentEventIndex = -1;
         for (let i = 0; i < __events.length; i++) {
           const evt = __events[i];
-          if (evt.type === 3 && evt.data && evt.data.source >= 1 && evt.data.source <= 5) {
-            if (lastUserInteraction !== null) {
-              const gap = (evt.delay - lastUserInteraction) / 1000;
-              if (gap > 10) {
-                gaps.push(gap);
-                console.log('Found gap of', gap.toFixed(1), 's between user interactions');
-              }
-            }
-            lastUserInteraction = evt.delay;
+          if (evt.type === 5 && evt.data && evt.data.tag === 'replay-segments') {
+            segments = evt.data.payload.segments || [];
+            segmentEventIndex = i;
+            console.log('Found', segments.length, 'segments in recording');
+            break;
           }
         }
-        console.log('Total gaps > 10s:', gaps.length);
+        
+        // Remove segment event so it doesn't interfere with replay
+        if (segmentEventIndex >= 0) {
+          __events.splice(segmentEventIndex, 1);
+        }
+        
+        console.log('Initializing Replayer with dynamic speed control');
+        console.log('Starting replay with', __events.length, 'events');
+        
+        // Debug segments
+        if (segments.length > 0) {
+          let totalActive = 0;
+          let totalInactive = 0;
+          segments.forEach(seg => {
+            if (seg.isActive) totalActive += seg.duration;
+            else totalInactive += seg.duration;
+          });
+          console.log('Active time:', (totalActive/1000).toFixed(1) + 's');
+          console.log('Inactive time:', (totalInactive/1000).toFixed(1) + 's');
+          console.log('Skip savings:', ((totalInactive * 0.98) / 1000).toFixed(1) + 's');
+        }
         
         // Track timing
         window.__startTime = Date.now();
@@ -114,12 +158,45 @@ function buildReplayHtml(
         let isFinished = false;
         let animationFrameId = null;
         
+        // Track segment playback
+        let currentSegmentIndex = -1;
+        let isSkipping = false;
+        
+        // Get base timestamp for converting relative to absolute time
+        const baseTimestamp = __events[0]?.timestamp || 0;
+        
+        // Function to get segment at timestamp
+        // getCurrentTime() returns relative time (0-based), but segments use absolute timestamps
+        function getSegmentAtTime(relativeTime) {
+          const absoluteTime = baseTimestamp + relativeTime;
+          for (let i = 0; i < segments.length; i++) {
+            if (absoluteTime >= segments[i].startTime && absoluteTime <= segments[i].endTime) {
+              return i;
+            }
+          }
+          return -1;
+        }
+        
+        // Debug: Log all segments
+        console.log('=== SEGMENTS DEBUG ===');
+        console.log('Base timestamp:', baseTimestamp);
+        segments.forEach((seg, i) => {
+          const relativeStart = seg.startTime - baseTimestamp;
+          const relativeEnd = seg.endTime - baseTimestamp;
+          console.log('Segment', i, ':', {
+            isActive: seg.isActive,
+            absoluteTime: seg.startTime + '-' + seg.endTime,
+            relativeTime: (relativeStart/1000).toFixed(1) + 's-' + (relativeEnd/1000).toFixed(1) + 's',
+            duration: ((seg.endTime - seg.startTime) / 1000).toFixed(1) + 's'
+          });
+        });
+        
         try {
           // Create Replayer instance using rrweb directly
+          // Disable built-in skipInactive - we'll handle it manually
           const replayer = new rrweb.Replayer(__events, {
             root: document.getElementById('replayer'),
-            skipInactive: ${opts.skipInactive},
-            inactivePeriodThreshold: ${opts.inactiveThreshold || 10000},
+            skipInactive: false,  // Disable rrweb's skip, use our own
             speed: ${opts.speed},
             maxSpeed: 360,
             mouseTail: ${opts.mouseTail ? JSON.stringify(opts.mouseTail) : "false"},
@@ -127,7 +204,7 @@ function buildReplayHtml(
             pauseAnimation: true,
             UNSAFE_replayCanvas: false,
             showWarning: true,
-            showDebug: true,  // Enable debug to see skip messages
+            showDebug: true,
             blockClass: 'rr-block',
             liveMode: false,
             insertStyleRules: []
@@ -145,12 +222,27 @@ function buildReplayHtml(
             totalTime: totalTime
           });
           
+          // Debug: Check if getCurrentTime works
+          console.log('Initial getCurrentTime:', replayer.getCurrentTime());
+          console.log('First event timestamp:', __events[0]?.timestamp);
+          console.log('Last event timestamp:', __events[__events.length - 1]?.timestamp);
+          
           // Set up event listeners
           replayer.on('finish', () => {
             isFinished = true;
             if (animationFrameId) {
               cancelAnimationFrame(animationFrameId);
             }
+            if (speedCheckInterval) {
+              clearInterval(speedCheckInterval);
+            }
+            
+            // Hide skip overlay on finish
+            const overlay = document.getElementById('skip-overlay');
+            if (overlay) {
+              overlay.classList.remove('active');
+            }
+            
             const elapsed = (Date.now() - window.__startTime) / 1000;
             console.log('Replay finished after', elapsed.toFixed(1) + 's');
             try { 
@@ -182,13 +274,94 @@ function buildReplayHtml(
             });
           });
           
-          replayer.on('skip-start', (payload) => {
-            console.log('🏃 SKIP START - Fast forwarding at speed:', payload);
-          });
-          
-          replayer.on('skip-end', (payload) => {
-            console.log('🏃 SKIP END - Resumed normal playback:', payload);
-          });
+          // Dynamic speed control based on segments
+          let speedCheckInterval = null;
+          let lastLoggedTime = -1;
+          if (segments.length > 0 && ${opts.skipInactive}) {
+            console.log('🎮 [SPEED CONTROL] Enabled with', segments.length, 'segments');
+            speedCheckInterval = setInterval(() => {
+              if (!replayer || isFinished) {
+                if (speedCheckInterval) clearInterval(speedCheckInterval);
+                return;
+              }
+              
+              try {
+                const currentTime = replayer.getCurrentTime();
+                const segIdx = getSegmentAtTime(currentTime);
+                
+                // Log every second for debugging
+                const currentSecond = Math.floor(currentTime / 1000);
+                if (currentSecond !== lastLoggedTime) {
+                  lastLoggedTime = currentSecond;
+                  const absoluteTime = baseTimestamp + currentTime;
+                  console.log('[TIME]', currentSecond + 's (abs:', absoluteTime + '), segment:', segIdx, 'speed:', replayer.config.speed);
+                }
+                
+                if (segIdx >= 0) {
+                  const segment = segments[segIdx];
+                  const absoluteTime = baseTimestamp + currentTime;
+                  
+                  // Check if we need to change speed
+                  if (segIdx !== currentSegmentIndex) {
+                    currentSegmentIndex = segIdx;
+                    console.log('📍 [SEGMENT CHANGE] Now in segment', segIdx + 1, '- Active:', segment.isActive);
+                    
+                    if (!segment.isActive) {
+                      // Calculate speed for inactive segment
+                      const remainingTime = (segment.endTime - absoluteTime) / 1000;
+                      const skipSpeed = Math.max(50, Math.min(360, remainingTime));
+                      
+                      replayer.setConfig({ speed: skipSpeed });
+                      console.log('🏃 [SKIP START] Segment', segIdx + 1, 'at', skipSpeed + 'x speed for', remainingTime.toFixed(1) + 's');
+                      
+                      // Show skip overlay
+                      const overlay = document.getElementById('skip-overlay');
+                      const subtext = document.getElementById('skip-overlay-subtext');
+                      if (overlay) {
+                        overlay.classList.add('active');
+                        if (subtext) {
+                          subtext.textContent = skipSpeed + 'x speed • ' + remainingTime.toFixed(0) + 's remaining';
+                        }
+                      }
+                      
+                      isSkipping = true;
+                    } else {
+                      if (isSkipping) {
+                        replayer.setConfig({ speed: ${opts.speed} }); // Reset to original speed
+                        console.log('✅ [SKIP END] Segment', segIdx + 1, 'resumed normal speed (${opts.speed}x)');
+                        
+                        // Hide skip overlay
+                        const overlay = document.getElementById('skip-overlay');
+                        if (overlay) {
+                          overlay.classList.remove('active');
+                        }
+                        
+                        isSkipping = false;
+                      }
+                    }
+                  } else if (!segment.isActive && isSkipping) {
+                    // Update speed as we progress through inactive segment
+                    const remainingTime = (segment.endTime - absoluteTime) / 1000;
+                    const newSpeed = Math.max(50, Math.min(360, remainingTime));
+                    
+                    if (Math.abs(replayer.config.speed - newSpeed) > 10) {
+                      replayer.setConfig({ speed: newSpeed });
+                      console.log('⚡ [SPEED UPDATE] Adjusted to', newSpeed + 'x for remaining', remainingTime.toFixed(1) + 's');
+                    }
+                  }
+                } else {
+                  if (currentSegmentIndex !== -1) {
+                    console.log('⚠️ [NO SEGMENT] At time', currentTime, '- no matching segment found');
+                    currentSegmentIndex = -1;
+                  }
+                }
+              } catch (e) {
+                console.error('[SPEED CONTROL ERROR]', e);
+              }
+            }, 100); // Check every 100ms
+          } else {
+            console.log('🎮 [SPEED CONTROL] Disabled - segments:', segments.length, 'skipInactive:', ${opts.skipInactive});
+          }
           
           // Track progress
           function updateProgress() {
@@ -350,7 +523,7 @@ export default async function constructVideo(params: {
   const height = config.height || Math.max(1, maxViewportHeight || 900);
   const speed = config.speed ?? 1;
   const skipInactive = config.skipInactive ?? true; // Always skip inactive periods
-  const inactiveThreshold = 10000; // 10 seconds of inactivity triggers skip
+  const inactiveThreshold = 5000; // 5 seconds of inactivity triggers skip (matching PostHog)
   const mouseTail = config.mouseTail;
 
   // Read rrweb assets

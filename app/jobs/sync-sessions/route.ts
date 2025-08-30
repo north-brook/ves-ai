@@ -66,12 +66,12 @@ export async function GET(request: NextRequest) {
 
     if (projectId) {
       console.log(
-        `🎯 [CRON] Starting job run for specific project: ${projectId} at`,
+        `🎯 [SYNC SESSIONS] Starting job run for specific project: ${projectId} at`,
         new Date().toISOString(),
       );
     } else {
       console.log(
-        "🚀 [CRON] Starting job run for all projects at",
+        "🚀 [SYNC SESSIONS] Starting job run for all projects at",
         new Date().toISOString(),
       );
     }
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
 
     // Step 1: Pull session replays from sources
     console.log(
-      `📥 [CRON] Fetching PostHog sources${projectId ? ` for project ${projectId}` : ""}...`,
+      `📥 [SYNC SESSIONS] Fetching PostHog sources${projectId ? ` for project ${projectId}` : ""}...`,
     );
 
     let sourcesQuery = supabase
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(
-      `✅ [CRON] Found ${sources?.length || 0} PostHog sources${projectId ? ` for project ${projectId}` : ""}`,
+      `✅ [SYNC SESSIONS] Found ${sources?.length || 0} PostHog sources${projectId ? ` for project ${projectId}` : ""}`,
     );
 
     // Group sources by project for parallel project processing
@@ -114,7 +114,7 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(
-      `📊 [CRON] Processing ${sourcesByProject.size} projects in parallel`,
+      `📊 [SYNC SESSIONS] Processing ${sourcesByProject.size} projects in parallel`,
     );
 
     // Process all projects in parallel
@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
         async ([projectId, projectSources]) => {
           const projectName = projectSources[0].projects.name;
           console.log(
-            `🚀 [CRON] Starting processing for project ${projectId} (${projectName})`,
+            `🚀 [SYNC SESSIONS] Starting processing for project ${projectId} (${projectName})`,
           );
 
           let totalNewSessions = 0;
@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
           for (const source of projectSources) {
             try {
               console.log(
-                `🔄 [CRON] Pulling sessions from source ${source.id} (Project: ${projectName})...`,
+                `🔄 [SYNC SESSIONS] Pulling sessions from source ${source.id} (Project: ${projectName})...`,
               );
 
               // Pull sessions only (don't process yet)
@@ -145,15 +145,15 @@ export async function GET(request: NextRequest) {
               totalNewSessions += newSessionIds.length;
 
               console.log(
-                `✅ [CRON] Pulled ${newSessionIds.length} new sessions from source ${source.id}`,
+                `✅ [SYNC SESSIONS] Pulled ${newSessionIds.length} new sessions from source ${source.id}`,
               );
             } catch (error) {
               console.error(
-                `❌ [CRON] Error pulling from source ${source.id}:`,
+                `❌ [SYNC SESSIONS] Error pulling from source ${source.id}:`,
                 error,
               );
               Sentry.captureException(error, {
-                tags: { job: "cron", step: "pull_sessions" },
+                tags: { job: "syncSessions", step: "pullSessions" },
                 extra: { sourceId: source.id, projectId },
               });
             }
@@ -161,7 +161,7 @@ export async function GET(request: NextRequest) {
 
           // Step 2: Process all pending sessions for this project (both new and existing)
           console.log(
-            `⚙️ [CRON] Processing pending sessions for project ${projectName}...`,
+            `⚙️ [SYNC SESSIONS] Processing pending sessions for project ${projectName}...`,
           );
 
           const processedCount = await nextJobs(projectId, 20);
@@ -169,7 +169,7 @@ export async function GET(request: NextRequest) {
           totalProcessed = processedCount;
 
           console.log(
-            `✅ [CRON] Processed ${processedCount} pending sessions for project ${projectName}`,
+            `✅ [SYNC SESSIONS] Processed ${processedCount} pending sessions for project ${projectName}`,
           );
 
           return {
@@ -277,17 +277,19 @@ async function pullSessionsFromSource(
   supabase: ReturnType<typeof adminSupabase>,
 ): Promise<string[]> {
   console.log(
-    `🔍 [PULL] Fetching recordings from PostHog for source ${source.id}`,
+    `🔍 [SYNC SESSIONS] Fetching recordings from PostHog for source ${source.id}`,
   );
   console.log(
-    `📍 [PULL] Host: ${source.source_host}, Project: ${source.source_project}`,
+    `📍 [SYNC SESSIONS] Host: ${source.source_host}, Project: ${source.source_project}`,
   );
   console.log(
-    `🌐 [PULL] Will filter recordings for domain: ${source.projects.domain} and active_seconds >= 30`,
+    `🌐 [SYNC SESSIONS] Will filter recordings for domain: ${source.projects.domain} and active_seconds >= 30`,
   );
 
   if (!source.source_host || !source.source_key || !source.source_project) {
-    console.error(`⚠️ [PULL] Source ${source.id} missing required fields`);
+    console.error(
+      `⚠️ [SYNC SESSIONS] Source ${source.id} missing required fields`,
+    );
     return [];
   }
 
@@ -348,7 +350,7 @@ async function pullSessionsFromSource(
     filterDate.setMinutes(filterDate.getMinutes() - 5);
     sinceDate = filterDate.toISOString();
     console.log(
-      `🕐 [PULL] Fetching recordings since ${sinceDate} (last session: ${latestSession.session_at})`,
+      `🕐 [PULL SESSIONS] Fetching recordings since ${sinceDate} (last session: ${latestSession.session_at})`,
     );
   } else {
     // If no sessions exist, get recordings from the last 30 days
@@ -356,7 +358,7 @@ async function pullSessionsFromSource(
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     sinceDate = thirtyDaysAgo.toISOString();
     console.log(
-      `🕐 [PULL] No existing sessions, fetching recordings from last 30 days (since ${sinceDate})`,
+      `🕐 [PULL SESSIONS] No existing sessions, fetching recordings from last 30 days (since ${sinceDate})`,
     );
   }
 
@@ -369,7 +371,9 @@ async function pullSessionsFromSource(
 
   // Paginate through all recordings
   while (true) {
-    console.log(`📄 [PULL] Fetching page ${pageNumber} from PostHog...`);
+    console.log(
+      `📄 [PULL SESSIONS] Fetching page ${pageNumber} from PostHog...`,
+    );
 
     const response = await fetch(
       `${source.source_host}/api/projects/${source.source_project}/session_recordings?limit=100&date_from=${sinceDate}&offset=${offset}`,
@@ -384,7 +388,7 @@ async function pullSessionsFromSource(
     if (!response.ok) {
       const errorText = await response.text();
       console.error(
-        `❌ [PULL] PostHog API error: ${response.status} - ${errorText}`,
+        `❌ [SYNC SESSIONS] PostHog API error: ${response.status} - ${errorText}`,
       );
       throw new Error(`PostHog API error: ${response.status}`);
     }
@@ -392,13 +396,13 @@ async function pullSessionsFromSource(
     const data: PostHogRecordingsResponse = await response.json();
 
     // log data without the results
-    const { results, ...rest } = data;
-    console.log(`🔍 [PULL] PostHog API response:`, rest);
+    const { results: _, ...rest } = data;
+    console.log(`🔍 [SYNC SESSIONS] PostHog API response:`, rest);
 
     const recordings: PostHogRecording[] = data.results || [];
 
     console.log(
-      `📹 [PULL] Page ${pageNumber}: Found ${recordings.length} recordings`,
+      `📹 [SYNC SESSIONS] Page ${pageNumber}: Found ${recordings.length} recordings`,
     );
     console.log(`   Has next page: ${data.has_next ? "yes" : "no"}`);
 
@@ -449,9 +453,8 @@ async function pullSessionsFromSource(
     }
 
     if (recordingsToProcess.length > 0) {
-      // Create sessions
-      await Promise.all(
-        recordingsToProcess.map(async (recording) => {
+      // Create sessions - process serially to avoid race conditions
+      for (const recording of recordingsToProcess) {
           let groupId: string | null = null;
           let groupName: string | null = null;
 
@@ -493,48 +496,8 @@ async function pullSessionsFromSource(
 
           if (!recording.person?.uuid) {
             // recording is not associated with a person, so we will skip it
-            return null;
+            continue;
           }
-
-          // check if the project user exists
-          let projectUserId: string | null = null;
-          const { data: projectUser } = await supabase
-            .from("project_users")
-            .select("id")
-            .eq("project_id", source.project_id)
-            .eq("external_id", recording.person?.uuid)
-            .single();
-
-          if (projectUser) projectUserId = projectUser.id;
-          else {
-            // create the project user
-            const { data: newProjectUser, error: insertError } = await supabase
-              .from("project_users")
-              .insert({
-                project_id: source.project_id,
-                external_id: recording.person?.uuid,
-                name: recording.person?.name,
-                properties: recording.person?.properties as Json,
-              })
-              .select("id")
-              .single();
-
-            if (insertError) {
-              console.error(
-                `❌ [PULL] Error creating project user for recording ${recording.id}:`,
-                insertError,
-              );
-              Sentry.captureException(insertError, {
-                tags: { job: "pull_sessions", step: "insert" },
-                extra: { externalId: recording.id, sourceId: source.id },
-              });
-            } else {
-              projectUserId = newProjectUser.id;
-            }
-          }
-
-          // if we couldn't create a project user, we will skip this recording
-          if (!projectUserId) return null;
 
           // check if the project group exists
           let projectGroupId: string | null = null;
@@ -558,6 +521,7 @@ async function pullSessionsFromSource(
                     external_id: groupId,
                     name: groupName,
                     properties: groupProperties[groupId] || null,
+                    status: "pending",
                   })
                   .select("id")
                   .single();
@@ -568,7 +532,7 @@ async function pullSessionsFromSource(
                   insertError,
                 );
                 Sentry.captureException(insertError, {
-                  tags: { job: "pull_sessions", step: "insert" },
+                  tags: { job: "syncSessions", step: "insertProjectGroup" },
                   extra: { externalId: recording.id, sourceId: source.id },
                 });
               } else {
@@ -576,6 +540,78 @@ async function pullSessionsFromSource(
               }
             }
           }
+
+          // check if the project user exists
+          let projectUserId: string | null = null;
+          const { data: projectUser } = await supabase
+            .from("project_users")
+            .select("id, project_group_id")
+            .eq("project_id", source.project_id)
+            .eq("external_id", recording.person?.uuid)
+            .single();
+
+          if (projectUser) {
+            projectUserId = projectUser.id;
+            if (projectUser.project_group_id)
+              groupId = projectUser.project_group_id;
+            else if (projectGroupId) {
+              // update the project user with the project group id
+              const { error: updateError } = await supabase
+                .from("project_users")
+                .update({ project_group_id: projectGroupId })
+                .eq("id", projectUserId);
+
+              if (updateError) {
+                console.error(
+                  `❌ [PULL] Error updating project user with project group id:`,
+                  updateError,
+                );
+                Sentry.captureException(updateError, {
+                  tags: {
+                    job: "syncSessions",
+                    step: "updateProjectUserGroup",
+                  },
+                  extra: { externalId: recording.id, sourceId: source.id },
+                });
+              }
+            }
+          } else {
+            // create the project user
+            const { data: newProjectUser, error: insertError } = await supabase
+              .from("project_users")
+              .insert({
+                project_id: source.project_id,
+                external_id: recording.person?.uuid,
+                name:
+                  recording.person?.name &&
+                  !recording.person.name.match(
+                    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+                  )
+                    ? recording.person.name
+                    : null,
+                properties: recording.person?.properties as Json,
+                project_group_id: projectGroupId,
+                status: "pending",
+              })
+              .select("id")
+              .single();
+
+            if (insertError) {
+              console.error(
+                `❌ [PULL SESSION] Error creating project user for recording ${recording.id}:`,
+                insertError,
+              );
+              Sentry.captureException(insertError, {
+                tags: { job: "syncSessions", step: "insertProjectUser" },
+                extra: { externalId: recording.id, sourceId: source.id },
+              });
+            } else {
+              projectUserId = newProjectUser.id;
+            }
+          }
+
+          // if we couldn't create a project user, we will skip this recording
+          if (!projectUserId) continue;
 
           const { data: newSession, error: insertError } = await supabase
             .from("sessions")
@@ -595,11 +631,11 @@ async function pullSessionsFromSource(
 
           if (insertError) {
             console.error(
-              `❌ [PULL] Error creating session for recording ${recording.id}:`,
+              `❌ [SYNC SESSIONS] Error creating session for recording ${recording.id}:`,
               insertError,
             );
             Sentry.captureException(insertError, {
-              tags: { job: "pull_sessions", step: "insert" },
+              tags: { job: "syncSessions", step: "insertSession" },
               extra: { externalId: recording.id, sourceId: source.id },
             });
           } else {
@@ -608,8 +644,7 @@ async function pullSessionsFromSource(
               createdSessionIds.push(newSession.id);
             }
           }
-        }),
-      );
+      }
     }
 
     console.log(
@@ -625,19 +660,19 @@ async function pullSessionsFromSource(
 
     if (pageNumber > DEBUG_MAX_PAGES) {
       console.log(
-        `🔍 [PULL] Reached max pages, stopping pagination for source ${source.id}`,
+        `🔍 [SYNC SESSIONS] Reached max pages, stopping pagination for source ${source.id}`,
       );
       break;
     }
 
     if (!data.has_next) {
-      console.log(`🔍 [PULL] No next page, stopping...`);
+      console.log(`🔍 [SYNC SESSIONS] No next page, stopping...`);
       break;
     }
   }
 
   console.log(
-    `📊 [PULL] Total summary: ${totalNewSessionCount} new, ${totalSkippedCount} skipped across ${pageNumber - 1} pages (filtered: domain=${source.projects.domain}, active_seconds>=30)`,
+    `📊 [SYNC SESSIONS] Total summary: ${totalNewSessionCount} new, ${totalSkippedCount} skipped across ${pageNumber - 1} pages (filtered: domain=${source.projects.domain}, active_seconds>=30)`,
   );
 
   // Update source last_active_at
@@ -648,7 +683,7 @@ async function pullSessionsFromSource(
 
   if (updateError) {
     console.error(
-      `⚠️ [PULL] Failed to update source last_active_at:`,
+      `⚠️ [SYNC SESSIONS] Failed to update source last_active_at:`,
       updateError,
     );
   }

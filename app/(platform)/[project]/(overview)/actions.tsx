@@ -86,11 +86,11 @@ export async function triggerRunJob(projectSlug: string) {
     }
 
     console.log(
-      `🚀 [SERVER ACTION] Triggering run job for project ${project.id}`,
+      `🚀 [SERVER ACTION] Triggering sync sessions job for project ${project.id}`,
     );
 
     // Construct the job URL
-    const jobUrl = `${process.env.NEXT_PUBLIC_URL}/jobs/run?project_id=${project.id}`;
+    const jobUrl = `${process.env.NEXT_PUBLIC_URL}/jobs/sync-sessions?project_id=${project.id}`;
 
     console.log(`🔗 [SERVER ACTION] Fetching: ${jobUrl}`);
 
@@ -103,7 +103,7 @@ export async function triggerRunJob(projectSlug: string) {
 
     if (!response.ok) {
       const responseText = await response.text();
-      console.error(`❌ [SERVER ACTION] Failed to trigger run job:`, {
+      console.error(`❌ [SERVER ACTION] Failed to trigger sync sessions job:`, {
         status: response.status,
         statusText: response.statusText,
         body: responseText,
@@ -117,12 +117,15 @@ export async function triggerRunJob(projectSlug: string) {
 
     const data = await response.json();
     console.log(
-      `✅ [SERVER ACTION] Successfully triggered run job for project ${project.id}`,
+      `✅ [SERVER ACTION] Successfully triggered sync sessions job for project ${project.id}`,
     );
 
     return { success: true, data };
   } catch (error) {
-    console.error(`❌ [SERVER ACTION] Error triggering run job:`, error);
+    console.error(
+      `❌ [SERVER ACTION] Error triggering sync sessions job:`,
+      error,
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",

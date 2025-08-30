@@ -8,14 +8,9 @@ import constructVideo from "./replay";
 const app = express();
 app.use(express.json({ limit: "512kb" }));
 
-// Track active recordings for cleanup
 const activeRecordings = new Map<
   string,
-  {
-    body: ProcessRequest;
-    callbackUrl: string;
-    startTime: number;
-  }
+  { body: ProcessRequest; callbackUrl: string; startTime: number }
 >();
 
 app.get("/health", (_req, res) => res.status(200).send("ok"));
@@ -23,7 +18,6 @@ app.get("/health", (_req, res) => res.status(200).send("ok"));
 app.post("/process", async (req, res) => {
   const body = req.body as ProcessRequest;
 
-  // Basic validation
   const missing = [
     "source_type",
     "source_host",
@@ -51,11 +45,8 @@ app.post("/process", async (req, res) => {
       `  🗂️ Target: ${body.project_id}/${body.session_id}`,
   );
 
-  // Process the recording and hold connection open to ensure 1 recording per instance
-  // The callback will be sent from processRecordingAsync
   try {
     await processRecordingAsync(body);
-    // Only return 200 after processing is complete
     res.status(200).json({
       success: true,
       message: "Recording processed and callback sent",
@@ -66,7 +57,6 @@ app.post("/process", async (req, res) => {
       `❌ [ERROR] Failed to process recording ${body.external_id}:`,
       err,
     );
-    // Return error but callback was already sent
     res.status(500).json({
       success: false,
       error: err.message || "Recording processing failed",
@@ -75,36 +65,31 @@ app.post("/process", async (req, res) => {
   }
 });
 
-// Async function to process the recording
 async function processRecordingAsync(body: ProcessRequest) {
   let successPayload: SuccessPayload | null = null;
   let errorPayload: ErrorPayload | null = null;
   const processStartTime = Date.now();
 
-  // Fix callback URL for Docker containers to reach host
   let callbackUrl = body.callback;
   if (callbackUrl.includes("localhost") && process.env.DOCKERIZED === "true") {
     callbackUrl = callbackUrl.replace("localhost", "host.docker.internal");
     console.log(`🔄 [DOCKER] Rewriting callback URL to: ${callbackUrl}`);
   }
 
-  // Track this recording as active
   activeRecordings.set(body.external_id, {
     body,
     callbackUrl,
     startTime: processStartTime,
   });
 
-  // Set up process heartbeat
   const processHeartbeat = setInterval(() => {
     const elapsed = (Date.now() - processStartTime) / 1000;
     console.log(
       `⏰ [HEARTBEAT] Recording ${body.external_id} - ${elapsed.toFixed(0)}s elapsed`,
     );
-  }, 30_000); // Log every 30 seconds
+  }, 30_000);
 
   try {
-    // 1) Fetch and process events
     const { eventsPath, deviceWidth, deviceHeight, eventsUri } =
       await constructEvents({
         source_type: body.source_type,
@@ -116,7 +101,6 @@ async function processRecordingAsync(body: ProcessRequest) {
         session_id: body.session_id,
       });
 
-    // 2) Render video (context is no longer needed since we're uploading raw events)
     const { videoPath, videoDuration, videoUri } = await constructVideo({
       projectId: body.project_id,
       sessionId: body.session_id,
@@ -124,12 +108,9 @@ async function processRecordingAsync(body: ProcessRequest) {
       config: {
         skipInactive: true,
         speed: 1,
-        width: deviceWidth,
-        height: deviceHeight,
-        mouseTail: {
-          strokeStyle: "green",
-          lineWidth: 2,
-        },
+        width: Math.max(320, deviceWidth),
+        height: Math.max(240, deviceHeight),
+        mouseTail: { strokeStyle: "green", lineWidth: 2 },
       },
     });
 
@@ -140,12 +121,11 @@ async function processRecordingAsync(body: ProcessRequest) {
         `  ☁️ GCS URI: ${videoUri}`,
     );
 
-    // Clean up temporary video and events files
     try {
       await fs.unlink(videoPath);
       console.log(`🧹 [CLEANUP] Deleted temporary video file: ${videoPath}`);
     } catch (cleanupErr) {
-      console.warn(`⚠️ [CLEANUP] Failed to delete temp file: ${cleanupErr}`);
+      console.warn(`⚠️ [CLEANUP] Failed to delete temp video: ${cleanupErr}`);
     }
 
     try {
@@ -155,7 +135,6 @@ async function processRecordingAsync(body: ProcessRequest) {
       console.warn(`⚠️ [CLEANUP] Failed to delete events file: ${cleanupErr}`);
     }
 
-    // Clear the heartbeat before sending success callback
     clearInterval(processHeartbeat);
 
     successPayload = {
@@ -196,86 +175,64 @@ async function processRecordingAsync(body: ProcessRequest) {
   }
 }
 
-// Track if we're already shutting down to prevent multiple shutdown attempts
+// Graceful shutdown (unchanged)
 let isShuttingDown = false;
-
-// Graceful shutdown handler
 async function gracefulShutdown(signal: string) {
   if (isShuttingDown) {
     console.log(`⚠️ [SHUTDOWN] Already shutting down, ignoring ${signal}`);
     return;
   }
-
   isShuttingDown = true;
   console.log(
     `\n⚠️ [SHUTDOWN] Received ${signal}, starting graceful shutdown...`,
   );
-
-  // Close the server to stop accepting new connections
   if (server) {
-    server.close(() => {
-      console.log(`🚪 [SHUTDOWN] HTTP server closed`);
-    });
+    server.close(() => console.log(`🚪 [SHUTDOWN] HTTP server closed`));
   }
-
-  // Send error callbacks for all active recordings
   const promises: Promise<void>[] = [];
   for (const [externalId, recording] of activeRecordings) {
     const elapsed = ((Date.now() - recording.startTime) / 1000).toFixed(1);
     console.log(
-      `🔔 [SHUTDOWN] Sending error callback for recording ${externalId} (was running for ${elapsed}s)`,
+      `🔔 [SHUTDOWN] Sending error callback for recording ${externalId} (${elapsed}s)`,
     );
-
     const errorPayload: ErrorPayload = {
       success: false,
       error: `Service shutdown (${signal}) - recording interrupted after ${elapsed}s`,
       external_id: externalId,
     };
-
     promises.push(
       postCallback(recording.callbackUrl, errorPayload)
         .then(() => {
           console.log(`✅ [SHUTDOWN] Callback sent for ${externalId}`);
           activeRecordings.delete(externalId);
         })
-        .catch((err) => {
+        .catch((err) =>
           console.error(
-            `❌ [SHUTDOWN] Failed to send callback for ${externalId}:`,
+            `❌ [SHUTDOWN] Failed callback for ${externalId}:`,
             err,
-          );
-        }),
+          ),
+        ),
     );
   }
-
-  if (promises.length === 0) {
-    console.log(`👍 [SHUTDOWN] No active recordings to clean up`);
-  } else {
-    // Wait for all callbacks to be sent (with timeout)
+  if (promises.length) {
     await Promise.race([
       Promise.all(promises),
-      new Promise((resolve) => setTimeout(resolve, 10000)), // 10 second timeout
+      new Promise((r) => setTimeout(r, 10_000)),
     ]);
+  } else {
+    console.log(`👍 [SHUTDOWN] No active recordings to clean up`);
   }
-
-  // Give a small delay to ensure HTTP responses are sent
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-
+  await new Promise((r) => setTimeout(r, 1000));
   console.log(`👋 [SHUTDOWN] Graceful shutdown complete`);
   process.exit(0);
 }
-
-// Register signal handlers
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 process.on("SIGHUP", () => gracefulShutdown("SIGHUP"));
-
-// Handle uncaught exceptions
 process.on("uncaughtException", async (error) => {
   console.error("💥 [FATAL] Uncaught exception:", error);
   await gracefulShutdown("uncaughtException");
 });
-
-// Handle unhandled promise rejections
 process.on("unhandledRejection", async (reason, promise) => {
   console.error(
     "💥 [FATAL] Unhandled rejection at:",
@@ -287,8 +244,7 @@ process.on("unhandledRejection", async (reason, promise) => {
 });
 
 const PORT = process.env.PORT || 8080;
-let server: any; // Store server instance for graceful shutdown
-
+let server: any;
 server = app.listen(PORT, () => {
   console.log(
     `🚀 [SERVER] Cloud recording service started:\n` +

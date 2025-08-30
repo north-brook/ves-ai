@@ -142,7 +142,7 @@ export async function syncAuth(auth: {
       posthog.captureException(error);
       Sentry.captureException(error, {
         tags: { action: "syncAuth", step: "createUser" },
-        extra: { email, first_name, last_name },
+        extra: { email, firstName: first_name, lastName: last_name },
       });
       return { error: "Could not create user" };
     }

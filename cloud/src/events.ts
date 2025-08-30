@@ -2,12 +2,14 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promises as fs } from "node:fs";
-import { gunzipSync } from "node:zlib";
+import { gunzipSync, strFromU8, strToU8 } from "fflate";
 import { Storage } from "@google-cloud/storage";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 
+// --------------------------------------------------------
 // Types
+// --------------------------------------------------------
 type EventProcessingParams = {
   source_type: "posthog";
   source_host: string;
@@ -25,109 +27,564 @@ type SnapshotSource = {
   blob_key: string | null;
 };
 
-type SnapshotBatchResponse = {
-  snapshots?: unknown[];
-  [k: string]: any;
-};
-
 type RrwebEvent = {
   type: number;
   timestamp: number;
-  delay?: number; // Added for rrweb skipInactive feature
+  delay?: number;
+  data?: any;
+  windowId?: string;
+  [k: string]: any;
+};
+
+type Segment = {
+  startTime: number;
+  endTime: number;
+  duration: number;
+  isActive: boolean;
+  startIndex: number;
+  endIndex: number;
+};
+
+type EncodedSnapshot = {
+  windowId?: string;
+  window_id?: string;
+  data?: any[];
+  cv?: string; // compression version
+  [k: string]: any;
+};
+
+type CompressedEvent = {
+  cv: string;
+  type: number;
+  timestamp: number;
   data?: any;
   [k: string]: any;
 };
 
-const MAX_V2_KEYS_PER_CALL = 20;
-const RRWEB_EVENT_META = 4;
-// Event types: 0=DomContentLoaded, 1=Load, 2=FullSnapshot, 3=IncrementalSnapshot, 4=Meta, 5=Custom, 6=Plugin
+// rrweb event types
+const EventType = {
+  DomContentLoaded: 0,
+  Load: 1,
+  FullSnapshot: 2,
+  IncrementalSnapshot: 3,
+  Meta: 4,
+  Custom: 5,
+  Plugin: 6,
+} as const;
+
+const IncrementalSource = {
+  Mutation: 0,
+  MouseMove: 1,
+  MouseInteraction: 2,
+  Scroll: 3,
+  ViewportResize: 4,
+  Input: 5,
+  TouchMove: 6,
+  MediaInteraction: 7,
+  StyleSheetRule: 8,
+  CanvasMutation: 9,
+  Font: 10,
+  Log: 11,
+  Drag: 12,
+  StyleDeclaration: 13,
+  Selection: 14,
+  AdoptedStyleSheet: 15,
+} as const;
+
+const MUTATION_CHUNK_SIZE = 5000;
+const MAX_V2_KEYS_PER_BATCH = 20;
 
 // --------------------------------------------------------
-// Utilities: Decompression
+// Utility: Hashing for deduplication
 // --------------------------------------------------------
-
-function decompressData(data: any): any {
-  // Check if data is a string that looks like compressed data
-  if (typeof data === "string" && data.length > 0) {
-    // Check for gzip magic number or binary-looking content
-    if (data.charCodeAt(0) === 0x1f && data.charCodeAt(1) === 0x8b) {
-      try {
-        // Convert string to Buffer and decompress
-        const buffer = Buffer.from(data, "binary");
-        const decompressed = gunzipSync(buffer);
-        return JSON.parse(decompressed.toString("utf-8"));
-      } catch (e) {
-        console.log(`⚠️ [DECOMPRESS] Failed to decompress gzip data: ${e}`);
-      }
-    }
-
-    // Also check for base64 encoded gzip
-    try {
-      const buffer = Buffer.from(data, "base64");
-      if (buffer[0] === 0x1f && buffer[1] === 0x8b) {
-        const decompressed = gunzipSync(buffer);
-        return JSON.parse(decompressed.toString("utf-8"));
-      }
-    } catch (e) {
-      // Not base64 or not gzip, return as-is
-    }
+/**
+ * cyrb53 (c) 2018 bryc (github.com/bryc)
+ * A fast and simple 53-bit string hash function with decent collision resistance.
+ */
+function cyrb53(str: string, seed = 0): number {
+  let h1 = 0xdeadbeef ^ seed;
+  let h2 = 0x41c6ce57 ^ seed;
+  for (let i = 0, ch; i < str.length; i++) {
+    ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
   }
-
-  return data;
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
+  h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
+  h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return 4294967296 * (2097151 & h2) + (h1 >>> 0);
 }
 
 // --------------------------------------------------------
-// Utilities: HTTP fetching
+// Decompression (PostHog style)
 // --------------------------------------------------------
+function isCompressedEvent(ev: any): ev is CompressedEvent {
+  return typeof ev === "object" && ev !== null && "cv" in ev;
+}
 
-async function getJSON<T>(
-  url: string,
-  headers: Record<string, string>,
-  tries = 3,
-): Promise<T> {
-  let lastErr: unknown;
-  for (let i = 0; i < tries; i++) {
+function unzip(compressedStr: string | undefined): any {
+  if (!compressedStr) {
+    return undefined;
+  }
+  try {
+    return JSON.parse(strFromU8(gunzipSync(strToU8(compressedStr, true))));
+  } catch (e) {
+    console.warn("Failed to decompress:", e);
+    return undefined;
+  }
+}
+
+function decompressEvent(ev: any, sessionId: string): any {
+  try {
+    if (isCompressedEvent(ev)) {
+      if (ev.cv === "2024-10") {
+        if (ev.type === EventType.FullSnapshot && typeof ev.data === "string") {
+          return {
+            ...ev,
+            data: unzip(ev.data),
+          };
+        } else if (
+          ev.type === EventType.IncrementalSnapshot &&
+          typeof ev.data === "object" &&
+          "source" in ev.data
+        ) {
+          if (ev.data.source === IncrementalSource.StyleSheetRule) {
+            return {
+              ...ev,
+              data: {
+                ...ev.data,
+                source: IncrementalSource.StyleSheetRule,
+                adds: unzip(ev.data.adds),
+                removes: unzip(ev.data.removes),
+              },
+            };
+          } else if (
+            ev.data.source === IncrementalSource.Mutation &&
+            "texts" in ev.data
+          ) {
+            return {
+              ...ev,
+              data: {
+                ...ev.data,
+                source: IncrementalSource.Mutation,
+                adds: unzip(ev.data.adds),
+                removes: unzip(ev.data.removes),
+                texts: unzip(ev.data.texts),
+                attributes: unzip(ev.data.attributes),
+              },
+            };
+          }
+        }
+      } else {
+        console.warn(
+          `Unknown compression version ${ev.cv} for session ${sessionId}`,
+        );
+        return ev;
+      }
+    }
+    return ev;
+  } catch (e) {
+    console.error(`Decompression failed for session ${sessionId}:`, e);
+    return ev;
+  }
+}
+
+// --------------------------------------------------------
+// Mutation chunking for large DOM changes
+// --------------------------------------------------------
+function chunkMutationSnapshot(snapshot: RrwebEvent): RrwebEvent[] {
+  if (
+    snapshot.type !== EventType.IncrementalSnapshot ||
+    !snapshot.data ||
+    typeof snapshot.data !== "object" ||
+    snapshot.data.source !== IncrementalSource.Mutation ||
+    !Array.isArray(snapshot.data.adds) ||
+    snapshot.data.adds.length <= MUTATION_CHUNK_SIZE
+  ) {
+    return [snapshot];
+  }
+
+  const chunks: RrwebEvent[] = [];
+  const { adds, removes, texts, attributes } = snapshot.data;
+  const totalAdds = adds.length;
+  const chunksCount = Math.ceil(totalAdds / MUTATION_CHUNK_SIZE);
+
+  for (let i = 0; i < chunksCount; i++) {
+    const startIdx = i * MUTATION_CHUNK_SIZE;
+    const endIdx = Math.min((i + 1) * MUTATION_CHUNK_SIZE, totalAdds);
+    const isFirstChunk = i === 0;
+    const isLastChunk = i === chunksCount - 1;
+
+    const chunkSnapshot: RrwebEvent = {
+      ...snapshot,
+      timestamp: snapshot.timestamp,
+      data: {
+        ...snapshot.data,
+        adds: adds.slice(startIdx, endIdx),
+        // Keep removes in the first chunk only
+        removes: isFirstChunk ? removes : [],
+        // Keep texts and attributes in the last chunk only
+        texts: isLastChunk ? texts : [],
+        attributes: isLastChunk ? attributes : [],
+      },
+    };
+
+    if ("delay" in snapshot) {
+      chunkSnapshot.delay = snapshot.delay || 0;
+    }
+
+    chunks.push(chunkSnapshot);
+  }
+
+  return chunks;
+}
+
+// --------------------------------------------------------
+// Parse encoded snapshots (PostHog style)
+// --------------------------------------------------------
+async function parseEncodedSnapshots(
+  items: any[],
+  sessionId: string,
+): Promise<RrwebEvent[]> {
+  const unparseableLines: string[] = [];
+  const parsedLines: RrwebEvent[] = [];
+
+  for (const item of items) {
+    if (!item) {
+      // blob files have empty lines at the end
+      continue;
+    }
+
     try {
-      const res = await fetch(url, { headers });
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(
-          `HTTP ${res.status} for ${url} :: ${text.slice(0, 500)}`,
+      let snapshotLine: EncodedSnapshot;
+
+      if (typeof item === "string") {
+        // Parse from blob or realtime storage
+        snapshotLine = JSON.parse(item);
+        if (Array.isArray(snapshotLine)) {
+          // Convert old format [windowId, data] to new format
+          snapshotLine = {
+            windowId: snapshotLine[0],
+            data: [snapshotLine[1]],
+          };
+        }
+      } else {
+        // Already parsed object
+        snapshotLine = item;
+      }
+
+      let snapshotData: any[];
+      if (
+        typeof snapshotLine === "object" &&
+        "type" in snapshotLine &&
+        "timestamp" in snapshotLine
+      ) {
+        // Already an rrweb event
+        snapshotData = [snapshotLine];
+      } else if ("data" in snapshotLine && Array.isArray(snapshotLine.data)) {
+        // Has data array
+        snapshotData = snapshotLine.data;
+      } else {
+        // Single snapshot
+        snapshotData = [snapshotLine];
+      }
+
+      const windowId =
+        snapshotLine.windowId || snapshotLine.window_id || undefined;
+
+      for (const d of snapshotData) {
+        // Decompress if needed
+        const decompressed = decompressEvent(d, sessionId);
+
+        // Ensure it's a valid event
+        if (
+          decompressed &&
+          typeof decompressed === "object" &&
+          typeof decompressed.type === "number" &&
+          typeof decompressed.timestamp === "number"
+        ) {
+          const event: RrwebEvent = {
+            ...decompressed,
+            windowId: decompressed.windowId || windowId,
+          };
+
+          // Apply chunking to large mutations
+          const chunkedEvents = chunkMutationSnapshot(event);
+          parsedLines.push(...chunkedEvents);
+        }
+      }
+    } catch (e) {
+      if (typeof item === "string") {
+        unparseableLines.push(item);
+      }
+      console.warn(`Failed to parse snapshot: ${e}`);
+    }
+  }
+
+  if (unparseableLines.length > 0) {
+    console.warn(
+      `Session ${sessionId} had ${unparseableLines.length} unparseable lines`,
+    );
+  }
+
+  return parsedLines;
+}
+
+// --------------------------------------------------------
+// Meta event patching
+// --------------------------------------------------------
+function patchMetaEvents(
+  snapshots: RrwebEvent[],
+  sessionId: string,
+): RrwebEvent[] {
+  const result: RrwebEvent[] = [];
+  const metaEventsByWindow = new Map<string, RrwebEvent>();
+
+  // First pass: collect meta events by window
+  for (const snapshot of snapshots) {
+    if (snapshot.type === EventType.Meta) {
+      const windowId = snapshot.windowId || "main";
+      metaEventsByWindow.set(windowId, snapshot);
+    }
+  }
+
+  // Second pass: inject meta events before full snapshots if missing
+  for (let i = 0; i < snapshots.length; i++) {
+    const snapshot = snapshots[i];
+    const windowId = snapshot.windowId || "main";
+
+    if (snapshot.type === EventType.FullSnapshot) {
+      const previousEvent = i > 0 ? snapshots[i - 1] : null;
+      const needsMetaEvent =
+        !previousEvent ||
+        previousEvent.type !== EventType.Meta ||
+        previousEvent.windowId !== windowId;
+
+      if (needsMetaEvent && !metaEventsByWindow.has(windowId)) {
+        // Try to extract viewport from the full snapshot
+        let width = 1920;
+        let height = 1080;
+        let href = "";
+
+        try {
+          if (
+            snapshot.data?.node?.childNodes?.[1]?.childNodes?.[1]
+              ?.childNodes?.[0]?.attributes
+          ) {
+            const attrs =
+              snapshot.data.node.childNodes[1].childNodes[1].childNodes[0]
+                .attributes;
+            width = parseInt(attrs.width, 10) || width;
+            height = parseInt(attrs.height, 10) || height;
+          }
+          href = snapshot.data?.href || "";
+        } catch (e) {
+          console.warn(`Failed to extract viewport for session ${sessionId}`);
+        }
+
+        const metaEvent: RrwebEvent = {
+          type: EventType.Meta,
+          timestamp: snapshot.timestamp,
+          windowId: windowId,
+          data: {
+            width,
+            height,
+            href,
+          },
+        };
+
+        result.push(metaEvent);
+        metaEventsByWindow.set(windowId, metaEvent);
+      }
+    }
+
+    result.push(snapshot);
+  }
+
+  return result;
+}
+
+// --------------------------------------------------------
+// Segment creation for activity tracking
+// --------------------------------------------------------
+function createSegments(events: RrwebEvent[]): Segment[] {
+  const ACTIVITY_THRESHOLD_MS = 5000;
+
+  console.log(`🔍 [SEGMENTS] Creating segments for ${events.length} events`);
+  console.log(`  First event timestamp: ${events[0]?.timestamp}`);
+  console.log(
+    `  Last event timestamp: ${events[events.length - 1]?.timestamp}`,
+  );
+  console.log(
+    `  Total duration: ${((events[events.length - 1]?.timestamp - events[0]?.timestamp) / 1000).toFixed(1)}s`,
+  );
+
+  // Active sources match PostHog's definition
+  // These are IncrementalSnapshot sources that indicate user activity
+  const activeSources = [
+    1, // MouseMove
+    2, // MouseInteraction (click, dblclick, etc.)
+    3, // Scroll
+    4, // ViewportResize
+    5, // Input
+    6, // TouchMove
+    7, // MediaInteraction
+    12, // Drag
+  ];
+
+  const segments: Segment[] = [];
+  let currentSegment: {
+    startTime: number;
+    startIndex: number;
+    isActive: boolean;
+    endTime?: number;
+    endIndex?: number;
+    duration?: number;
+  } | null = null;
+  let lastActiveTime = 0;
+
+  for (let index = 0; index < events.length; index++) {
+    const event = events[index];
+    // Determine if this is an active event
+    const isActiveEvent =
+      event.type === EventType.FullSnapshot ||
+      event.type === EventType.Meta ||
+      (event.type === EventType.IncrementalSnapshot &&
+        event.data?.source !== undefined &&
+        activeSources.includes(event.data.source));
+
+    const timeSinceLastActive = event.timestamp - lastActiveTime;
+
+    // Determine if we should start a new segment
+    const shouldStartNewSegment =
+      !currentSegment || // No segment yet
+      (currentSegment.isActive &&
+        timeSinceLastActive > ACTIVITY_THRESHOLD_MS) || // Active -> Inactive
+      (!currentSegment.isActive && isActiveEvent); // Inactive -> Active
+
+    if (shouldStartNewSegment) {
+      // Close previous segment
+      if (currentSegment && index > 0) {
+        currentSegment.endTime = events[index - 1].timestamp;
+        currentSegment.endIndex = index - 1;
+        currentSegment.duration =
+          currentSegment.endTime - currentSegment.startTime;
+        segments.push(currentSegment as Segment);
+        console.log(
+          `  [SEGMENT CLOSED] ${segments.length}: ${currentSegment.isActive ? "Active" : "Inactive"} - ${(currentSegment.duration / 1000).toFixed(1)}s (events ${currentSegment.startIndex}-${currentSegment.endIndex})`,
         );
       }
-      const text = await res.text();
 
+      // Start new segment
+      const newIsActive =
+        isActiveEvent || timeSinceLastActive < ACTIVITY_THRESHOLD_MS;
+      console.log(
+        `  [SEGMENT START] New segment at event ${index}, active=${newIsActive}, timeSinceLastActive=${(timeSinceLastActive / 1000).toFixed(1)}s`,
+      );
+
+      currentSegment = {
+        startTime: event.timestamp,
+        startIndex: index,
+        isActive: newIsActive,
+      };
+    }
+
+    // Update last active time
+    if (isActiveEvent) {
+      lastActiveTime = event.timestamp;
+    }
+  }
+
+  // Close final segment
+  if (currentSegment && events.length > 0) {
+    const finalSegment: Segment = {
+      startTime: currentSegment.startTime,
+      endTime: events[events.length - 1].timestamp,
+      startIndex: currentSegment.startIndex,
+      endIndex: events.length - 1,
+      duration: events[events.length - 1].timestamp - currentSegment.startTime,
+      isActive: currentSegment.isActive,
+    };
+    segments.push(finalSegment);
+  }
+
+  console.log(`📊 [SEGMENTS] Created ${segments.length} segments:`);
+  let totalActiveTime = 0;
+  let totalInactiveTime = 0;
+  segments.forEach((seg, i) => {
+    const durationSec = seg.duration / 1000;
+    if (seg.isActive) {
+      totalActiveTime += seg.duration;
+    } else {
+      totalInactiveTime += seg.duration;
+    }
+    console.log(
+      `  Segment ${i + 1}: ${seg.isActive ? "✅ Active" : "⏸️ Inactive"} - ${durationSec.toFixed(1)}s (${seg.startTime}-${seg.endTime}, events ${seg.startIndex}-${seg.endIndex})`,
+    );
+  });
+
+  console.log(
+    `  📊 Total active time: ${(totalActiveTime / 1000).toFixed(1)}s`,
+  );
+  console.log(
+    `  📊 Total inactive time: ${(totalInactiveTime / 1000).toFixed(1)}s`,
+  );
+  console.log(
+    `  📊 Time saved with skipping: ~${((totalInactiveTime * 0.98) / 1000).toFixed(1)}s`,
+  );
+
+  return segments;
+}
+
+// --------------------------------------------------------
+// HTTP fetching utilities
+// --------------------------------------------------------
+async function fetchJSON<T>(
+  url: string,
+  headers: Record<string, string>,
+  retries = 3,
+): Promise<T> {
+  let lastError: any;
+
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fetch(url, { headers });
+      if (!response.ok) {
+        const text = await response.text().catch(() => "");
+        throw new Error(
+          `HTTP ${response.status} for ${url}: ${text.slice(0, 500)}`,
+        );
+      }
+
+      const text = await response.text();
+
+      // Handle blob_v2 NDJSON format - returns newline-delimited JSON directly
       if (url.includes("source=blob_v2")) {
         const lines = text
           .trim()
           .split("\n")
           .filter((line) => line.trim());
-        const snapshots = lines
-          .map((line) => {
-            try {
-              return JSON.parse(line);
-            } catch {
-              return null;
-            }
-          })
-          .filter(Boolean);
 
-        return { snapshots } as T;
+        // blob_v2 returns the snapshots directly as NDJSON, not wrapped in an object
+        return lines as any as T;
       }
 
       return JSON.parse(text) as T;
-    } catch (err) {
-      lastErr = err;
-      if (i < tries - 1) await new Promise((r) => setTimeout(r, 500 * (i + 1)));
+    } catch (error) {
+      lastError = error;
+      if (i < retries - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 500 * (i + 1)));
+      }
     }
   }
-  throw lastErr;
+
+  throw lastError;
 }
 
 // --------------------------------------------------------
 // Main function: fetch and process events
 // --------------------------------------------------------
-
 export default async function constructEvents(
   params: EventProcessingParams,
 ): Promise<{
@@ -156,313 +613,276 @@ export default async function constructEvents(
     Authorization: `Bearer ${source_key}`,
   };
 
-  // 1) List sources (prefer blob_v2)
+  // 1) List sources with blob_v2 support
   const listUrl = `${source_host.replace(/\/+$/, "")}/api/projects/${encodeURIComponent(
     source_project,
   )}/session_recordings/${encodeURIComponent(external_id)}/snapshots?blob_v2=true`;
 
   console.log(`🔍 [LIST] Fetching snapshot sources from: ${listUrl}`);
-  const list = await getJSON<{ sources: SnapshotSource[] }>(
+  const listResponse = await fetchJSON<{ sources: SnapshotSource[] }>(
     listUrl,
     authHeaders,
   );
 
-  if (!list.sources || list.sources.length === 0) {
+  if (!listResponse.sources || listResponse.sources.length === 0) {
     throw new Error("No snapshot sources found (recording may be too fresh).");
   }
 
-  const v2Sources = list.sources.filter(
+  // Prioritize sources: prefer blob_v2 over blob over realtime
+  const v2Sources = listResponse.sources.filter(
     (s) => s.source === "blob_v2" && s.blob_key != null,
   );
-  const v1Sources = list.sources.filter(
+  const v1Sources = listResponse.sources.filter(
     (s) => s.source === "blob" && s.blob_key != null,
   );
-  const useV2 = v2Sources.length > 0;
-  console.log(
-    `📊 [LIST] Found sources: v2=${v2Sources.length}, v1=${v1Sources.length}`,
+  const realtimeSources = listResponse.sources.filter(
+    (s) => s.source === "realtime",
   );
 
+  let sources: SnapshotSource[];
+  if (v2Sources.length > 0) {
+    sources = v2Sources;
+    console.log(`📊 [SOURCE] Using blob_v2 with ${v2Sources.length} keys`);
+  } else if (v1Sources.length > 0) {
+    sources = v1Sources;
+    console.log(`📊 [SOURCE] Using blob_v1 with ${v1Sources.length} sources`);
+  } else if (realtimeSources.length > 0) {
+    sources = realtimeSources;
+    console.log(`📊 [SOURCE] Using realtime source`);
+  } else {
+    throw new Error("No valid sources available. Recording may be processing.");
+  }
+
+  // 2) Fetch snapshots
   const baseSnapshotsUrl = `${source_host.replace(/\/+$/, "")}/api/projects/${encodeURIComponent(
     source_project,
   )}/session_recordings/${encodeURIComponent(external_id)}/snapshots`;
 
-  // 2) Fetch all snapshots and write to file
-  const workDir = await mkdtemp(join(tmpdir(), "rrvideo-"));
-  const jsonPath = join(workDir, `recording-${external_id}.json`);
+  const allSnapshots: any[] = [];
+  const seenHashes = new Set<string>();
 
-  let allEvents: RrwebEvent[] = [];
-  let maxViewportWidth = 0;
-  let maxViewportHeight = 0;
-
-  // Fetch snapshots
-  if (useV2) {
+  if (sources[0].source === "blob_v2") {
+    // Sort blob keys numerically
     const keys = v2Sources
       .map((s) => parseInt(String(s.blob_key), 10))
       .filter((n) => Number.isFinite(n))
       .sort((a, b) => a - b);
-    console.log(`📦 [FETCH] Using blob_v2 with ${keys.length} keys`);
 
-    for (let i = 0; i < keys.length; i += MAX_V2_KEYS_PER_CALL) {
-      const start = keys[i];
-      const end = keys[Math.min(i + MAX_V2_KEYS_PER_CALL - 1, keys.length - 1)];
-      const url = `${baseSnapshotsUrl}?source=blob_v2&start_blob_key=${start}&end_blob_key=${end}`;
-      console.log(`🔄 [FETCH] Fetching batch: keys ${start}-${end}`);
-      const batch = await getJSON<SnapshotBatchResponse>(url, authHeaders);
+    // Fetch in batches
+    for (let i = 0; i < keys.length; i += MAX_V2_KEYS_PER_BATCH) {
+      const batchKeys = keys.slice(i, i + MAX_V2_KEYS_PER_BATCH);
+      const startKey = batchKeys[0];
+      const endKey = batchKeys[batchKeys.length - 1];
 
-      let snaps: unknown[] = [];
-      if (Array.isArray(batch)) snaps = batch;
-      else if (batch && typeof batch === "object" && "snapshots" in batch)
-        snaps = Array.isArray((batch as any).snapshots)
-          ? (batch as any).snapshots
-          : [];
+      const url = `${baseSnapshotsUrl}?source=blob_v2&start_blob_key=${startKey}&end_blob_key=${endKey}`;
+      console.log(
+        `🔄 [FETCH] Batch ${Math.floor(i / MAX_V2_KEYS_PER_BATCH) + 1}: keys ${startKey}-${endKey}`,
+      );
 
-      console.log(`✅ [FETCH] Got ${snaps.length} snapshots in batch`);
+      // blob_v2 returns an array of NDJSON lines (strings)
+      const response = await fetchJSON<string[]>(url, authHeaders);
+      allSnapshots.push(...response);
+    }
+  } else if (sources[0].source === "blob") {
+    // Fetch each blob source
+    for (const source of sources) {
+      const url = `${baseSnapshotsUrl}?source=blob&blob_key=${encodeURIComponent(
+        String(source.blob_key),
+      )}`;
+      console.log(`🔄 [FETCH] Fetching blob key: ${source.blob_key}`);
 
-      // Debug: Save raw snapshots for inspection
-      if (snaps.length > 0) {
-        const debugPath = join(workDir, `debug-raw-${external_id}-batch.json`);
-        await fs.writeFile(
-          debugPath,
-          JSON.stringify(snaps.slice(0, 5), null, 2),
-          "utf-8",
-        );
-        console.log(`🔍 [DEBUG] Saved sample snapshots to: ${debugPath}`);
+      const response = await fetchJSON<any>(url, authHeaders);
+      const snapshots = response.snapshots || response || [];
+      allSnapshots.push(...snapshots);
+    }
+  } else if (sources[0].source === "realtime") {
+    // Fetch realtime snapshots
+    const url = `${baseSnapshotsUrl}?source=realtime`;
+    console.log(`🔄 [FETCH] Fetching realtime snapshots`);
 
-        // Log structure of first snapshot
-        const first = snaps[0] as any;
-        if (first) {
-          console.log(`🔍 [DEBUG] First snapshot structure:`, {
-            hasType: "type" in first,
-            typeValue: first.type,
-            typeType: typeof first.type,
-            hasTimestamp: "timestamp" in first,
-            timestampValue: first.timestamp,
-            timestampType: typeof first.timestamp,
-            keys: Object.keys(first).slice(0, 10),
-          });
-        }
-      }
-
-      // Process snapshots into events
-      for (const snapshot of snaps) {
-        if (snapshot && typeof snapshot === "object") {
-          // Handle different snapshot formats
-          let evt: any = snapshot;
-
-          // PostHog blob_v2 format: [id, snapshot] tuple
-          if (Array.isArray(snapshot) && snapshot.length === 2) {
-            // Second element is the actual snapshot
-            evt = snapshot[1];
-          }
-
-          // Extract event if it has type and timestamp
-          if (
-            evt &&
-            typeof evt === "object" &&
-            typeof evt.type === "number" &&
-            typeof evt.timestamp === "number"
-          ) {
-            // Decompress data field if it's compressed (common for FullSnapshot events)
-            if (evt.data && typeof evt.data === "string") {
-              const decompressed = decompressData(evt.data);
-              if (decompressed !== evt.data) {
-                console.log(
-                  `🔓 [DECOMPRESS] Decompressed event type ${evt.type} data`,
-                );
-                evt.data = decompressed;
-              }
-            }
-
-            allEvents.push(evt as RrwebEvent);
-
-            // Track viewport from Meta events
-            if (evt.type === RRWEB_EVENT_META && evt.data) {
-              const w = Number(evt.data.width);
-              const h = Number(evt.data.height);
-              if (Number.isFinite(w) && w > maxViewportWidth)
-                maxViewportWidth = w;
-              if (Number.isFinite(h) && h > maxViewportHeight)
-                maxViewportHeight = h;
-            }
-          } else {
-            // Debug why snapshot was skipped
-            if (allEvents.length === 0 && snaps.indexOf(snapshot) < 5) {
-              console.log(`⚠️ [DEBUG] Skipped snapshot:`, {
-                isArray: Array.isArray(snapshot),
-                arrayLength: Array.isArray(snapshot) ? snapshot.length : "N/A",
-                hasType: evt && "type" in evt,
-                typeValue: evt?.type,
-                typeType: typeof evt?.type,
-                hasTimestamp: evt && "timestamp" in evt,
-                timestampValue: evt?.timestamp,
-                timestampType: typeof evt?.timestamp,
-              });
-            }
-          }
-        }
+    try {
+      const response = await fetchJSON<any>(url, authHeaders);
+      const snapshots = response.snapshots || response || [];
+      allSnapshots.push(...snapshots);
+    } catch (e: any) {
+      if (e.message?.includes("404")) {
+        console.log(`⚠️ [FETCH] Realtime source not available (expected)`);
+      } else {
+        throw e;
       }
     }
-  } else if (v1Sources.length > 0) {
-    console.log(`📦 [FETCH] Using blob_v1 with ${v1Sources.length} sources`);
-    for (const s of v1Sources) {
-      const url = `${baseSnapshotsUrl}?source=blob&blob_key=${encodeURIComponent(String(s.blob_key))}`;
-      console.log(`🔄 [FETCH] Fetching blob_v1 key: ${s.blob_key}`);
-      const batch = await getJSON<SnapshotBatchResponse>(url, authHeaders);
-
-      let snaps: unknown[] = [];
-      if (Array.isArray(batch)) snaps = batch;
-      else if (batch && typeof batch === "object" && "snapshots" in batch)
-        snaps = Array.isArray((batch as any).snapshots)
-          ? (batch as any).snapshots
-          : [];
-
-      console.log(`✅ [FETCH] Got ${snaps.length} snapshots in batch`);
-
-      // Debug: Save raw snapshots for inspection
-      if (snaps.length > 0) {
-        const debugPath = join(workDir, `debug-raw-${external_id}-batch.json`);
-        await fs.writeFile(
-          debugPath,
-          JSON.stringify(snaps.slice(0, 5), null, 2),
-          "utf-8",
-        );
-        console.log(`🔍 [DEBUG] Saved sample snapshots to: ${debugPath}`);
-
-        // Log structure of first snapshot
-        const first = snaps[0] as any;
-        if (first) {
-          console.log(`🔍 [DEBUG] First snapshot structure:`, {
-            hasType: "type" in first,
-            typeValue: first.type,
-            typeType: typeof first.type,
-            hasTimestamp: "timestamp" in first,
-            timestampValue: first.timestamp,
-            timestampType: typeof first.timestamp,
-            keys: Object.keys(first).slice(0, 10),
-          });
-        }
-      }
-
-      // Process snapshots into events
-      for (const snapshot of snaps) {
-        if (snapshot && typeof snapshot === "object") {
-          // Handle different snapshot formats
-          let evt: any = snapshot;
-
-          // PostHog blob_v2 format: [id, snapshot] tuple
-          if (Array.isArray(snapshot) && snapshot.length === 2) {
-            // Second element is the actual snapshot
-            evt = snapshot[1];
-          }
-
-          // Extract event if it has type and timestamp
-          if (
-            evt &&
-            typeof evt === "object" &&
-            typeof evt.type === "number" &&
-            typeof evt.timestamp === "number"
-          ) {
-            // Decompress data field if it's compressed (common for FullSnapshot events)
-            if (evt.data && typeof evt.data === "string") {
-              const decompressed = decompressData(evt.data);
-              if (decompressed !== evt.data) {
-                console.log(
-                  `🔓 [DECOMPRESS] Decompressed event type ${evt.type} data`,
-                );
-                evt.data = decompressed;
-              }
-            }
-
-            allEvents.push(evt as RrwebEvent);
-
-            // Track viewport from Meta events
-            if (evt.type === RRWEB_EVENT_META && evt.data) {
-              const w = Number(evt.data.width);
-              const h = Number(evt.data.height);
-              if (Number.isFinite(w) && w > maxViewportWidth)
-                maxViewportWidth = w;
-              if (Number.isFinite(h) && h > maxViewportHeight)
-                maxViewportHeight = h;
-            }
-          } else {
-            // Debug why snapshot was skipped
-            if (allEvents.length === 0 && snaps.indexOf(snapshot) < 5) {
-              console.log(`⚠️ [DEBUG] Skipped snapshot:`, {
-                isArray: Array.isArray(snapshot),
-                arrayLength: Array.isArray(snapshot) ? snapshot.length : "N/A",
-                hasType: evt && "type" in evt,
-                typeValue: evt?.type,
-                typeType: typeof evt?.type,
-                hasTimestamp: evt && "timestamp" in evt,
-                timestampValue: evt?.timestamp,
-                timestampType: typeof evt?.timestamp,
-              });
-            }
-          }
-        }
-      }
-    }
-  } else {
-    throw new Error(
-      "Only realtime source available; recording is likely very recent. Try again later when blobs are available (ideally ≥24h old).",
-    );
   }
 
-  // Filter out custom events (type 5) as they can interfere with skipInactive
-  // Standard rrweb event types are 0-4, 6 (DomContentLoaded, Load, Meta, FullSnapshot, IncrementalSnapshot, Plugin)
-  const filteredEvents = allEvents.filter((event) => {
-    if (event.type === 5) {
-      return false;
-    }
-    return true;
-  });
+  console.log(`✅ [FETCH] Retrieved ${allSnapshots.length} total snapshots`);
 
-  console.log(
-    `📊 [EVENTS] Filtered ${allEvents.length - filteredEvents.length} custom events, ${filteredEvents.length} events remaining`,
-  );
-
-  // Sort events by timestamp
-  allEvents.sort((a, b) => {
-    // Ensure FullSnapshot (type 2) comes first
-    if (a.type === 2 && b.type !== 2) return -1;
-    if (a.type !== 2 && b.type === 2) return 1;
-    return a.timestamp - b.timestamp;
-  });
-  filteredEvents.sort((a, b) => {
-    // Ensure FullSnapshot (type 2) comes first
-    if (a.type === 2 && b.type !== 2) return -1;
-    if (a.type !== 2 && b.type === 2) return 1;
-    return a.timestamp - b.timestamp;
-  });
-
-  if (allEvents.length === 0) {
-    throw new Error("No rrweb events were parsed from the snapshots.");
+  // Debug: Log first few snapshots to understand format
+  if (allSnapshots.length > 0) {
+    console.log(`🔍 [DEBUG] First snapshot structure:`, {
+      type: typeof allSnapshots[0],
+      isArray: Array.isArray(allSnapshots[0]),
+      sample: JSON.stringify(allSnapshots[0]).slice(0, 200),
+      keys:
+        allSnapshots[0] && typeof allSnapshots[0] === "object"
+          ? Object.keys(allSnapshots[0])
+          : "N/A",
+    });
   }
 
-  // Convert events to JSON string
-  const eventsJson = JSON.stringify(allEvents);
-  const filteredEventsJson = JSON.stringify(filteredEvents);
+  // 3) Parse and process snapshots
+  const parsedEvents = await parseEncodedSnapshots(allSnapshots, session_id);
+  console.log(`📊 [PARSE] Parsed ${parsedEvents.length} events`);
 
-  // Write filtered events to local file (for video processing)
+  // 4) Deduplicate events
+  const dedupedEvents: RrwebEvent[] = [];
+  for (const event of parsedEvents) {
+    const { delay: _delay, ...eventWithoutDelay } = event;
+    const hashStr = cyrb53(JSON.stringify(eventWithoutDelay)).toString();
+
+    if (!seenHashes.has(hashStr)) {
+      seenHashes.add(hashStr);
+      dedupedEvents.push(event);
+    }
+  }
   console.log(
-    `📊 [WRITE] Writing ${filteredEvents.length} filtered events to file...`,
+    `🔍 [DEDUP] Removed ${parsedEvents.length - dedupedEvents.length} duplicate events`,
   );
-  await fs.writeFile(jsonPath, filteredEventsJson, "utf-8");
-  console.log(`✅ [EVENTS] Events saved locally to: ${jsonPath}`);
 
-  // Upload raw events to Google Cloud Storage
-  console.log(`☁️ [UPLOAD] Uploading raw events to GCS...`);
+  // 5) Filter out custom events (type 5) that can interfere with replay
+  const filteredEvents = dedupedEvents.filter(
+    (event) => event.type !== EventType.Custom,
+  );
+  console.log(
+    `📊 [FILTER] Filtered ${dedupedEvents.length - filteredEvents.length} custom events`,
+  );
+
+  // 6) Sort events while preserving first FullSnapshot
+  const sortedEvents = [...filteredEvents].sort(
+    (a, b) => a.timestamp - b.timestamp,
+  );
+
+  // Find the first FullSnapshot and ensure it stays first
+  const firstFullSnapshotIndex = sortedEvents.findIndex(
+    (e) => e.type === EventType.FullSnapshot,
+  );
+  if (firstFullSnapshotIndex > 0) {
+    const firstFullSnapshot = sortedEvents[firstFullSnapshotIndex];
+    sortedEvents.splice(firstFullSnapshotIndex, 1);
+    sortedEvents.unshift(firstFullSnapshot);
+  }
+
+  // 7) Patch missing meta events
+  const patchedEvents = patchMetaEvents(sortedEvents, session_id);
+  console.log(`✅ [PATCH] Final event count: ${patchedEvents.length}`);
+
+  // 8) Add delay field for rrweb skipInactive feature
+  // This is crucial for inactivity skipping to work properly
+  for (let i = 0; i < patchedEvents.length; i++) {
+    if (i === 0) {
+      patchedEvents[i].delay = 0;
+    } else {
+      // Calculate milliseconds since previous event
+      patchedEvents[i].delay =
+        patchedEvents[i].timestamp - patchedEvents[i - 1].timestamp;
+    }
+  }
+  console.log(`⏱️ [DELAY] Added delay field to all events for skipInactive`);
+
+  // 9) Create segments for activity tracking
+  const segments = createSegments(patchedEvents);
+
+  // Add segments as a custom event at the beginning
+  // This will be extracted by the replay player for dynamic speed adjustment
+  if (segments.length > 0 && patchedEvents.length > 0) {
+    const segmentEvent: RrwebEvent = {
+      type: EventType.Custom, // Type 5
+      timestamp: patchedEvents[0].timestamp,
+      delay: 0,
+      data: {
+        tag: "replay-segments",
+        payload: { segments },
+      },
+    };
+    patchedEvents.unshift(segmentEvent);
+    console.log(`📦 [SEGMENTS] Added segment data as custom event`);
+  }
+
+  // 10) Extract viewport dimensions from all available sources
+  let maxViewportWidth = 0;
+  let maxViewportHeight = 0;
+
+  for (const event of patchedEvents) {
+    // Check Meta events
+    if (event.type === EventType.Meta && event.data) {
+      const width = Number(event.data.width);
+      const height = Number(event.data.height);
+      if (Number.isFinite(width) && width > 0) {
+        maxViewportWidth = Math.max(maxViewportWidth, width);
+      }
+      if (Number.isFinite(height) && height > 0) {
+        maxViewportHeight = Math.max(maxViewportHeight, height);
+      }
+    }
+    
+    // Check FullSnapshot events for viewport info
+    if (event.type === EventType.FullSnapshot && event.data) {
+      // Try to extract from node attributes
+      try {
+        if (event.data.node?.childNodes?.[1]?.childNodes?.[1]?.childNodes?.[0]?.attributes) {
+          const attrs = event.data.node.childNodes[1].childNodes[1].childNodes[0].attributes;
+          const width = parseInt(attrs.width, 10);
+          const height = parseInt(attrs.height, 10);
+          if (Number.isFinite(width) && width > 0) {
+            maxViewportWidth = Math.max(maxViewportWidth, width);
+          }
+          if (Number.isFinite(height) && height > 0) {
+            maxViewportHeight = Math.max(maxViewportHeight, height);
+          }
+        }
+      } catch (e) {
+        // Silent fail - not all snapshots have this structure
+      }
+    }
+    
+    // Check IncrementalSnapshot ViewportResize events
+    if (event.type === EventType.IncrementalSnapshot && 
+        event.data?.source === 4 && // ViewportResize
+        event.data?.width && event.data?.height) {
+      const width = Number(event.data.width);
+      const height = Number(event.data.height);
+      if (Number.isFinite(width) && width > 0) {
+        maxViewportWidth = Math.max(maxViewportWidth, width);
+      }
+      if (Number.isFinite(height) && height > 0) {
+        maxViewportHeight = Math.max(maxViewportHeight, height);
+      }
+    }
+  }
+  
+  // Use reasonable defaults if we couldn't find viewport info
+  if (maxViewportWidth === 0) maxViewportWidth = 1920;
+  if (maxViewportHeight === 0) maxViewportHeight = 1080;
+
+  console.log(
+    `📱 [VIEWPORT] Device dimensions: ${maxViewportWidth}x${maxViewportHeight}`,
+  );
+
+  // 11) Write events to file
+  const workDir = await mkdtemp(join(tmpdir(), "rrvideo-"));
+  const jsonPath = join(workDir, `recording-${external_id}.json`);
+  const eventsJson = JSON.stringify(patchedEvents);
+
+  await fs.writeFile(jsonPath, eventsJson, "utf-8");
+  console.log(`✅ [WRITE] Events saved to: ${jsonPath}`);
+
+  // 12) Upload to Google Cloud Storage
+  console.log(`☁️ [UPLOAD] Uploading events to GCS...`);
   const eventsUri = await uploadEventsToGCS({
     projectId: project_id,
     sessionId: session_id,
     eventsJson,
-    eventsCount: allEvents.length,
+    eventsCount: patchedEvents.length,
   });
-  console.log(`✅ [UPLOAD] Raw events uploaded to: ${eventsUri}`);
-
-  console.log(
-    `📱 [EVENTS] Device dimensions: ${maxViewportWidth}x${maxViewportHeight}`,
-  );
+  console.log(`✅ [UPLOAD] Events uploaded to: ${eventsUri}`);
 
   return {
     eventsPath: jsonPath,
@@ -472,7 +892,9 @@ export default async function constructEvents(
   };
 }
 
-// Upload events to Google Cloud Storage with streaming
+// --------------------------------------------------------
+// GCS Upload
+// --------------------------------------------------------
 async function uploadEventsToGCS(params: {
   projectId: string;
   sessionId: string;
@@ -491,15 +913,11 @@ async function uploadEventsToGCS(params: {
     `  📏 JSON size: ${(Buffer.byteLength(eventsJson) / 1024 / 1024).toFixed(2)} MB`,
   );
 
-  // Initialize GCS client
   const storage = new Storage();
   const bucket = storage.bucket(bucketName);
   const file = bucket.file(filePath);
 
-  // Create a readable stream from the JSON string
   const jsonStream = Readable.from([eventsJson]);
-
-  // Create write stream to GCS
   const writeStream = file.createWriteStream({
     metadata: {
       contentType: "application/json",
@@ -508,12 +926,11 @@ async function uploadEventsToGCS(params: {
         eventsCount: String(eventsCount),
       },
     },
-    resumable: false, // Disable resumable uploads for Cloud Run (stateless)
-    validation: false, // Disable validation for better performance
-    gzip: true, // Enable gzip compression for JSON
+    resumable: false,
+    validation: false,
+    gzip: true,
   });
 
-  // Stream the JSON to GCS
   try {
     await pipeline(jsonStream, writeStream);
     console.log(`  ✅ Upload completed successfully`);
@@ -524,5 +941,5 @@ async function uploadEventsToGCS(params: {
   }
 }
 
-// Export types for use in other modules
+// Export types
 export type { RrwebEvent };

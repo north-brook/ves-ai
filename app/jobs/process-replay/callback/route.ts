@@ -11,7 +11,7 @@ import {
   hasRemainingAllowance,
   formatSecondsToHours,
 } from "@/lib/limits";
-import { AnalyzeJobRequest } from "../../analyze/route";
+import { AnalyzeSessionJobRequest } from "@/app/jobs/analyze-session/route";
 
 export async function POST(request: NextRequest) {
   try {
@@ -143,43 +143,20 @@ export async function POST(request: NextRequest) {
           hasRemainingAllowance(plan, currentUsage, sessionDuration)
         ) {
           // Trigger analysis
-          try {
-            console.log(
-              `🎯 [CALLBACK] Triggering analysis for session ${session.id}`,
-            );
-            const response = await fetch(
-              `${process.env.NEXT_PUBLIC_URL}/jobs/analyze`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${process.env.CRON_SECRET}`,
-                },
-                body: JSON.stringify({
-                  session_id: session.id,
-                } as AnalyzeJobRequest),
-              },
-            );
 
-            if (response.ok) {
-              console.log(
-                `✅ [CALLBACK] Successfully triggered analysis for session ${session.id}`,
-              );
-            } else {
-              console.error(
-                `⚠️ [CALLBACK] Analyze trigger returned ${response.status} for session ${session.id}`,
-              );
-            }
-          } catch (error) {
-            console.error(
-              `❌ [CALLBACK] Error triggering analysis for session ${session.id}:`,
-              error,
-            );
-            Sentry.captureException(error, {
-              tags: { job: "callback", step: "trigger_analyze" },
-              extra: { sessionId: session.id },
-            });
-          }
+          console.log(
+            `🎯 [CALLBACK] Triggering analysis for session ${session.id}`,
+          );
+          fetch(`${process.env.NEXT_PUBLIC_URL}/jobs/analyze-session`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${process.env.CRON_SECRET}`,
+            },
+            body: JSON.stringify({
+              session_id: session.id,
+            } as AnalyzeSessionJobRequest),
+          }).catch((_) => {});
         } else {
           if (availableWorkers <= 0) {
             console.log(
@@ -196,8 +173,6 @@ export async function POST(request: NextRequest) {
           `❌ [CALLBACK] Could not fetch project data for analysis trigger`,
         );
       }
-
-      // Remove revalidatePath - using realtime channels now
 
       return NextResponse.json({
         success: true,
@@ -251,7 +226,7 @@ export async function POST(request: NextRequest) {
       Sentry.captureException(
         new Error(`Cloud processing failed: ${errorData.error}`),
         {
-          tags: { job: "callback", type: "processing_failed" },
+          tags: { job: "callback", type: "processingFailed" },
           extra: { payload: errorData },
         },
       );

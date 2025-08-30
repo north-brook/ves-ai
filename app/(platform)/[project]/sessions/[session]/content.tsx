@@ -1,9 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { Session, Ticket } from "@/types";
-import { AlertCircle, CheckCircle, Circle, ExternalLink } from "lucide-react";
-import Link from "next/link";
+import { Session, Issue } from "@/types";
 import { useQuery } from "@tanstack/react-query";
 import { getVideoUrl } from "./actions";
 import ReactPlayer from "react-player";
@@ -12,10 +10,10 @@ import { Markdown } from "@/components/markdown";
 
 export function SessionContent({
   session,
-  tickets,
+  issues,
 }: {
   session: Session;
-  tickets: Ticket[];
+  issues: Issue[];
 }) {
   return (
     <div className="grid gap-8 lg:grid-cols-3">
@@ -23,10 +21,6 @@ export function SessionContent({
         {session.video_uri && <SessionReplay sessionId={session.id} />}
 
         {session.story && <SessionStory story={session.story} />}
-
-        {session.observations && (
-          <SessionObservations observations={session.observations} />
-        )}
 
         {!session.story && (
           <>
@@ -51,8 +45,8 @@ export function SessionContent({
       <div className="lg:sticky lg:top-24 lg:h-fit">
         <div className="border-border bg-surface rounded-lg border p-6">
           <h3 className="font-display mb-4 text-lg font-semibold">Tickets</h3>
-          {tickets.length > 0 ? (
-            <LinearTickets tickets={tickets} />
+          {issues.length > 0 ? (
+            <>{JSON.stringify(issues)}</>
           ) : (
             <p className="text-foreground-secondary text-sm italic">
               {session.status === "analyzed"
@@ -123,128 +117,6 @@ function SessionReplay({ sessionId }: { sessionId: string }) {
             </p>
           </div>
         </div>
-      )}
-    </div>
-  );
-}
-
-function SessionObservations({
-  observations,
-}: {
-  observations: Session["observations"];
-}) {
-  if (!observations || observations.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="border-border bg-surface rounded-lg border p-6">
-      <h2 className="font-display mb-4 text-xl font-semibold">Observations</h2>
-      <div className="space-y-3">
-        {observations.map((obs, index) => (
-          <div
-            key={index}
-            className="border-border/50 bg-background/50 space-y-2 rounded-lg border p-4"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <p className="text-sm font-medium">{obs.observation}</p>
-              <div className="flex flex-shrink-0 gap-1">
-                <Badge
-                  variant={
-                    obs.confidence === "high"
-                      ? "default"
-                      : obs.confidence === "medium"
-                        ? "secondary"
-                        : "outline"
-                  }
-                  className="text-xs"
-                >
-                  {obs.confidence}
-                </Badge>
-                <Badge
-                  variant={
-                    obs.urgency === "high"
-                      ? "destructive"
-                      : obs.urgency === "medium"
-                        ? "default"
-                        : "secondary"
-                  }
-                  className="text-xs"
-                >
-                  {obs.urgency}
-                </Badge>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <p className="text-foreground-secondary text-sm">
-                <span className="text-foreground font-medium">Why:</span>{" "}
-                {obs.explanation}
-              </p>
-              <p className="text-foreground-secondary text-sm">
-                <span className="text-foreground font-medium">Suggestion:</span>{" "}
-                {obs.suggestion}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function LinearTickets({ tickets }: { tickets: Ticket[] }) {
-  const getStatusIcon = (status: string | null) => {
-    switch (status) {
-      case "completed":
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case "in_progress":
-        return <Circle className="h-4 w-4 text-blue-500" />;
-      default:
-        return <AlertCircle className="h-4 w-4 text-yellow-500" />;
-    }
-  };
-
-  return (
-    <div className="space-y-3">
-      {tickets.map((ticket) => (
-        <div
-          key={ticket.id}
-          className="border-border bg-background hover:bg-surface/50 rounded-lg border p-3 transition-colors"
-        >
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                {getStatusIcon(ticket.status)}
-                <h4 className="text-foreground text-sm font-medium">
-                  {ticket.name}
-                </h4>
-              </div>
-
-              {ticket.description && (
-                <p className="text-foreground-secondary mt-1 line-clamp-2 text-xs">
-                  {ticket.description}
-                </p>
-              )}
-            </div>
-
-            {ticket.url && (
-              <Link
-                href={ticket.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-foreground-secondary hover:bg-surface hover:text-foreground ml-2 rounded p-1 transition-colors"
-              >
-                <ExternalLink className="h-4 w-4" />
-              </Link>
-            )}
-          </div>
-        </div>
-      ))}
-
-      {tickets.length === 0 && (
-        <p className="text-foreground-secondary text-center text-sm">
-          No tickets linked to this session
-        </p>
       )}
     </div>
   );

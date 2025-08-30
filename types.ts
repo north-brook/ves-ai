@@ -7,26 +7,41 @@ export type Role = Tables<"roles">;
 export type Source = Tables<"sources">;
 export type Destination = Tables<"destinations">;
 
-type Observation = {
-  observation: string;
-  explanation: string;
-  suggestion: string;
-  confidence: "low" | "medium" | "high";
-  urgency: "low" | "medium" | "high";
+export type SessionDetectedFeature = {
+  name: string;
+  description: string;
+  time: [number, number];
 };
+export type SessionDetectedIssue = {
+  description: string;
+  type: IssueType;
+  severity: IssueSeverity;
+  priority: IssuePriority;
+  name: string;
+  time: [number, number];
+};
+
 export type Session = MergeDeep<
   Tables<"sessions">,
   {
-    observations: Observation[] | null;
+    detected_features: SessionDetectedFeature[] | null;
+    detected_issues: SessionDetectedIssue[] | null;
   }
 >;
-export type Ticket = Tables<"tickets">;
-export type SessionTicket = Tables<"session_tickets">;
+export type ProjectUser = Tables<"project_users">;
+export type ProjectGroup = Tables<"project_groups">;
+export type Feature = Tables<"features">;
+export type Issue = Tables<"issues">;
 
 export type ProjectPlan = Enums<"project_plan">;
 export type SourceType = Enums<"source_type">;
 export type DestinationType = Enums<"destination_type">;
 export type SessionStatus = Enums<"session_status">;
+export type IssueType = Enums<"issue_type">;
+export type IssueSeverity = Enums<"issue_severity">;
+export type IssuePriority = Enums<"issue_priority">;
+export type IssueStatus = Enums<"issue_status">;
+export type FeatureStatus = Enums<"feature_status">;
 
 export type Database = MergeDeep<
   DatabaseGenerated,
@@ -35,13 +50,16 @@ export type Database = MergeDeep<
       Tables: {
         sessions: {
           Row: {
-            observations: Observation[] | null;
+            detected_features: SessionDetectedFeature[] | null;
+            detected_issues: SessionDetectedIssue[] | null;
           };
           Insert: {
-            observations?: Observation[] | null;
+            detected_features?: SessionDetectedFeature[] | null;
+            detected_issues?: SessionDetectedIssue[] | null;
           };
           Update: {
-            observations?: Observation[] | null;
+            detected_features?: SessionDetectedFeature[] | null;
+            detected_issues?: SessionDetectedIssue[] | null;
           };
         };
       };

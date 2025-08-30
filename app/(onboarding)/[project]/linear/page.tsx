@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import Linear from "@/components/linear";
 import { LinearClient } from "@linear/sdk";
 import type { Metadata } from "next";
+import { linear } from "@/lib/linear";
 
 export async function generateMetadata({
   params,
@@ -14,7 +15,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { project: projectSlug } = await params;
   const supabase = await serverSupabase();
-  
+
   const { data: project } = await supabase
     .from("projects")
     .select("name")
@@ -22,7 +23,7 @@ export async function generateMetadata({
     .single();
 
   const projectName = project?.name || "Project";
-  
+
   return {
     title: `Connect Linear • ${projectName} • VES AI`,
     description: `Set up Linear integration for ${projectName} to automatically sync AI-generated tickets.`,
@@ -97,33 +98,30 @@ async function LoadedLinearForm({ projectSlug }: { projectSlug: string }) {
   let linearData = null;
 
   // If we have a token, fetch Linear data using SDK
-  if (destination?.destination_token) {
-    try {
-      const linearClient = new LinearClient({
-        accessToken: destination.destination_token,
-      });
+  try {
+    const linearClient = await linear(project.id);
 
-      const organization = await linearClient.organization;
-      const teams = await linearClient.teams();
+    const organization = await linearClient?.organization;
+    const teams = await linearClient?.teams();
 
-      if (organization) {
-        linearData = {
-          organization: {
-            id: organization.id,
-            name: organization.name,
-            teams: {
-              nodes: teams.nodes.map((team) => ({
+    if (organization && teams) {
+      linearData = {
+        organization: {
+          id: organization.id,
+          name: organization.name,
+          teams: {
+            nodes:
+              teams.nodes.map((team) => ({
                 id: team.id,
                 key: team.key,
                 name: team.name,
-              })),
-            },
+              })) || [],
           },
-        };
-      }
-    } catch (error) {
-      console.error("Failed to fetch Linear data:", error);
+        },
+      };
     }
+  } catch (error) {
+    console.error("Failed to fetch Linear data:", error);
   }
 
   return (

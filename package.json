@@ -41,6 +41,7 @@
     "react-player": "^3.3.1",
     "remark-gfm": "^4.0.1",
     "resend": "^6.0.1",
+    "rrweb-player": "^1.0.0-alpha.4",
     "server-only": "^0.0.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.3.1",

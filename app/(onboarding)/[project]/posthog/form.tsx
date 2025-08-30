@@ -80,7 +80,7 @@ export function PostHogForm({ project, source }: PostHogFormProps) {
           <div className="flex-1">
             <h3 className="font-medium">Create a PostHog API Key</h3>
             <p className="text-foreground-secondary text-sm">
-              Give the key <b>All Access</b> scope
+              Give the key <b>MCP Server</b> scope
             </p>
           </div>
           <a

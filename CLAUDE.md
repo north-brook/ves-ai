@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development Commands
 
 ```bash
-# Install dependencies (using bun)
+# Install dependencies
 bun i
 
 # Development
@@ -50,7 +50,7 @@ vercel env pull      # Pull environment variables from Vercel
 - `app/(onboarding)/` - User onboarding flow for new projects
 - `app/(platform)/` - Main authenticated application
   - `[project]/` - Project-specific pages with dynamic routing
-  - `[project]/[session]/` - Individual session analysis views
+  - `[project]/sessions/[session]/` - Individual session analysis views
 - `app/auth/` - Authentication routes and callbacks
 - `app/jobs/` - API endpoints for async processing (analyze, process, run)
 
@@ -80,7 +80,6 @@ vercel env pull      # Pull environment variables from Vercel
 
 - Session replay data fetched via PostHog API
 - Requires API key with recording read access
-- Processing happens 24+ hours after recording (PostHog processing time)
 
 **Linear Integration**
 
@@ -103,7 +102,7 @@ Key tables:
 - `sessions` - Analyzed session data with observations
 - `sources` - PostHog integration configs
 - `destinations` - Linear integration configs
-- `tickets` - Created Linear tickets
+- `issues` - Recommended fixes / improvements to the product
 - `roles` - User permissions per project
 
 ### Testing Approach

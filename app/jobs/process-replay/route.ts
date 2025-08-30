@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       source_project: session.source.source_project!,
       external_id: session.external_id,
       active_duration: session.active_duration,
-      callback: `${process.env.NEXT_PUBLIC_URL}/jobs/process/callback`,
+      callback: `${process.env.NEXT_PUBLIC_URL}/jobs/process-replay/callback`,
     };
 
     console.log(`☁️ [PROCESS] Sending request to cloud service`);
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(cloudRequest),
-    }).catch((_) => {});
+    }).catch(() => {});
 
     return NextResponse.json({
       success: true,
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
       tags: { job: "process" },
       extra: {
         // We can't re-read the request body, but we might have session_id from earlier in the function
-        error_context: "process_job_failed",
+        errorContext: "processJobFailed",
       },
     });
 

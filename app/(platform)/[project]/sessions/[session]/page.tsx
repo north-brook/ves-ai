@@ -94,7 +94,7 @@ async function LoadedSession({
   return (
     <>
       <SessionHeader session={session} project={project} />
-      <SessionContent session={session} tickets={[]} />
+      <SessionContent session={session} issues={[]} />
     </>
   );
 }

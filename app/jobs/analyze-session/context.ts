@@ -157,37 +157,37 @@ class EventProcessor {
         }
         break;
 
-      case EventType.IncrementalSnapshot:
-        if (!event.data) break;
+      // case EventType.IncrementalSnapshot:
+      //   if (!event.data) break;
 
-        switch (event.data.source) {
-          case IncrementalSource.MouseInteraction:
-            if (event.data.type === MouseInteractions.Click) {
-              const selector = event.data.id ? `element` : "page";
-              description = `Clicked on ${selector}`;
-            }
-            break;
+      //   switch (event.data.source) {
+      //     case IncrementalSource.MouseInteraction:
+      //       if (event.data.type === MouseInteractions.Click) {
+      //         const selector = event.data.id ? `element` : "page";
+      //         description = `Clicked on ${selector}`;
+      //       }
+      //       break;
 
-          case IncrementalSource.Scroll:
-            description = `Scrolled the page`;
-            break;
+      //     case IncrementalSource.Scroll:
+      //       description = `Scrolled the page`;
+      //       break;
 
-          case IncrementalSource.Input:
-            description = `Entered text in input field`;
-            break;
+      //     case IncrementalSource.Input:
+      //       description = `Entered text in input field`;
+      //       break;
 
-          case IncrementalSource.MediaInteraction:
-            const mediaAction = event.data.type === 0 ? "played" : "paused";
-            description = `Media ${mediaAction}`;
-            break;
+      //     case IncrementalSource.MediaInteraction:
+      //       const mediaAction = event.data.type === 0 ? "played" : "paused";
+      //       description = `Media ${mediaAction}`;
+      //       break;
 
-          case IncrementalSource.Selection:
-            if (event.data.ranges?.length > 0) {
-              description = `Selected text on page`;
-            }
-            break;
-        }
-        break;
+      //     case IncrementalSource.Selection:
+      //       if (event.data.ranges?.length > 0) {
+      //         description = `Selected text on page`;
+      //       }
+      //       break;
+      //   }
+      //   break;
 
       case EventType.Custom:
         if (event.data?.tag === "$pageview") {
@@ -408,7 +408,11 @@ export default async function constructContext({
     // Save debug output if sessionId is provided
     if (sessionId) {
       try {
-        const debugDir = path.join(process.cwd(), "app", "jobs", "analyze");
+        const debugDir = path.join(process.cwd(), "app", "jobs", "debug");
+
+        // Ensure debug directory exists
+        await fs.mkdir(debugDir, { recursive: true });
+
         const debugFile = path.join(debugDir, `debug-context-${sessionId}.txt`);
 
         // Write debug file

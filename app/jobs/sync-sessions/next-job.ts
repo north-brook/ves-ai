@@ -6,7 +6,7 @@ import {
   getWorkerLimit,
   hasRemainingAllowance,
 } from "@/lib/limits";
-import { ProcessJobRequest } from "../process/route";
+import { ProcessJobRequest } from "../process-replay/route";
 
 export default async function nextJobs(
   projectId: string,
@@ -23,7 +23,9 @@ export default async function nextJobs(
     .single();
 
   if (!projectData) {
-    console.error(`❌ [PROCESS] Could not fetch project data for ${projectId}`);
+    console.error(
+      `❌ [NEXT JOB] Could not fetch project data for ${projectId}`,
+    );
     return 0;
   }
 
@@ -39,12 +41,12 @@ export default async function nextJobs(
     .limit(maxJobs);
 
   if (!pendingSessions || pendingSessions.length === 0) {
-    console.log(`📭 [PROCESS] No pending sessions for project ${projectId}`);
+    console.log(`📭 [NEXT JOB] No pending sessions for project ${projectId}`);
     return 0;
   }
 
   console.log(
-    `📋 [PROCESS] Found ${pendingSessions.length} pending sessions to process`,
+    `📋 [NEXT JOB] Found ${pendingSessions.length} pending sessions to process`,
   );
 
   for (const session of pendingSessions) {
@@ -60,7 +62,7 @@ export default async function nextJobs(
 
     if (activeWorkerCount >= workerLimit) {
       console.log(
-        `⚠️ [LIMITS] Project ${projectId} at worker limit (${activeWorkerCount}/${workerLimit}), stopping session processing`,
+        `⚠️ [NEXT JOB] Project ${projectId} at worker limit (${activeWorkerCount}/${workerLimit}), stopping session processing`,
       );
       break;
     }
@@ -78,7 +80,7 @@ export default async function nextJobs(
     const currentUsage = calculateTotalUsage(periodSessions || []);
     if (!hasRemainingAllowance(plan, currentUsage)) {
       console.log(
-        `⚠️ [LIMITS] Project ${projectId} reached usage limit, stopping session processing`,
+        `⚠️ [NEXT JOB] Project ${projectId} reached usage limit, stopping session processing`,
       );
       break;
     }
@@ -86,10 +88,10 @@ export default async function nextJobs(
     // Trigger processing
     try {
       console.log(
-        `🎯 [PROCESS] Triggering processing for session ${session.id} (recording: ${session.external_id})`,
+        `🎯 [NEXT JOB] Triggering processing for session ${session.id} (recording: ${session.external_id})`,
       );
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_URL}/jobs/process`,
+        `${process.env.NEXT_PUBLIC_URL}/jobs/process-replay`,
         {
           method: "POST",
           headers: {
@@ -102,21 +104,21 @@ export default async function nextJobs(
 
       if (response.ok) {
         console.log(
-          `✅ [PROCESS] Successfully triggered processing for session ${session.id}`,
+          `✅ [NEXT JOB] Successfully triggered processing for session ${session.id}`,
         );
         processedCount++;
       } else {
         console.error(
-          `⚠️ [PROCESS] Process trigger returned ${response.status} for session ${session.id}`,
+          `⚠️ [NEXT JOB] Process trigger returned ${response.status} for session ${session.id}`,
         );
       }
     } catch (error) {
       console.error(
-        `❌ [PROCESS] Error triggering process for session ${session.id}:`,
+        `❌ [NEXT JOB] Error triggering process for session ${session.id}:`,
         error,
       );
       Sentry.captureException(error, {
-        tags: { job: "process_pending", step: "trigger_process" },
+        tags: { job: "nextJob", step: "triggerProcess" },
         extra: { sessionId: session.id, projectId },
       });
     }

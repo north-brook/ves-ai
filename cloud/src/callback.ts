@@ -6,15 +6,15 @@ export async function postCallback(
 ): Promise<void> {
   console.log("📨 [CALLBACK] Sending result to callback URL...");
   console.log(`  🔗 URL: ${url}`);
-  console.log(`  📊 Status: ${payload.success ? '✅ Success' : '❌ Error'}`);
-  
+  console.log(`  📊 Status: ${payload.success ? "✅ Success" : "❌ Error"}`);
+
   try {
     const res = await fetch(url, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(payload),
     });
-    
+
     if (!res.ok) {
       const text = await res.text();
       // Swallow but log – we don't rethrow to avoid masking the primary result

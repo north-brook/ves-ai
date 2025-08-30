@@ -80,6 +80,68 @@ vesai/
 └── tests/                # Playwright tests
 ```
 
+## Workflow Architecture
+
+VES AI uses a sophisticated job orchestration system to process session data through multiple stages of analysis. The system operates on two schedules:
+
+### Frequent Jobs (Every 5 Minutes)
+
+The core session processing pipeline runs continuously to analyze new user sessions:
+
+1. **sync-sessions** - Entry point that discovers new sessions from PostHog
+   - Fetches recordings from all configured PostHog sources
+   - Creates session records in the database
+   - Respects project worker limits to manage concurrent processing
+   - Triggers process-replay jobs for new sessions
+
+2. **process-replay** - Converts raw session data to analyzable format
+   - Calls cloud service to fetch raw rrweb JSON from PostHog
+   - Constructs WebM video of the session using Playwright
+   - Uploads video and events to Google Cloud Storage
+   - Triggers analyze-session job upon completion
+
+3. **analyze-session** - AI-powered session analysis
+   - Uses Gemini AI to analyze the session video
+   - Creates a comprehensive session story describing user behavior
+   - Identifies features used and issues (bugs, friction points)
+   - Reconciles features and issues with existing features and issues
+   - Triggers analyze-user and analyze-feature jobs upon completion
+
+4. **analyze-user** - Maintains user-level insights
+   - Aggregates all session stories for a specific user
+   - Uses AI to maintain an evolving user story
+   - Tracks user journey and behavior patterns over time
+   - Triggers analyze-group job if user belongs to a group
+
+5. **analyze-group** - Organization-level analysis
+   - Aggregates all user stories within an organization/group
+   - Maintains a group story showing collective usage patterns
+   - Identifies organization-wide trends and issues
+
+6. **analyze-feature** - Feature-specific analysis
+   - Maintains a feature story based on all linked sessions
+   - Tracks feature adoption, usage patterns, and issues
+   - Provides feature health metrics and recommendations
+
+### Weekly Jobs (Every 6 Hours)
+
+These jobs maintain higher-level abstractions and create actionable insights:
+
+1. **analyze-project** - Weekly report generation
+   - Summarizes new sessions, features, and issues
+   - Writes a concise report of the overall product health
+   - Highlights
+
+### Job Coordination
+
+The system uses several coordination mechanisms:
+
+- **Worker Limits** - Each project has concurrent worker limits based on their plan
+- **Job Chaining** - Jobs trigger subsequent jobs upon successful completion
+- **Dependency Management** - Jobs wait for required data before processing
+- **Error Handling** - Failed jobs are marked and don't block the pipeline
+- **Callback System** - Cloud service uses callbacks to report completion
+
 ## Available Scripts
 
 - `bun run dev` - Start development server with Turbopack
