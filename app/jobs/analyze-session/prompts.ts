@@ -1,10 +1,4 @@
-import {
-  Feature,
-  Session,
-  SessionDetectedFeature,
-  SessionDetectedIssue,
-  Issue,
-} from "@/types";
+import { Session, SessionDetectedIssue, Issue } from "@/types";
 import { Type } from "@google/genai";
 import z from "zod";
 
@@ -75,10 +69,14 @@ If the session replay is valid and playable:
 
 # Timestamp Extraction
 
-When identifying features and issues, pay close attention to WHEN they occur in the session:
-- Note the approximate time range (in seconds from session start) when each feature is used
-- Record when issues manifest to help developers reproduce them
-- Time ranges should be [start_seconds, end_seconds] format`;
+When identifying pages and issues, pay close attention to WHEN they occur in the video:
+- Note the exact time in seconds from video start (0.0 = beginning of video)
+- Use decimal precision when needed (e.g., 15.5 for 15 and a half seconds)  
+- Record when pages are visited and issues manifest to help developers reproduce them
+- Format: [[start_seconds, end_seconds], ...] for multiple occurrences
+- Each [start, end] pair represents one continuous time range
+- Multiple pairs indicate revisits (for pages) or recurrences (for issues)
+- Example: [[10.5, 45.2], [120.0, 135.5]] means 10.5-45.2 seconds and 2:00-2:15.5`;
 
 export const ANALYZE_SESSION_SCHEMA = {
   type: Type.OBJECT,
@@ -97,7 +95,39 @@ export const ANALYZE_SESSION_SCHEMA = {
           description:
             "A natural, flowing narrative of the user's journey through the platform, written as a qualitative story in markdown. Tell their story like you're recounting someone's experience to a colleague - what they did, where they went, and how they moved through the product. Write in a conversational, storytelling style that captures the flow and rhythm of their session. For example: 'The user began their journey on the dashboard, where they spent a few moments exploring the navigation. They then clicked into the settings page, scrolled through the options, and toggled the dark mode feature. After that, they navigated to their profile...' Focus on painting a vivid picture of their path through the product, using natural language rather than technical descriptions. This should read like a story about a person's experience, not a clinical observation. Use **bold** for emphasis and include timing details naturally within the narrative flow.",
         },
-        detected_features: {
+        detected_pages: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              path: {
+                type: Type.STRING,
+                description:
+                  "The URL path of the page (e.g., '/cart', '/dashboard', '/search', '/settings/notifications'). Should be the actual path from the URL, starting with '/'.",
+              },
+              times: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.NUMBER,
+                  },
+                },
+                description:
+                  "Time ranges when this page was active, in seconds from video start (0.0 = beginning). Format: [[start, end], ...] where each pair represents one continuous visit to this page. Use decimal precision (e.g., 10.5 for 10½ seconds). Multiple pairs if page is revisited. Example: [[10.5, 45.2], [120.0, 135.5]] means the user was on this page from 10.5-45.2 seconds and again from 2:00-2:15.5 in the video.",
+              },
+              story: {
+                type: Type.STRING,
+                description:
+                  "A natural, flowing narrative of what the user did on THIS specific page, written as a focused story segment in markdown. Tell the story of their experience on this page like you're recounting it to a colleague - what they did, what they interacted with, how they navigated through it. Write in a conversational, storytelling style that captures what happened during this portion of their session. For example: 'On the settings page, they scrolled through the options looking for the notifications section. They toggled the email preferences, hesitated at the privacy settings, then clicked into the advanced options...' Focus on painting a vivid picture of their actions and interactions on this specific page. This should read like a chapter of their journey focused on this page, not a clinical observation. Use **bold** for emphasis.",
+              },
+            },
+            required: ["path", "story", "times"],
+          },
+          description:
+            "List of pages the user visited during their session, with focused story segments for each page and when they used them. Each page should have its own narrative describing what happened there.",
+        },
+        detected_issues: {
           type: Type.ARRAY,
           items: {
             type: Type.OBJECT,
@@ -105,36 +135,7 @@ export const ANALYZE_SESSION_SCHEMA = {
               name: {
                 type: Type.STRING,
                 description:
-                  "Shortest possible title-case name of the feature (e.g., 'Cart', 'Dashboard', 'Search')",
-              },
-              description: {
-                type: Type.STRING,
-                description:
-                  "1-2 sentence summary of the functionality/promise to the user. Focus on what the feature does and the value it provides.",
-              },
-              time: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.NUMBER,
-                },
-                description:
-                  "Time range [start_seconds, end_seconds] when the feature was used in the session",
-              },
-            },
-            required: ["name", "description", "time"],
-          },
-          description:
-            "List of product features the user engaged with during their session, including when they used each feature. Focus on identifying specific product capabilities and functionalities with their usage timestamps.",
-        },
-        detected_issues: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              description: {
-                type: Type.STRING,
-                description:
-                  "Robust description of the issue in markdown format (max 5 paragraphs). Include what the problem is, where it occurs, example cases from this session, expected vs actual behavior, and user impact. Use markdown formatting with headers, lists, and emphasis as needed.",
+                  "Short sentence case name that (in as few words as possible) describes the issue (e.g., 'Checkout button unresponsive', 'Search filters reset unexpectedly').",
               },
               type: {
                 type: Type.STRING,
@@ -154,35 +155,38 @@ export const ANALYZE_SESSION_SCHEMA = {
                 description:
                   "immediate: Must fix right away - release blocker, outage, or critical business impact; high: Fix very soon due to high user or business impact; medium: Fix in normal sprint cycle as part of regular improvements; low: Nice-to-fix with low user impact; backlog: Non-urgent, can be deferred or tracked for future consideration",
               },
-              name: {
-                type: Type.STRING,
-                description:
-                  "Short sentence case name that (in as few words as possible) describes the issue (e.g., 'Checkout button unresponsive', 'Search filters reset unexpectedly').",
-              },
-              time: {
+              times: {
                 type: Type.ARRAY,
                 items: {
-                  type: Type.NUMBER,
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.NUMBER,
+                  },
                 },
                 description:
-                  "Time range [start_seconds, end_seconds] when the issue occurred in the session",
+                  "Time ranges when this issue manifested, in seconds from video start (0.0 = beginning). Format: [[start, end], ...] where each pair represents one occurrence of the issue. Use decimal precision (e.g., 10.5 for 10½ seconds). Multiple pairs if issue recurs. Example: [[30.0, 35.5], [180.0, 182.0]] means the issue occurred from 0:30-0:35.5 and again from 3:00-3:02 in the video. Be precise to help developers reproduce the issue.",
+              },
+              story: {
+                type: Type.STRING,
+                description:
+                  "A natural, flowing narrative of how this issue manifested in the user's experience, written as a story in markdown. Tell the story of the problem like you're recounting what went wrong to a colleague - what the user was trying to do, how the issue appeared, what happened as a result. Write in a conversational, storytelling style that captures the frustration or confusion. For example: 'The user clicked the submit button expecting their form to save, but nothing happened. They clicked again, then again more forcefully. After a few seconds of waiting, they scrolled up to check if there was an error message they missed...' Focus on painting a vivid picture of how the issue impacted their journey. This should read like a story about encountering a problem, not a bug report. Use **bold** for emphasis and include the emotional impact on the user.",
               },
             },
             required: [
-              "description",
+              "name",
               "type",
               "severity",
               "priority",
-              "name",
-              "time",
+              "times",
+              "story",
             ],
             propertyOrdering: [
-              "description",
+              "name",
               "type",
               "severity",
               "priority",
-              "name",
-              "time",
+              "times",
+              "story",
             ],
           },
           description:
@@ -228,157 +232,6 @@ export const ANALYZE_SESSION_SCHEMA = {
   propertyOrdering: ["valid_video", "analysis"],
 };
 
-export const RECONCILE_FEATURE_SYSTEM = `# Identity
-
-You are an expert AI product analyst specializing in feature taxonomy and deduplication.
-
-# Task
-
-Your task is to reconcile a specific feature detected from a session replay with similar features that already exist in the project. The goal is to maintain a clean, unique set of features without duplication while ensuring all functionality is properly captured.
-
-# Key Principles
-
-1. **Avoid Duplication**: Features with the same purpose should be merged, even if named differently
-2. **Maintain Consistency**: Use existing naming conventions and patterns
-3. **Preserve Information**: When merging, combine the best aspects of both descriptions
-4. **Be Conservative**: Only create new features when genuinely unique functionality is detected
-
-# Process
-
-You will be provided with:
-- The full session story for context
-- A specific detected feature (name, description, usage timeframe)
-- A list of potentially related existing features
-
-Follow these steps:
-1. **Analyze** the detected feature's purpose and functionality
-2. **Compare** with existing features, looking for functional overlap
-3. **Decide** whether to merge with existing or create new
-4. **Return** a response object with your decision
-
-# Response Format
-
-You must return ONE of the following response structures:
-
-## Option 1: Merge with Existing Feature
-\`\`\`json
-{
-  "decision": "merge",
-  "existingFeatureName": "exact name from the list",
-  "featureUpdate": {
-    "name": "feature name",
-    "description": "enhanced description combining existing and new insights"
-  }
-}
-\`\`\`
-
-## Option 2: Create New Feature
-\`\`\`json
-{
-  "decision": "create",
-  "newFeature": {
-    "name": "new feature name",
-    "description": "complete description of the new feature"
-  }
-}
-\`\`\`
-
-Choose "merge" when the detected feature serves the same purpose as an existing one.
-Choose "create" only when the functionality is genuinely new and distinct.`;
-
-export const RECONCILE_FEATURE_PROMPT = ({
-  session,
-  detectedFeature,
-  relatedFeatures,
-}: {
-  session: Session;
-  detectedFeature: SessionDetectedFeature;
-  relatedFeatures: Feature[];
-}) => `You are reconciling a detected feature from a user session with the existing feature catalog.
-
-# Session Context
-${
-  session.story
-    ? `## Session Story
-${session.story}
-
-`
-    : ""
-}
-The user engaged with various features during this ${session.active_duration ? `${Math.round(session.active_duration / 60)}-minute` : ""} session${session.score ? ` (health score: ${session.score}/100)` : ""}.
-
-# Detected Feature to Reconcile
-**Name:** ${detectedFeature.name}
-**Description:** ${detectedFeature.description}
-**Usage Time:** ${detectedFeature.time[0]}s - ${detectedFeature.time[1]}s (${Math.round(detectedFeature.time[1] - detectedFeature.time[0])}s duration)
-
-This feature was used ${(() => {
-  const sessionDuration = session.active_duration || 300; // default 5 min if unknown
-  const featureStart = detectedFeature.time[0];
-  const percentThrough = (featureStart / sessionDuration) * 100;
-  if (percentThrough < 20) return "early in the session";
-  if (percentThrough < 40) return "in the first half of the session";
-  if (percentThrough < 60) return "midway through the session";
-  if (percentThrough < 80) return "in the latter half of the session";
-  return "near the end of the session";
-})()}.
-
-# Existing Features in the System
-${
-  relatedFeatures.length > 0
-    ? `Here are the most similar existing features based on semantic similarity:
-
-${relatedFeatures
-  .map(
-    (f, i) => `## ${i + 1}. ${f.name}
-**Description:** ${f.description}
-**Status:** ${f.status || "active"}
-**Health Score:** ${f.score !== null && f.score !== undefined ? `${f.score}/100` : "Not yet analyzed"}
-${f.story ? `**Usage Pattern:** ${f.story.substring(0, 200)}${f.story.length > 200 ? "..." : ""}` : ""}
-`,
-  )
-  .join("\n")}`
-    : "No similar features found in the system."
-}
-
-# Decision Guidance
-
-Consider these factors when deciding:
-
-1. **Functional Equivalence**: Does an existing feature serve the same purpose, even with a different name?
-   - "User Profile" and "Account Settings" might be the same feature
-   - "Search" and "Product Search" likely refer to the same functionality
-
-2. **Scope Overlap**: Is the detected feature a subset or superset of an existing one?
-   - "Advanced Search Filters" might be part of existing "Search" feature
-   - "Checkout" might encompass a detected "Payment Processing" feature
-
-3. **User Intent**: Do users engage with these features for the same goal?
-   - "Quick Add to Cart" and "Add to Cart Button" serve the same intent
-   - "Export to CSV" and "Download Data" achieve similar outcomes
-
-# Your Task
-
-1. First, analyze if any existing feature matches the detected one
-2. If a match exists, use \`assignFeature\` with an enhanced description that incorporates new insights
-3. If no match exists and this is genuinely new functionality, use \`createFeature\`
-4. After your action, call \`done\` with success: true
-
-Make your decision based on functional purpose, not just name similarity.`;
-
-export const FEATURE_SCHEMA = z.object({
-  name: z
-    .string()
-    .describe(
-      "Shortest possible title-case name of the feature (e.g., 'Cart', 'Dashboard', 'Search'). Keep it as concise as possible while remaining clear.",
-    ),
-  description: z
-    .string()
-    .describe(
-      "1-2 sentence summary of the functionality/promise to the user. Focus on what the feature does and the value it provides, not implementation details.",
-    ),
-});
-
 export const RECONCILE_ISSUE_SYSTEM = `# Identity
 
 You are an expert AI product analyst specializing in issue tracking, root cause analysis, and bug deduplication.
@@ -398,7 +251,7 @@ Your task is to reconcile a specific issue detected from a session replay with s
 
 You will be provided with:
 - The full session story for context
-- A specific detected issue (description, type, severity, priority, timing)
+- A specific detected issue (story, type, severity, priority, timing)
 - A list of potentially related existing issues
 
 Follow these steps:
@@ -418,7 +271,7 @@ You must return ONE of the following response structures:
   "existingIssueName": "exact name from the list",
   "issueUpdate": {
     "name": "issue name",
-    "description": "enhanced description with new reproduction details",
+    "story": "enhanced story with new reproduction details",
     "type": "bug|usability|improvement|feature",
     "severity": "critical|high|medium|low|suggestion",
     "priority": "immediate|high|medium|low|backlog"
@@ -432,7 +285,7 @@ You must return ONE of the following response structures:
   "decision": "create",
   "newIssue": {
     "name": "new issue name",
-    "description": "complete description with reproduction steps",
+    "story": "complete story with reproduction narrative",
     "type": "bug|usability|improvement|feature",
     "severity": "critical|high|medium|low|suggestion",
     "priority": "immediate|high|medium|low|backlog"
@@ -469,7 +322,7 @@ This ${session.active_duration ? `${Math.round(session.active_duration / 60)}-mi
 **Type:** ${detectedIssue.type}
 **Severity:** ${detectedIssue.severity}
 **Priority:** ${detectedIssue.priority}
-**Description:** ${detectedIssue.description}
+**Story:** ${detectedIssue.story}
 
 ${(() => {
   if (detectedIssue.severity === "critical")
@@ -495,7 +348,7 @@ ${relatedIssues
 **Severity:** ${issue.severity}
 **Priority:** ${issue.priority}
 **Status:** ${issue.status || "open"}
-**Description:** ${issue.description}
+**Story:** ${issue.story}
 **Created:** ${new Date(issue.created_at).toLocaleDateString()}
 `,
   )
@@ -536,7 +389,7 @@ Consider these factors when deciding whether to merge or create new:
 # Your Task
 
 1. Analyze if the detected issue has the same root cause as any existing issue
-2. If merging, use \`mergeIssue\` with an enhanced description that includes:
+2. If merging, use \`mergeIssue\` with an enhanced story that includes:
    - The new reproduction case from this session
    - Updated severity/priority if this instance is worse
    - Additional context about impact
@@ -546,10 +399,10 @@ Consider these factors when deciding whether to merge or create new:
 Focus on root causes, not just symptoms. Multiple reports of the same underlying problem should be merged.`;
 
 export const ISSUE_SCHEMA = z.object({
-  description: z
+  story: z
     .string()
     .describe(
-      "Robust description of the issue in markdown format (max 5 paragraphs). Include what the problem is, where it occurs, example cases from sessions, expected vs actual behavior, and user impact. Use markdown formatting with headers, lists, and emphasis as needed.",
+      "A natural, flowing narrative of how this issue manifests, written as a story in markdown. Tell the story of the problem like you're recounting what goes wrong to a colleague - what users are trying to do, how the issue appears, what happens as a result. Write in a conversational, storytelling style that captures the frustration or confusion. For example: 'Users click the submit button expecting their form to save, but nothing happens. They click again, then again more forcefully. After waiting, they scroll up to check if there was an error message they missed...' Focus on painting a vivid picture of how the issue impacts user journeys. This should read like a story about encountering a problem, not a bug report. Use **bold** for emphasis and include the emotional impact on users.",
     ),
   type: z
     .enum(["bug", "usability", "improvement", "feature"])
@@ -573,30 +426,6 @@ export const ISSUE_SCHEMA = z.object({
     ),
 });
 
-// Response schemas for reconciliation
-export const RECONCILE_FEATURE_SCHEMA = z.object({
-  decision: z
-    .enum(["merge", "create"])
-    .describe(
-      "Whether to merge with an existing feature or create a new one. Choose 'merge' when the detected feature serves the same purpose as an existing one. Choose 'create' only when the functionality is genuinely new and distinct.",
-    ),
-  existingFeatureName: z
-    .nullable(z.string())
-    .describe(
-      "Required when decision is 'merge'. The exact name of the existing feature from the relatedFeatures list that best matches the detected feature. Must match exactly as it appears in the list. Set to null when decision is 'create'.",
-    ),
-  featureUpdate: z
-    .nullable(FEATURE_SCHEMA)
-    .describe(
-      "Required when decision is 'merge'. The enhanced feature definition that merges the existing feature's information with new insights from the detected feature. Keep the best of both descriptions while ensuring clarity and completeness. Set to null when decision is 'create'.",
-    ),
-  newFeature: z
-    .nullable(FEATURE_SCHEMA)
-    .describe(
-      "Required when decision is 'create'. The complete definition for the new feature. Ensure the name is consistent with existing naming conventions and the description clearly explains what the feature does. Set to null when decision is 'merge'.",
-    ),
-});
-
 export const RECONCILE_ISSUE_SCHEMA = z.object({
   decision: z
     .enum(["merge", "create"])
@@ -611,11 +440,11 @@ export const RECONCILE_ISSUE_SCHEMA = z.object({
   issueUpdate: z
     .nullable(ISSUE_SCHEMA)
     .describe(
-      "Required when decision is 'merge'. The enhanced issue definition that combines the existing issue's information with new details from this detection. Include the new reproduction case, preserve the highest severity/priority levels, and add any additional context. Set to null when decision is 'create'.",
+      "Required when decision is 'merge'. The enhanced issue definition that combines the existing issue's information with new details from this detection. Include the new reproduction narrative, preserve the highest severity/priority levels, and add any additional context. Set to null when decision is 'create'.",
     ),
   newIssue: z
     .nullable(ISSUE_SCHEMA)
     .describe(
-      "Required when decision is 'create'. The complete definition for the new issue. Ensure the name clearly identifies the problem, the description includes reproduction steps from this session, and severity/priority accurately reflect the impact. Set to null when decision is 'merge'.",
+      "Required when decision is 'create'. The complete definition for the new issue. Ensure the name clearly identifies the problem, the story includes the reproduction narrative from this session, and severity/priority accurately reflect the impact. Set to null when decision is 'merge'.",
     ),
 });

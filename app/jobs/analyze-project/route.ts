@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
         *,
         project_user:project_users(*),
         project_group:project_groups(*),
-        session_features(feature:features(*)),
+        session_pages(page:pages(*)),
         session_issues(issue:issues(*))
       `,
       )
@@ -114,19 +114,16 @@ export async function POST(request: NextRequest) {
       throw new Error("Failed to fetch groups");
     }
 
-    // Fetch all features for the project
-    const { data: features, error: featuresError } = await supabase
-      .from("features")
+    // Fetch all pages for the project
+    const { data: pages, error: pagesError } = await supabase
+      .from("pages")
       .select("*")
       .eq("project_id", project_id)
       .order("score", { ascending: false, nullsFirst: false });
 
-    if (featuresError) {
-      console.error(
-        `❌ [ANALYZE PROJECT] Failed to fetch features:`,
-        featuresError,
-      );
-      throw new Error("Failed to fetch features");
+    if (pagesError) {
+      console.error(`❌ [ANALYZE PROJECT] Failed to fetch pages:`, pagesError);
+      throw new Error("Failed to fetch pages");
     }
 
     // Calculate weekly statistics
@@ -190,7 +187,7 @@ export async function POST(request: NextRequest) {
     console.log(`   Sessions This Week: ${stats.weeklySessionCount}`);
     console.log(`   Active Users This Week: ${stats.weeklyUserCount}`);
     console.log(`   Active Groups This Week: ${stats.weeklyGroupCount}`);
-    console.log(`   Total Features: ${features?.length || 0}`);
+    console.log(`   Total Features: ${pages?.length || 0}`);
     console.log(
       `   Avg Session Score (Week): ${stats.weeklyAverageSessionScore.toFixed(1)}`,
     );
@@ -211,7 +208,7 @@ export async function POST(request: NextRequest) {
       recentSessions: recentSessions || [],
       recentUsers: recentUsers || [],
       recentGroups: recentGroups || [],
-      features: features || [],
+      pages: pages || [],
       weeklyNewIssues: weeklyNewIssues || [],
       openCriticalHighIssues: openCriticalHighIssues || [],
       stats,
@@ -233,15 +230,18 @@ export async function POST(request: NextRequest) {
     console.log(`📊 [ANALYZE PROJECT] Report generated successfully`);
 
     // Write debug file
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    await writeDebugFile(`debug-${timestamp}-analyze-project-${project_id}.txt`, {
-      timestamp: new Date().toISOString(),
-      job: "analyze-project",
-      id: project_id,
-      systemPrompt: ANALYZE_PROJECT_SYSTEM,
-      userPrompt: projectPrompt,
-      modelResponse: JSON.stringify(object, null, 2),
-    });
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    await writeDebugFile(
+      `debug-${timestamp}-analyze-project-${project_id}.txt`,
+      {
+        timestamp: new Date().toISOString(),
+        job: "analyze-project",
+        id: project_id,
+        systemPrompt: ANALYZE_PROJECT_SYSTEM,
+        userPrompt: projectPrompt,
+        modelResponse: JSON.stringify(object, null, 2),
+      },
+    );
 
     // Store the report (you might want to create a reports table for this)
     // For now, we'll just return the report

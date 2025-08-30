@@ -7,21 +7,18 @@ import {
   GoogleGenAI,
 } from "@google/genai";
 import nextJobs from "../sync-sessions/next-job";
-import { SessionDetectedFeature, SessionDetectedIssue } from "@/types";
+import { SessionDetectedPages, SessionDetectedIssue } from "@/types";
 import { embed, generateObject } from "ai";
 import { openai, OpenAIResponsesProviderOptions } from "@ai-sdk/openai";
 import {
   ANALYZE_SESSION_SYSTEM,
   ANALYZE_SESSION_SCHEMA,
-  RECONCILE_FEATURE_SYSTEM,
-  RECONCILE_FEATURE_PROMPT,
-  RECONCILE_FEATURE_SCHEMA,
   RECONCILE_ISSUE_SYSTEM,
   RECONCILE_ISSUE_PROMPT,
   RECONCILE_ISSUE_SCHEMA,
 } from "@/app/jobs/analyze-session/prompts";
 import constructContext from "./context";
-import { AnalyzeFeatureJobRequest } from "../analyze-feature/route";
+import { AnalyzePageJobRequest } from "../analyze-page/route";
 import { AnalyzeUserJobRequest } from "../analyze-user/route";
 import { writeDebugFile, clearDebugFile } from "../debug/helper";
 
@@ -202,7 +199,7 @@ export async function POST(request: NextRequest) {
         notes: string | null;
         analysis: {
           story: string;
-          detected_features: SessionDetectedFeature[];
+          detected_pages: SessionDetectedPages[];
           detected_issues: SessionDetectedIssue[];
           name: string;
           health: string;
@@ -228,7 +225,7 @@ export async function POST(request: NextRequest) {
 
       // Valid session - validate the analysis data
       const data = parsedResponse.analysis;
-      if (!data || !data.story || !data.detected_features || !data.name) {
+      if (!data || !data.story || !data.detected_pages || !data.name) {
         console.error(`❌ [ANALYZE SESSION] Invalid analysis data:`, data);
         return NextResponse.json(
           { error: "Invalid analysis data" },
@@ -236,13 +233,13 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Extract feature names for embedding and backward compatibility
-      const featureNames = data.detected_features.map((f) => f.name);
+      // Extract page paths for embedding
+      const pagePaths = data.detected_pages.map((p) => p.path);
 
-      // embed the session name, features, and story
+      // embed the session name, pages, and story
       const { embedding } = await embed({
         model: openai.textEmbeddingModel("text-embedding-3-small"),
-        value: `${data.name}\n${featureNames.join(", ")}\n${data.story}`,
+        value: `${data.name}\n${pagePaths.join(", ")}\n${data.story}`,
       });
 
       const { data: analyzedSession, error: analysisError } = await supabase
@@ -251,7 +248,7 @@ export async function POST(request: NextRequest) {
           name: data.name,
           status: "analyzed",
           story: data.story,
-          detected_features: data.detected_features,
+          detected_pages: data.detected_pages,
           detected_issues: data.detected_issues,
           health: data.health,
           score: data.score,
@@ -274,299 +271,130 @@ export async function POST(request: NextRequest) {
       );
 
       // Track reconciled feature IDs for triggering analyze-feature
-      const reconciledFeatureIds = new Set<string>();
+      const reconciledPageIds = new Set<string>();
 
       // Prepare for feature reconciliation debug
-      let featureRunNumber = 0;
-      const featureTimestamp = new Date().toISOString().replace(/[:.]/g, "-");
-      const featureDebugFile = `debug-${featureTimestamp}-reconcile-features-${session_id}.txt`;
-      await clearDebugFile(featureDebugFile);
+      let pageRunNumber = 0;
 
-      // Reconcile features (serial to avoid duplicates)
-      for (const detectedFeature of data.detected_features) {
-        featureRunNumber++;
+      for (const detectedPage of data.detected_pages) {
+        pageRunNumber++;
+        
         try {
-          // get 10 related features (by embedding similarity)
-          const { embedding: detectedFeatureEmbedding } = await embed({
-            model: openai.textEmbeddingModel("text-embedding-3-small"),
-            value: `${detectedFeature.name}\n${detectedFeature.description}`,
-          });
+          // Check if page already exists in the project by path
+          const { data: existingPage } = await supabase
+            .from("pages")
+            .select("*")
+            .eq("project_id", analyzedSession.project_id)
+            .eq("path", detectedPage.path)
+            .single();
 
-          const { data: relatedFeatureData, error: relatedFeatureError } =
-            await supabase.rpc("match_features", {
-              query_embedding: detectedFeatureEmbedding as unknown as string,
-              match_threshold: 0.5,
-              match_count: 10,
-            });
-
-          if (relatedFeatureError) {
-            console.error(
-              `❌ [ANALYZE SESSION] Failed to get related features:`,
-              relatedFeatureError,
-            );
-            Sentry.captureException(relatedFeatureError, {
-              tags: { job: "analyzeSession", step: "reconcileFeatures" },
-              extra: {
-                sessionId: session_id,
-                featureName: detectedFeature.name,
-              },
-            });
-          }
-
-          const relatedFeatureIds = relatedFeatureData?.map((f) => f.id) || [];
-
-          const relatedFeatures = (
-            await Promise.all(
-              relatedFeatureIds.map(async (id) => {
-                const { data: featureData } = await supabase
-                  .from("features")
-                  .select("*")
-                  .eq("id", id)
-                  .single();
-                return featureData;
-              }),
-            )
-          ).filter((f) => f !== null);
-
-          // Prepare prompt for debugging
-          const featurePrompt = RECONCILE_FEATURE_PROMPT({
-            session: analyzedSession,
-            detectedFeature,
-            relatedFeatures,
-          });
-
-          // Generate reconciliation decision using generateObject
-          const { object: featureResponse } = await generateObject({
-            model: openai.responses("gpt-5"),
-            providerOptions: {
-              openai: {
-                reasoningEffort: "high",
-                strictJsonSchema: true,
-              } satisfies OpenAIResponsesProviderOptions,
-            },
-            system: RECONCILE_FEATURE_SYSTEM,
-            prompt: featurePrompt,
-            schema: RECONCILE_FEATURE_SCHEMA,
-          });
-
-          // Process the response based on the decision
-          if (featureResponse.decision === "merge") {
-            if (
-              !featureResponse.existingFeatureName ||
-              !featureResponse.featureUpdate
-            ) {
-              console.error(
-                `❌ [ANALYZE SESSION] Invalid merge response - missing required fields`,
-              );
-              Sentry.captureException(
-                new Error(
-                  "Invalid merge response - missing existingFeatureName or featureUpdate",
-                ),
-                {
-                  tags: { job: "analyzeSession", step: "mergeFeature" },
-                  extra: {
-                    sessionId: session_id,
-                    featureName: detectedFeature.name,
-                    response: featureResponse,
-                  },
-                },
-              );
-              continue;
-            }
-
-            // Find the existing feature
-            const existingFeature = relatedFeatures.find(
-              (f) => f.name === featureResponse.existingFeatureName,
-            );
-
-            if (!existingFeature) {
-              console.error(
-                `❌ [ANALYZE SESSION] Existing feature not found:`,
-                featureResponse.existingFeatureName,
-              );
-              Sentry.captureException(
-                new Error(
-                  `Existing feature not found: ${featureResponse.existingFeatureName}`,
-                ),
-                {
-                  tags: {
-                    job: "analyzeSession",
-                    step: "mergeFeature",
-                  },
-                  extra: {
-                    sessionId: session_id,
-                    featureName: detectedFeature.name,
-                    existingFeatureName: featureResponse.existingFeatureName,
-                    featureUpdate: featureResponse.featureUpdate,
-                  },
-                },
-              );
-            } else {
-              // Track this feature ID for later analysis
-              reconciledFeatureIds.add(existingFeature.id);
-
-              // Link the session to the feature
-              const { error: sessionFeatureError } = await supabase
-                .from("session_features")
-                .insert({
-                  project_id: analyzedSession.project_id,
-                  session_id: analyzedSession.id,
-                  feature_id: existingFeature.id,
-                });
-
-              if (sessionFeatureError) {
-                console.error(
-                  `❌ [ANALYZE SESSION] Failed to link session to feature:`,
-                  sessionFeatureError,
-                );
-                Sentry.captureException(sessionFeatureError, {
-                  tags: { job: "analyzeSession", step: "mergeFeature" },
-                  extra: {
-                    sessionId: session_id,
-                    featureName: detectedFeature.name,
-                    existingFeatureName: featureResponse.existingFeatureName,
-                    featureUpdate: featureResponse.featureUpdate,
-                  },
-                });
-              } else {
-                // Embed the updated feature
-                const { embedding: updatedFeatureEmbedding } = await embed({
-                  model: openai.textEmbeddingModel("text-embedding-3-small"),
-                  value: `${featureResponse.featureUpdate.name}\n${featureResponse.featureUpdate.description}`,
-                });
-
-                // Update the feature with the new information
-                const { error: updatedFeatureError } = await supabase
-                  .from("features")
-                  .update({
-                    ...featureResponse.featureUpdate,
-                    embedding: updatedFeatureEmbedding as unknown as string,
-                  })
-                  .eq("id", existingFeature.id);
-
-                if (updatedFeatureError) {
-                  console.error(
-                    `❌ [ANALYZE SESSION] Failed to update feature after merge:`,
-                    updatedFeatureError,
-                  );
-                  Sentry.captureException(updatedFeatureError, {
-                    tags: { job: "analyzeSession", step: "mergeFeature" },
-                    extra: {
-                      sessionId: session_id,
-                      featureName: detectedFeature.name,
-                      existingFeatureName: featureResponse.existingFeatureName,
-                      featureUpdate: featureResponse.featureUpdate,
-                    },
-                  });
-                }
-              }
-            }
+          let pageId: string;
+          
+          if (existingPage) {
+            // Page already exists, use its ID
+            pageId = existingPage.id;
+            reconciledPageIds.add(pageId);
           } else {
-            if (!featureResponse.newFeature) {
+            // Create new page
+            const { data: newPage, error: createPageError } = await supabase
+              .from("pages")
+              .insert({
+                project_id: analyzedSession.project_id,
+                path: detectedPage.path,
+                status: "pending" as const,
+              })
+              .select()
+              .single();
+
+            if (createPageError || !newPage) {
               console.error(
-                `❌ [ANALYZE SESSION] Invalid create response - missing newFeature`,
+                `❌ [ANALYZE SESSION] Failed to create page:`,
+                createPageError,
               );
-              Sentry.captureException(
-                new Error("Invalid create response - missing newFeature"),
-                {
-                  tags: { job: "analyzeSession", step: "createFeature" },
-                  extra: {
-                    sessionId: session_id,
-                    featureName: detectedFeature.name,
-                    response: featureResponse,
-                  },
-                },
-              );
-              continue;
-            }
-
-            // Create new feature
-            const { embedding: newFeatureEmbedding } = await embed({
-              model: openai.textEmbeddingModel("text-embedding-3-small"),
-              value: `${featureResponse.newFeature.name}\n${featureResponse.newFeature.description}`,
-            });
-
-            // Create the new feature
-            const { data: createdFeature, error: createFeatureError } =
-              await supabase
-                .from("features")
-                .insert({
-                  project_id: analyzedSession.project_id,
-                  ...featureResponse.newFeature,
-                  embedding: newFeatureEmbedding as unknown as string,
-                  status: "pending",
-                })
-                .select()
-                .single();
-
-            if (createFeatureError || !createdFeature) {
-              console.error(
-                `❌ [ANALYZE SESSION] Failed to create feature:`,
-                createFeatureError,
-              );
-              Sentry.captureException(createFeatureError, {
-                tags: { job: "analyzeSession", step: "createFeature" },
+              Sentry.captureException(createPageError, {
+                tags: { job: "analyzeSession", step: "createPage" },
                 extra: {
                   sessionId: session_id,
-                  featureName: detectedFeature.name,
-                  newFeature: featureResponse.newFeature,
+                  pagePath: detectedPage.path,
                 },
               });
-            } else {
-              // Track this feature ID for later analysis
-              reconciledFeatureIds.add(createdFeature.id);
-
-              // Link the session to the feature
-              const { error: sessionFeatureError } = await supabase
-                .from("session_features")
-                .insert({
-                  project_id: analyzedSession.project_id,
-                  session_id: analyzedSession.id,
-                  feature_id: createdFeature.id,
-                });
-
-              if (sessionFeatureError) {
-                console.error(
-                  `❌ [ANALYZE SESSION] Failed to link session to feature:`,
-                  sessionFeatureError,
-                );
-                Sentry.captureException(sessionFeatureError, {
-                  tags: { job: "analyzeSession", step: "createFeature" },
-                  extra: {
-                    sessionId: session_id,
-                    featureName: detectedFeature.name,
-                    newFeature: featureResponse.newFeature,
-                  },
-                });
-              }
+              continue;
             }
+            
+            pageId = newPage.id;
+            reconciledPageIds.add(pageId);
           }
 
-          // Write debug file for feature reconciliation
-          await writeDebugFile(
-            featureDebugFile,
-            {
-              timestamp: new Date().toISOString(),
-              job: "reconcile-feature",
-              id: session_id,
-              systemPrompt: RECONCILE_FEATURE_SYSTEM,
-              userPrompt: featurePrompt,
-              modelResponse: JSON.stringify(featureResponse, null, 2),
-              runNumber: featureRunNumber,
-              itemName: detectedFeature.name,
-            },
-            true, // append mode
-          );
+          // Check if session-page link already exists
+          const { data: existingLink } = await supabase
+            .from("session_pages")
+            .select("*")
+            .eq("session_id", analyzedSession.id)
+            .eq("page_id", pageId)
+            .single();
+
+          if (existingLink) {
+            // Update existing link with new story and times
+            const { error: updateLinkError } = await supabase
+              .from("session_pages")
+              .update({
+                story: detectedPage.story,
+                times: detectedPage.times,
+              })
+              .eq("session_id", analyzedSession.id)
+              .eq("page_id", pageId);
+
+            if (updateLinkError) {
+              console.error(
+                `❌ [ANALYZE SESSION] Failed to update session-page link:`,
+                updateLinkError,
+              );
+              Sentry.captureException(updateLinkError, {
+                tags: { job: "analyzeSession", step: "updateSessionPage" },
+                extra: {
+                  sessionId: session_id,
+                  pageId,
+                  pagePath: detectedPage.path,
+                },
+              });
+            }
+          } else {
+            // Create new session-page link
+            const { error: linkError } = await supabase
+              .from("session_pages")
+              .insert({
+                project_id: analyzedSession.project_id,
+                session_id: analyzedSession.id,
+                page_id: pageId,
+                story: detectedPage.story,
+                times: detectedPage.times,
+              });
+
+            if (linkError) {
+              console.error(
+                `❌ [ANALYZE SESSION] Failed to link session to page:`,
+                linkError,
+              );
+              Sentry.captureException(linkError, {
+                tags: { job: "analyzeSession", step: "linkSessionPage" },
+                extra: {
+                  sessionId: session_id,
+                  pageId,
+                  pagePath: detectedPage.path,
+                },
+              });
+            }
+          }
         } catch (error) {
           console.error(
-            `❌ [ANALYZE SESSION] Failed to reconcile feature:`,
+            `❌ [ANALYZE SESSION] Failed to process detected page:`,
             error,
           );
           Sentry.captureException(error, {
-            tags: { job: "analyzeSession" },
+            tags: { job: "analyzeSession", step: "processDetectedPage" },
             extra: {
               sessionId: session_id,
-              featureName: detectedFeature.name,
+              pagePath: detectedPage.path,
             },
           });
         }
@@ -588,7 +416,7 @@ export async function POST(request: NextRequest) {
           // get 10 related issues (by embedding similarity)
           const { embedding: detectedIssueEmbedding } = await embed({
             model: openai.textEmbeddingModel("text-embedding-3-small"),
-            value: `${detectedIssue.name}\n${detectedIssue.type}\n${detectedIssue.severity}\n${detectedIssue.description}`,
+            value: `${detectedIssue.name}\n${detectedIssue.type}\n${detectedIssue.severity}\n${detectedIssue.story}`,
           });
 
           const { data: relatedIssueData, error: relatedIssueError } =
@@ -701,14 +529,39 @@ export async function POST(request: NextRequest) {
               // Track this issue ID for potential future analysis
               reconciledIssueIds.add(existingIssue.id);
 
-              // Link the session to the issue
-              const { error: sessionIssueError } = await supabase
+              // Check if session-issue link already exists
+              const { data: existingLink } = await supabase
                 .from("session_issues")
-                .insert({
-                  project_id: analyzedSession.project_id,
-                  session_id: analyzedSession.id,
-                  issue_id: existingIssue.id,
-                });
+                .select("*")
+                .eq("session_id", analyzedSession.id)
+                .eq("issue_id", existingIssue.id)
+                .single();
+
+              let sessionIssueError;
+              if (existingLink) {
+                // Update existing link with new times and story
+                const { error } = await supabase
+                  .from("session_issues")
+                  .update({
+                    story: detectedIssue.story,
+                    times: detectedIssue.times,
+                  })
+                  .eq("session_id", analyzedSession.id)
+                  .eq("issue_id", existingIssue.id);
+                sessionIssueError = error;
+              } else {
+                // Create new link
+                const { error } = await supabase
+                  .from("session_issues")
+                  .insert({
+                    project_id: analyzedSession.project_id,
+                    session_id: analyzedSession.id,
+                    issue_id: existingIssue.id,
+                    story: detectedIssue.story,
+                    times: detectedIssue.times,
+                  });
+                sessionIssueError = error;
+              }
 
               if (sessionIssueError) {
                 console.error(
@@ -728,7 +581,7 @@ export async function POST(request: NextRequest) {
                 // Embed the updated issue
                 const { embedding: updatedIssueEmbedding } = await embed({
                   model: openai.textEmbeddingModel("text-embedding-3-small"),
-                  value: `${issueResponse.issueUpdate.name}\n${issueResponse.issueUpdate.type}\n${issueResponse.issueUpdate.description}`,
+                  value: `${issueResponse.issueUpdate.name}\n${issueResponse.issueUpdate.type}\n${issueResponse.issueUpdate.story}`,
                 });
 
                 // Update the issue with the new information
@@ -779,7 +632,7 @@ export async function POST(request: NextRequest) {
             // Create new issue
             const { embedding: newIssueEmbedding } = await embed({
               model: openai.textEmbeddingModel("text-embedding-3-small"),
-              value: `${issueResponse.newIssue.name}\n${issueResponse.newIssue.type}\n${issueResponse.newIssue.description}`,
+              value: `${issueResponse.newIssue.name}\n${issueResponse.newIssue.type}\n${issueResponse.newIssue.story}`,
             });
 
             // Create the new issue
@@ -811,14 +664,39 @@ export async function POST(request: NextRequest) {
               // Track this issue ID for potential future analysis
               reconciledIssueIds.add(createdIssue.id);
 
-              // Link the session to the issue
-              const { error: sessionIssueError } = await supabase
+              // Check if session-issue link already exists (shouldn't happen for new issues, but be safe)
+              const { data: existingLink } = await supabase
                 .from("session_issues")
-                .insert({
-                  project_id: analyzedSession.project_id,
-                  session_id: analyzedSession.id,
-                  issue_id: createdIssue.id,
-                });
+                .select("*")
+                .eq("session_id", analyzedSession.id)
+                .eq("issue_id", createdIssue.id)
+                .single();
+
+              let sessionIssueError;
+              if (existingLink) {
+                // Update existing link with new times and story
+                const { error } = await supabase
+                  .from("session_issues")
+                  .update({
+                    story: detectedIssue.story,
+                    times: detectedIssue.times,
+                  })
+                  .eq("session_id", analyzedSession.id)
+                  .eq("issue_id", createdIssue.id);
+                sessionIssueError = error;
+              } else {
+                // Create new link
+                const { error } = await supabase
+                  .from("session_issues")
+                  .insert({
+                    project_id: analyzedSession.project_id,
+                    session_id: analyzedSession.id,
+                    issue_id: createdIssue.id,
+                    story: detectedIssue.story,
+                    times: detectedIssue.times,
+                  });
+                sessionIssueError = error;
+              }
 
               if (sessionIssueError) {
                 console.error(
@@ -864,31 +742,31 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Trigger analyze-feature for all reconciled features (fire and forget)
-      if (reconciledFeatureIds.size > 0) {
+      // Trigger analyze-page for all reconciled pages (fire and forget)
+      if (reconciledPageIds.size > 0) {
         console.log(
-          `🔄 [ANALYZE SESSION] Triggering analyze-feature for ${reconciledFeatureIds.size} features`,
+          `🔄 [ANALYZE SESSION] Triggering analyze-page for ${reconciledPageIds.size} pages`,
         );
-        for (const featureId of reconciledFeatureIds) {
+        for (const pageId of reconciledPageIds) {
           try {
-            fetch(`${process.env.NEXT_PUBLIC_URL}/jobs/analyze-feature`, {
+            fetch(`${process.env.NEXT_PUBLIC_URL}/jobs/analyze-page`, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${process.env.CRON_SECRET}`,
               },
               body: JSON.stringify({
-                feature_id: featureId,
-              } as AnalyzeFeatureJobRequest),
+                page_id: pageId,
+              } as AnalyzePageJobRequest),
             }).catch((error) => {
               console.error(
-                `❌ [ANALYZE SESSION] Failed to trigger analyze-feature for ${featureId}:`,
+                `❌ [ANALYZE SESSION] Failed to trigger analyze-page for ${pageId}:`,
                 error,
               );
             });
           } catch (error) {
             console.error(
-              `❌ [ANALYZE SESSION] Failed to trigger analyze-feature for ${featureId}:`,
+              `❌ [ANALYZE SESSION] Failed to trigger analyze-page for ${pageId}:`,
               error,
             );
           }

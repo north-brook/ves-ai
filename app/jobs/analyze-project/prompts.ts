@@ -1,4 +1,4 @@
-import { Project, Session, ProjectUser, ProjectGroup, Feature } from "@/types";
+import { Project, Session, ProjectUser, ProjectGroup, Page } from "@/types";
 import { Tables } from "@/schema";
 import { z } from "zod";
 
@@ -10,7 +10,7 @@ You are an expert AI product analyst specializing in creating comprehensive week
 
 # Task
 
-You will analyze recent activity across a project to create a weekly executive summary. Your analysis should synthesize data from new sessions, user behaviors, feature performance, and emerging issues to provide a clear picture of product health and opportunities.
+You will analyze recent activity across a project to create a weekly executive summary. Your analysis should synthesize data from new sessions, user behaviors, page performance, and emerging issues to provide a clear picture of product health and opportunities.
 
 Your analysis should be structured in three distinct layers:
 
@@ -25,7 +25,7 @@ Create a comprehensive narrative of the project's recent activity:
 - Summarize new user sessions and their outcomes
 - Document emerging usage patterns and trends
 - Highlight significant user journeys (both successful and problematic)
-- Note changes in feature adoption and usage
+- Note changes in page adoption and usage
 - Track new issues discovered and resolved
 - Map user growth and retention patterns
 - Focus on WHAT happened during this period
@@ -35,7 +35,7 @@ Evaluate the overall product health across key dimensions:
 - **User Success Rate**: What percentage of users are achieving their goals?
 - **Product Stability**: Are critical issues impacting core functionality?
 - **Growth Metrics**: Is user engagement expanding or contracting?
-- **Feature Performance**: Which features are driving value vs. causing friction?
+- **Page Performance**: Which pages are driving value vs. causing friction?
 - **Issue Resolution**: Are problems being identified and addressed?
 - **Business Impact**: Is the product delivering on its value proposition?
 
@@ -55,7 +55,7 @@ export const ANALYZE_PROJECT_PROMPT = ({
   recentSessions,
   recentUsers,
   recentGroups,
-  features,
+  pages,
   weeklyNewIssues,
   openCriticalHighIssues,
   stats,
@@ -64,7 +64,7 @@ export const ANALYZE_PROJECT_PROMPT = ({
   recentSessions: Session[];
   recentUsers: ProjectUser[];
   recentGroups: ProjectGroup[];
-  features: Feature[];
+  pages: Page[];
   weeklyNewIssues: Issue[]; // Issues created in the last week
   openCriticalHighIssues: Issue[]; // All critical/high priority issues still open
   stats: {
@@ -87,7 +87,7 @@ export const ANALYZE_PROJECT_PROMPT = ({
 - New Sessions: ${recentSessions.length}
 - Active Users: ${recentUsers.length}
 - Active Organizations: ${recentGroups.length}
-- Total Features Tracked: ${features.length}
+- Total Pages Tracked: ${pages.length}
 
 # Weekly Metrics (Last 7 Days)
 - Sessions This Week: ${stats.weeklySessionCount}
@@ -117,9 +117,13 @@ ${session.name ? `- Summary: ${session.name}` : ""}
 
 ${session.story ? `### Session Story\n${session.story}\n` : ""}
 ${session.health ? `### Session Health\n${session.health}\n` : ""}
-${session.detected_features && Array.isArray(session.detected_features) && session.detected_features.length > 0 
-  ? `### Features Used\n${(session.detected_features as Array<{name: string} | string>).map(f => typeof f === 'string' ? f : f.name).join(", ")}\n` 
-  : ""}
+${
+  session.detected_pages &&
+  Array.isArray(session.detected_pages) &&
+  session.detected_pages.length > 0
+    ? `### Pages Used\n${session.detected_pages.map((f) => f.path).join(", ")}\n`
+    : ""
+}
 `,
         )
         .join("\n---\n")
@@ -168,25 +172,24 @@ ${group.health ? `### Group Health\n${group.health}\n` : ""}
     : "No active groups this week"
 }
 
-# All Features
+# All Pages
 ${
-  features.length > 0
-    ? features
+  pages.length > 0
+    ? pages
         .filter((f) => f.score !== null)
         .sort((a, b) => (b.score || 0) - (a.score || 0))
         .map(
-          (feature, index) => `
-## Feature ${index + 1}: ${feature.name}
-- Feature ID: ${feature.id}
-- Score: ${feature.score !== null && feature.score !== undefined ? `${feature.score}/100` : "Not scored"}
-${feature.description ? `- Description: ${feature.description}` : ""}
+          (page, index) => `
+## Page ${index + 1}: ${page.path}
+- Page ID: ${page.id}
+- Score: ${page.score !== null && page.score !== undefined ? `${page.score}/100` : "Not scored"}
 
-${feature.story ? `### Feature Story\n${feature.story}\n` : ""}
-${feature.health ? `### Feature Health\n${feature.health}\n` : ""}
+${page.story ? `### Page Story\n${page.story}\n` : ""}
+${page.health ? `### Page Health\n${page.health}\n` : ""}
 `,
         )
         .join("\n---\n")
-    : "No features analyzed yet"
+    : "No pages analyzed yet"
 }
 
 # New Issues This Week
@@ -202,7 +205,7 @@ ${
 - Priority: ${issue.priority}
 - Status: ${issue.status || "Open"}
 - Created: ${new Date(issue.created_at).toLocaleDateString()}
-${issue.description ? `\n### Description\n${issue.description}` : ""}
+${issue.story ? `\n### Story\n${issue.story}` : ""}
 ""
 `,
         )
@@ -224,7 +227,7 @@ ${
 - Status: ${issue.status || "Open"}
 - Created: ${new Date(issue.created_at).toLocaleDateString()}
 - Age: ${Math.floor((Date.now() - new Date(issue.created_at).getTime()) / (1000 * 60 * 60 * 24))} days
-${issue.description ? `\n### Description\n${issue.description}` : ""}
+${issue.story ? `\n### Story\n${issue.story}` : ""}
 ""
 `,
         )
@@ -232,23 +235,27 @@ ${issue.description ? `\n### Description\n${issue.description}` : ""}
     : "No open critical or high priority issues"
 }
 
-Based on all this comprehensive data including complete stories for all sessions, users, groups, and features from this week, plus all issues, provide your comprehensive weekly report with story, health assessment, overall score, and actionable recommendations.`;
+Based on all this comprehensive data including complete stories for all sessions, users, groups, and pages from this week, plus all issues, provide your comprehensive weekly report with story, health assessment, overall score, and actionable recommendations.`;
 
 export const ANALYZE_PROJECT_SCHEMA = z.object({
   story: z
     .string()
     .describe(
-      "A comprehensive weekly report narrative using markdown formatting. Document what happened in the project over the past week. Structure with sections like: ## Activity Overview - Summarize new sessions and user activity, ## Emerging Patterns - Highlight trends and notable behaviors, ## Feature Updates - Document changes in feature usage and performance, ## Issue Discovery - Note new problems identified, ## User Journey Highlights - Share significant user stories (both positive and negative). Focus on WHAT happened without subjective assessments. Use **bold** for emphasis and include specific examples.",
+      "A comprehensive weekly report narrative using markdown formatting. Document what happened in the project over the past week. Structure with sections like: ## Activity Overview - Summarize new sessions and user activity, ## Emerging Patterns - Highlight trends and notable behaviors, ## Page Updates - Document changes in page usage and performance, ## Issue Discovery - Note new problems identified, ## User Journey Highlights - Share significant user stories (both positive and negative). Focus on WHAT happened without subjective assessments. Use **bold** for emphasis and include specific examples.",
     ),
   health: z
     .string()
     .describe(
-      "A detailed health assessment paragraph using markdown that evaluates the overall product health for this reporting period. Address: 1) What percentage of users are successfully achieving their goals? 2) Are there critical issues impacting the product? 3) Is user engagement growing, stable, or declining? 4) Which features are performing well vs. poorly? 5) What is the overall trajectory of the product? Consider user success rates, product stability, growth metrics, and business impact. Use **bold** for emphasis and provide specific metrics where relevant.",
+      "A detailed health assessment paragraph using markdown that evaluates the overall product health for this reporting period. Address: 1) What percentage of users are successfully achieving their goals? 2) Are there critical issues impacting the product? 3) Is user engagement growing, stable, or declining? 4) Which pages are performing well vs. poorly? 5) What is the overall trajectory of the product? Consider user success rates, product stability, growth metrics, and business impact. Use **bold** for emphasis and provide specific metrics where relevant.",
     ),
   score: z
     .number()
     .describe(
       "A numerical health score from 0-100 based on this strict rubric: 90-100 = Excellent health with high user success, growing engagement, and minimal issues; 70-89 = Good health with solid performance and minor areas for improvement; 50-69 = Moderate health with mixed results and several areas needing attention; 30-49 = Poor health with significant issues impacting user experience; 0-29 = Critical health with major problems requiring immediate intervention. This score should reflect the overall product health for the reporting period.",
     ),
-  recommendation: z.string().describe("A focused, action-driving recommendation paragraph using markdown formatting that synthesizes the entire analysis into clear next steps for the product team. This should identify the 2-3 most critical actions needed based on the data, explaining WHY these actions are important (citing specific metrics or patterns from the analysis) and WHAT specific steps should be taken. Structure as: Start with the most impactful recommendation, explain the evidence supporting it, then provide concrete implementation steps. Use **bold** to emphasize key actions and metrics. Example format: 'Based on the 45% of users experiencing checkout failures, **immediately prioritize fixing the payment validation bug** that's blocking successful transactions. This single issue accounts for a 25-point drop in average session scores. Next, **enhance the onboarding flow** where 30% of new users abandon within the first session - implement tooltips and progress indicators to guide users through initial setup. Finally, **investigate the dashboard performance issues** affecting power users who are showing declining engagement scores.' Keep it actionable, specific, and data-driven."),
+  recommendation: z
+    .string()
+    .describe(
+      "A focused, action-driving recommendation paragraph using markdown formatting that synthesizes the entire analysis into clear next steps for the product team. This should identify the 2-3 most critical actions needed based on the data, explaining WHY these actions are important (citing specific metrics or patterns from the analysis) and WHAT specific steps should be taken. Structure as: Start with the most impactful recommendation, explain the evidence supporting it, then provide concrete implementation steps. Use **bold** to emphasize key actions and metrics. Example format: 'Based on the 45% of users experiencing checkout failures, **immediately prioritize fixing the payment validation bug** that's blocking successful transactions. This single issue accounts for a 25-point drop in average session scores. Next, **enhance the onboarding flow** where 30% of new users abandon within the first session - implement tooltips and progress indicators to guide users through initial setup. Finally, **investigate the dashboard performance issues** affecting power users who are showing declining engagement scores.' Keep it actionable, specific, and data-driven.",
+    ),
 });

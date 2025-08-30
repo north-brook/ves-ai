@@ -53,63 +53,9 @@ export type Database = {
           },
         ]
       }
-      features: {
-        Row: {
-          analysis_hash: string | null
-          analyzed_at: string | null
-          created_at: string
-          description: string
-          embedding: string | null
-          health: string | null
-          id: string
-          name: string
-          project_id: string
-          score: number | null
-          status: Database["public"]["Enums"]["feature_status"]
-          story: string | null
-        }
-        Insert: {
-          analysis_hash?: string | null
-          analyzed_at?: string | null
-          created_at?: string
-          description: string
-          embedding?: string | null
-          health?: string | null
-          id?: string
-          name: string
-          project_id: string
-          score?: number | null
-          status: Database["public"]["Enums"]["feature_status"]
-          story?: string | null
-        }
-        Update: {
-          analysis_hash?: string | null
-          analyzed_at?: string | null
-          created_at?: string
-          description?: string
-          embedding?: string | null
-          health?: string | null
-          id?: string
-          name?: string
-          project_id?: string
-          score?: number | null
-          status?: Database["public"]["Enums"]["feature_status"]
-          story?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "features_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       issues: {
         Row: {
           created_at: string
-          description: string
           embedding: string | null
           external_id: string | null
           id: string
@@ -118,11 +64,11 @@ export type Database = {
           project_id: string
           severity: Database["public"]["Enums"]["issue_severity"]
           status: Database["public"]["Enums"]["issue_status"] | null
+          story: string
           type: Database["public"]["Enums"]["issue_type"]
         }
         Insert: {
           created_at?: string
-          description: string
           embedding?: string | null
           external_id?: string | null
           id?: string
@@ -131,11 +77,11 @@ export type Database = {
           project_id: string
           severity: Database["public"]["Enums"]["issue_severity"]
           status?: Database["public"]["Enums"]["issue_status"] | null
+          story: string
           type: Database["public"]["Enums"]["issue_type"]
         }
         Update: {
           created_at?: string
-          description?: string
           embedding?: string | null
           external_id?: string | null
           id?: string
@@ -144,11 +90,59 @@ export type Database = {
           project_id?: string
           severity?: Database["public"]["Enums"]["issue_severity"]
           status?: Database["public"]["Enums"]["issue_status"] | null
+          story?: string
           type?: Database["public"]["Enums"]["issue_type"]
         }
         Relationships: [
           {
             foreignKeyName: "issues_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pages: {
+        Row: {
+          analysis_hash: string | null
+          analyzed_at: string | null
+          created_at: string
+          health: string | null
+          id: string
+          path: string
+          project_id: string
+          score: number | null
+          status: Database["public"]["Enums"]["page_status"]
+          story: string | null
+        }
+        Insert: {
+          analysis_hash?: string | null
+          analyzed_at?: string | null
+          created_at?: string
+          health?: string | null
+          id?: string
+          path: string
+          project_id: string
+          score?: number | null
+          status: Database["public"]["Enums"]["page_status"]
+          story?: string | null
+        }
+        Update: {
+          analysis_hash?: string | null
+          analyzed_at?: string | null
+          created_at?: string
+          health?: string | null
+          id?: string
+          path?: string
+          project_id?: string
+          score?: number | null
+          status?: Database["public"]["Enums"]["page_status"]
+          story?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pages_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
@@ -344,52 +338,6 @@ export type Database = {
           },
         ]
       }
-      session_features: {
-        Row: {
-          created_at: string
-          feature_id: string
-          id: string
-          project_id: string
-          session_id: string
-        }
-        Insert: {
-          created_at?: string
-          feature_id: string
-          id?: string
-          project_id: string
-          session_id: string
-        }
-        Update: {
-          created_at?: string
-          feature_id?: string
-          id?: string
-          project_id?: string
-          session_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "session_features_feature_id_fkey"
-            columns: ["feature_id"]
-            isOneToOne: false
-            referencedRelation: "features"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "session_features_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "session_features_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "sessions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       session_issues: {
         Row: {
           created_at: string
@@ -397,6 +345,8 @@ export type Database = {
           issue_id: string
           project_id: string
           session_id: string
+          story: string
+          times: Json
         }
         Insert: {
           created_at?: string
@@ -404,6 +354,8 @@ export type Database = {
           issue_id: string
           project_id: string
           session_id: string
+          story: string
+          times: Json
         }
         Update: {
           created_at?: string
@@ -411,6 +363,8 @@ export type Database = {
           issue_id?: string
           project_id?: string
           session_id?: string
+          story?: string
+          times?: Json
         }
         Relationships: [
           {
@@ -436,13 +390,65 @@ export type Database = {
           },
         ]
       }
+      session_pages: {
+        Row: {
+          created_at: string
+          id: string
+          page_id: string
+          project_id: string
+          session_id: string
+          story: string
+          times: Json
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          page_id: string
+          project_id: string
+          session_id: string
+          story: string
+          times: Json
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          page_id?: string
+          project_id?: string
+          session_id?: string
+          story?: string
+          times?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_pages_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "pages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_pages_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_pages_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sessions: {
         Row: {
           active_duration: number | null
           analyzed_at: string | null
           created_at: string
-          detected_features: Json[] | null
           detected_issues: Json[] | null
+          detected_pages: Json[] | null
           embedding: string | null
           event_uri: string | null
           external_id: string
@@ -467,8 +473,8 @@ export type Database = {
           active_duration?: number | null
           analyzed_at?: string | null
           created_at?: string
-          detected_features?: Json[] | null
           detected_issues?: Json[] | null
+          detected_pages?: Json[] | null
           embedding?: string | null
           event_uri?: string | null
           external_id: string
@@ -493,8 +499,8 @@ export type Database = {
           active_duration?: number | null
           analyzed_at?: string | null
           created_at?: string
-          detected_features?: Json[] | null
           detected_issues?: Json[] | null
+          detected_pages?: Json[] | null
           embedding?: string | null
           event_uri?: string | null
           external_id?: string
@@ -659,7 +665,6 @@ export type Database = {
     }
     Enums: {
       destination_type: "linear"
-      feature_status: "pending" | "analyzing" | "analyzed" | "failed"
       issue_priority: "immediate" | "high" | "medium" | "low" | "backlog"
       issue_severity: "critical" | "high" | "medium" | "low" | "suggestion"
       issue_status:
@@ -671,6 +676,7 @@ export type Database = {
         | "canceled"
         | "duplicate"
       issue_type: "bug" | "usability" | "improvement" | "feature"
+      page_status: "pending" | "analyzing" | "analyzed" | "failed"
       project_group_status: "pending" | "analyzing" | "analyzed" | "failed"
       project_plan: "trial" | "starter" | "growth" | "scale" | "enterprise"
       project_user_status: "pending" | "analyzing" | "analyzed" | "failed"
@@ -810,7 +816,6 @@ export const Constants = {
   public: {
     Enums: {
       destination_type: ["linear"],
-      feature_status: ["pending", "analyzing", "analyzed", "failed"],
       issue_priority: ["immediate", "high", "medium", "low", "backlog"],
       issue_severity: ["critical", "high", "medium", "low", "suggestion"],
       issue_status: [
@@ -823,6 +828,7 @@ export const Constants = {
         "duplicate",
       ],
       issue_type: ["bug", "usability", "improvement", "feature"],
+      page_status: ["pending", "analyzing", "analyzed", "failed"],
       project_group_status: ["pending", "analyzing", "analyzed", "failed"],
       project_plan: ["trial", "starter", "growth", "scale", "enterprise"],
       project_user_status: ["pending", "analyzing", "analyzed", "failed"],
