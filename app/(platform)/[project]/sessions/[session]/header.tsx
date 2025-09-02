@@ -7,17 +7,21 @@ import {
   Activity,
   Building,
   User,
+  Video,
 } from "lucide-react";
 import Link from "next/link";
 import { formatDistanceToNow, format } from "date-fns";
-import { SessionStatusBadge } from "@/components/session-status";
-import { Project, Session } from "@/types";
+import SessionStatus from "@/app/(platform)/[project]/sessions/status";
+import { Project, ProjectGroup, ProjectUser, Session } from "@/types";
 
 export function SessionHeader({
   session,
   project,
 }: {
-  session: Session;
+  session: Session & {
+    user: ProjectUser;
+    group: ProjectGroup | null;
+  };
   project: Project;
 }) {
   const formatDuration = (seconds: number | null) => {
@@ -37,27 +41,20 @@ export function SessionHeader({
 
   return (
     <div className="border-border mb-8 border-b pb-6">
-      <Link
-        href={`/${project.slug}`}
-        className="text-foreground-secondary hover:text-foreground mb-4 inline-flex items-center gap-2 text-sm transition-colors"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to Dashboard
-      </Link>
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <h1 className="font-display text-3xl font-bold">
             {session.name ? (
               session.name
             ) : (
-              <span className="text-foreground-secondary italic">
+              <span className="text-slate-600 dark:text-slate-400 italic">
                 {session.session_at
                   ? format(new Date(session.session_at), "EEEE MMMM d h:mmaaa")
                   : "Date unknown"}
               </span>
             )}
           </h1>
-          <div className="text-foreground-secondary mt-4 flex flex-wrap items-center gap-4 text-sm">
+          <div className="text-slate-600 dark:text-slate-400 mt-4 flex flex-wrap items-center gap-4 text-sm">
             <div className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
               <span>
@@ -76,16 +73,20 @@ export function SessionHeader({
               <Activity className="h-4 w-4" />
               <span>{formatDuration(session.active_duration)}</span>
             </div>
-            {session.external_user_name && (
+            <div className="flex items-center gap-1">
+              <Video className="h-4 w-4" />
+              <span>{formatDuration(session.video_duration)}</span>
+            </div>
+            {session.user && (
               <div className="flex items-center gap-1">
                 <User className="h-4 w-4" />
-                <span>{session.external_user_name}</span>
+                <span>{session.user.name}</span>
               </div>
             )}
-            {session.external_group_name && (
+            {session.group && (
               <div className="flex items-center gap-1">
                 <Building className="h-4 w-4" />
-                <span>{session.external_group_name}</span>
+                <span>{session.group.name}</span>
               </div>
             )}
           </div>
@@ -103,7 +104,7 @@ export function SessionHeader({
             </div>
           )}
         </div>
-        <SessionStatusBadge session={session} size="lg" />
+        <SessionStatus session={session} size="lg" />
       </div>
     </div>
   );

@@ -28,7 +28,7 @@ export function SessionContent({
               AI Analysis
             </h2>
             <div className="py-8 text-center">
-              <p className="text-foreground-secondary italic">
+              <p className="text-slate-600 dark:text-slate-400 italic">
                 {session.status === "analyzing"
                   ? "Ready in ~1 min"
                   : session.status === "processing" ||
@@ -43,12 +43,12 @@ export function SessionContent({
       </div>
 
       <div className="lg:sticky lg:top-24 lg:h-fit">
-        <div className="border-border bg-surface rounded-lg border p-6">
+        <div className="border-border bg-slate-50 dark:bg-slate-900 rounded-lg border p-6">
           <h3 className="font-display mb-4 text-lg font-semibold">Tickets</h3>
           {issues.length > 0 ? (
             <>{JSON.stringify(issues)}</>
           ) : (
-            <p className="text-foreground-secondary text-sm italic">
+            <p className="text-slate-600 dark:text-slate-400 text-sm italic">
               {session.status === "analyzed"
                 ? "No linked tickets"
                 : session.status === "analyzing"
@@ -74,7 +74,7 @@ function SessionReplay({ sessionId }: { sessionId: string }) {
   });
 
   return (
-    <div className="border-border bg-surface rounded-lg border">
+    <div className="border-border bg-slate-50 dark:bg-slate-900 rounded-lg border">
       {isLoading && (
         <div className="flex aspect-video w-full items-center justify-center rounded-lg bg-black/10">
           <LoaderCircle className="animate-spin stroke-white" size={100} />
@@ -85,7 +85,7 @@ function SessionReplay({ sessionId }: { sessionId: string }) {
         <div className="bg-background/50 border-border/50 flex aspect-video w-full items-center justify-center rounded-lg border">
           <div className="p-8 text-center">
             <X className="mx-auto mb-3 h-12 w-12 stroke-red-500" />
-            <p className="text-foreground-secondary text-sm">
+            <p className="text-slate-600 dark:text-slate-400 text-sm">
               Error loading replay
             </p>
             <p className="mt-1 text-xs text-red-500">
@@ -111,8 +111,8 @@ function SessionReplay({ sessionId }: { sessionId: string }) {
       {!isLoading && !data && !error && (
         <div className="bg-background/50 border-border/50 flex aspect-video w-full items-center justify-center rounded-lg border">
           <div className="p-8 text-center">
-            <X className="stroke-foreground-secondary/70 mx-auto mb-3 h-12 w-12" />
-            <p className="text-foreground-secondary text-sm">
+            <X className="stroke-slate-600/70 dark:stroke-slate-400/70 mx-auto mb-3 h-12 w-12" />
+            <p className="text-slate-600 dark:text-slate-400 text-sm">
               No replay available
             </p>
           </div>
@@ -125,8 +125,8 @@ function SessionReplay({ sessionId }: { sessionId: string }) {
 function SessionStory({ story }: { story: string | null }) {
   if (!story) {
     return (
-      <div className="border-border bg-surface rounded-lg border p-6">
-        <p className="text-foreground-secondary text-sm italic">
+      <div className="border-border bg-slate-50 dark:bg-slate-900 rounded-lg border p-6">
+        <p className="text-slate-600 dark:text-slate-400 text-sm italic">
           No analysis available yet.
         </p>
       </div>
@@ -134,7 +134,7 @@ function SessionStory({ story }: { story: string | null }) {
   }
 
   return (
-    <div className="border-border bg-surface rounded-lg border p-6">
+    <div className="border-border bg-slate-50 dark:bg-slate-900 rounded-lg border p-6">
       <Markdown>{story}</Markdown>
     </div>
   );

@@ -15,7 +15,7 @@ export default async function MarketingNav() {
         <div className="flex items-center gap-8">
           <Link
             href="/pricing"
-            className="text-foreground-secondary hover:text-foreground font-medium transition-colors"
+            className="text-slate-600 dark:text-slate-400 hover:text-foreground font-medium transition-colors"
           >
             Pricing
           </Link>

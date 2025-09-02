@@ -75,11 +75,11 @@ export function PostHogForm({ project, source }: PostHogFormProps) {
     <form action={connectMutation.mutate} className="space-y-6">
       <input type="hidden" name="projectSlug" value={project.slug} />
 
-      <div className="bg-surface/50 border-border rounded-lg border p-4">
+      <div className="bg-slate-50/50 dark:bg-slate-900/50 border-border rounded-lg border p-4">
         <div className="flex items-center gap-3">
           <div className="flex-1">
             <h3 className="font-medium">Create a PostHog API Key</h3>
-            <p className="text-foreground-secondary text-sm">
+            <p className="text-slate-600 dark:text-slate-400 text-sm">
               Give the key <b>MCP Server</b> scope
             </p>
           </div>
@@ -87,7 +87,7 @@ export function PostHogForm({ project, source }: PostHogFormProps) {
             href="https://app.posthog.com/settings/user-api-keys"
             target="_blank"
             rel="noopener noreferrer"
-            className="border-border bg-background hover:bg-surface flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
+            className="border-border bg-background hover:bg-slate-50 dark:hover:bg-slate-900 flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
           >
             Get API Key
             <ExternalLink className="h-4 w-4" />
@@ -106,7 +106,7 @@ export function PostHogForm({ project, source }: PostHogFormProps) {
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
           required
-          className="bg-surface border-border placeholder:text-foreground-secondary focus:border-accent-purple w-full rounded-lg border px-4 py-3 font-mono text-sm transition-colors outline-none"
+          className="bg-slate-50 dark:bg-slate-900 border-border placeholder:text-slate-600 dark:placeholder:text-slate-400 focus:border-accent-purple w-full rounded-lg border px-4 py-3 font-mono text-sm transition-colors outline-none"
           placeholder="phx_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
         />
       </div>
@@ -137,7 +137,7 @@ export function PostHogForm({ project, source }: PostHogFormProps) {
             onChange={(e) => setCustomHost(e.target.value)}
             required
             placeholder={`https://posthog.${project.domain}`}
-            className="bg-surface border-border placeholder:text-foreground-secondary focus:border-accent-purple mt-2 w-full rounded-lg border px-4 py-3 transition-colors outline-none"
+            className="bg-slate-50 dark:bg-slate-900 border-border placeholder:text-slate-600 dark:placeholder:text-slate-400 focus:border-accent-purple mt-2 w-full rounded-lg border px-4 py-3 transition-colors outline-none"
           />
         )}
       </div>
@@ -177,7 +177,7 @@ export function PostHogForm({ project, source }: PostHogFormProps) {
                 </SelectItem>
               ))
             ) : (
-              <div className="text-foreground-secondary px-2 py-1.5 text-sm">
+              <div className="text-slate-600 dark:text-slate-400 px-2 py-1.5 text-sm">
                 {!apiKey
                   ? "Enter API key to load projects"
                   : "No projects found"}
@@ -208,21 +208,21 @@ export function PostHogForm({ project, source }: PostHogFormProps) {
 export function PostHogFormSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="bg-surface h-20 w-full animate-pulse rounded-lg" />
+      <div className="bg-slate-50 dark:bg-slate-900 h-20 w-full animate-pulse rounded-lg" />
 
       <div>
-        <div className="bg-surface mb-2 h-5 w-32 animate-pulse rounded" />
-        <div className="bg-surface h-12 w-full animate-pulse rounded-lg" />
+        <div className="bg-slate-50 dark:bg-slate-900 mb-2 h-5 w-32 animate-pulse rounded" />
+        <div className="bg-slate-50 dark:bg-slate-900 h-12 w-full animate-pulse rounded-lg" />
       </div>
 
       <div>
-        <div className="bg-surface mb-2 h-5 w-32 animate-pulse rounded" />
-        <div className="bg-surface h-12 w-full animate-pulse rounded-lg" />
+        <div className="bg-slate-50 dark:bg-slate-900 mb-2 h-5 w-32 animate-pulse rounded" />
+        <div className="bg-slate-50 dark:bg-slate-900 h-12 w-full animate-pulse rounded-lg" />
       </div>
 
       <div>
-        <div className="bg-surface mb-2 h-5 w-32 animate-pulse rounded" />
-        <div className="bg-surface h-12 w-full animate-pulse rounded-lg" />
+        <div className="bg-slate-50 dark:bg-slate-900 mb-2 h-5 w-32 animate-pulse rounded" />
+        <div className="bg-slate-50 dark:bg-slate-900 h-12 w-full animate-pulse rounded-lg" />
       </div>
 
       <div className="from-accent-purple/20 via-accent-pink/20 to-accent-orange/20 h-14 w-full animate-pulse rounded-lg bg-gradient-to-r" />

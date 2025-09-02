@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     canonical: "./",
   },
   openGraph: {
-    title: "VES - AI Session Analysis",
+    title: "VES • AI Session Analysis",
     description:
       "Watch every session, catch every bug, ship better features faster",
     url: "https://ves.ai",

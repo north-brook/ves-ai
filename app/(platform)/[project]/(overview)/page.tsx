@@ -1,8 +1,9 @@
 import { Suspense } from "react";
-import { Metrics, MetricsSkeleton } from "../metrics";
-import { Sessions, SessionsSkeleton } from "../sessions";
+import { Metrics, MetricsSkeleton } from "./metrics";
+import { RecentSessions, RecentSessionsSkeleton } from "./sessions";
 import serverSupabase from "@/lib/supabase/server";
 import type { Metadata } from "next";
+import PriorityIssues, { PriorityIssuesSkeleton } from "./issues";
 
 export const revalidate = 0;
 
@@ -24,11 +25,10 @@ export async function generateMetadata({
 
   return {
     title: `${projectName} • VES AI`,
-    description: `View metrics and manage AI-powered session analysis for ${projectName}.`,
   };
 }
 
-export default async function ProjectDashboard({
+export default async function ProjectOverviewPage({
   params,
 }: {
   params: Promise<{ project: string }>;
@@ -36,14 +36,18 @@ export default async function ProjectDashboard({
   const { project: projectSlug } = await params;
 
   return (
-    <div className="mx-auto max-w-7xl px-6 py-12">
-      <Suspense fallback={<MetricsSkeleton />}>
+    <>
+      {/* <Suspense fallback={<MetricsSkeleton />}>
         <Metrics projectSlug={projectSlug} />
+      </Suspense> */}
+
+      <Suspense fallback={<PriorityIssuesSkeleton />}>
+        <PriorityIssues projectSlug={projectSlug} />
       </Suspense>
 
-      <Suspense fallback={<SessionsSkeleton />}>
-        <Sessions projectSlug={projectSlug} />
+      <Suspense fallback={<RecentSessionsSkeleton />}>
+        <RecentSessions projectSlug={projectSlug} />
       </Suspense>
-    </div>
+    </>
   );
 }

@@ -10,12 +10,12 @@ export default function Footer() {
         <div className="flex flex-col items-center justify-between gap-6 md:flex-row">
           <div className="flex items-center gap-3">
             <Logo />
-            <span className="text-foreground-muted">
+            <span className="text-slate-400 dark:text-slate-500">
               Visual Evaluation System
             </span>
           </div>
 
-          <div className="text-foreground-secondary flex gap-8 text-sm">
+          <div className="text-slate-600 dark:text-slate-400 flex gap-8 text-sm">
             <Link
               href="/pricing"
               className="hover:text-foreground transition-colors"
@@ -43,7 +43,7 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="border-border text-foreground-muted mt-8 border-t pt-8 text-center text-sm">
+        <div className="border-border text-slate-400 dark:text-slate-500 mt-8 border-t pt-8 text-center text-sm">
           © {currentYear} Steppable Inc. All rights reserved.
         </div>
       </div>

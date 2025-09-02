@@ -5,11 +5,16 @@ import dotenvExpand from "dotenv-expand";
 dotenvExpand.expand({ parsed: { ...process.env } as Record<string, string> });
 
 const nextConfig: NextConfig = {
+  reactStrictMode: false,
   images: {
     remotePatterns: [
       {
         protocol: "https",
         hostname: "www.google.com",
+      },
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
       },
       {
         protocol: "https",

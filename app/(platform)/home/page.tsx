@@ -12,7 +12,7 @@ export default function HomePage() {
     <div className="mx-auto max-w-4xl px-6 py-12">
       <div className="mb-8">
         <h1 className="font-display text-3xl font-bold">Your Projects</h1>
-        <p className="text-foreground-secondary mt-2">
+        <p className="text-slate-600 dark:text-slate-400 mt-2">
           Select a project to view its dashboard
         </p>
       </div>

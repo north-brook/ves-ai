@@ -55,6 +55,7 @@ For valid sessions:
 - The replay will not show external web pages (eg. Google authentication)
 - The user may toggle between different tabs in the same replay
 - The user's session will be rendered on a black background; if the user resizes their window, the rendered replay may change size in the frame
+- Occasionally session replays will resize weirdly; this is not a bug with the application, but rather a limitation of capturing session replays
 - The session replay construction is imperfect; some animations or interactions may be missing, some inputs may be masked, and there may be some general weirdness
 
 # Process
@@ -95,37 +96,18 @@ export const ANALYZE_SESSION_SCHEMA = {
           description:
             "A natural, flowing narrative of the user's journey through the platform, written as a qualitative story in markdown. Tell their story like you're recounting someone's experience to a colleague - what they did, where they went, and how they moved through the product. Write in a conversational, storytelling style that captures the flow and rhythm of their session. For example: 'The user began their journey on the dashboard, where they spent a few moments exploring the navigation. They then clicked into the settings page, scrolled through the options, and toggled the dark mode feature. After that, they navigated to their profile...' Focus on painting a vivid picture of their path through the product, using natural language rather than technical descriptions. This should read like a story about a person's experience, not a clinical observation. Use **bold** for emphasis and include timing details naturally within the narrative flow.",
         },
-        detected_pages: {
+        features: {
           type: Type.ARRAY,
           items: {
-            type: Type.OBJECT,
-            properties: {
-              path: {
-                type: Type.STRING,
-                description:
-                  "The URL path of the page (e.g., '/cart', '/dashboard', '/search', '/settings/notifications'). Should be the actual path from the URL, starting with '/'.",
-              },
-              times: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.ARRAY,
-                  items: {
-                    type: Type.NUMBER,
-                  },
-                },
-                description:
-                  "Time ranges when this page was active, in seconds from video start (0.0 = beginning). Format: [[start, end], ...] where each pair represents one continuous visit to this page. Use decimal precision (e.g., 10.5 for 10½ seconds). Multiple pairs if page is revisited. Example: [[10.5, 45.2], [120.0, 135.5]] means the user was on this page from 10.5-45.2 seconds and again from 2:00-2:15.5 in the video.",
-              },
-              story: {
-                type: Type.STRING,
-                description:
-                  "A natural, flowing narrative of what the user did on THIS specific page, written as a focused story segment in markdown. Tell the story of their experience on this page like you're recounting it to a colleague - what they did, what they interacted with, how they navigated through it. Write in a conversational, storytelling style that captures what happened during this portion of their session. For example: 'On the settings page, they scrolled through the options looking for the notifications section. They toggled the email preferences, hesitated at the privacy settings, then clicked into the advanced options...' Focus on painting a vivid picture of their actions and interactions on this specific page. This should read like a chapter of their journey focused on this page, not a clinical observation. Use **bold** for emphasis.",
-              },
-            },
-            required: ["path", "story", "times"],
+            type: Type.STRING,
+            description:
+              "A product feature the user engaged with during their session. Use title case format (e.g., 'Product Catalog', 'Shopping Cart', 'User Dashboard'). Focus on identifying the specific product capabilities and functionalities the user interacted with. Examples: 'Product Creator', 'Lesson Planner', 'Checkout Flow', 'Search Filters', 'User Profile', 'Analytics Dashboard', 'Email Composer', 'Payment Processing', 'Inventory Management', 'Content Editor', 'Navigation Menu', 'Settings Panel'. Choose features that represent the actual product modules and tools the user utilized.",
           },
+        },
+        name: {
+          type: Type.STRING,
           description:
-            "List of pages the user visited during their session, with focused story segments for each page and when they used them. Each page should have its own narrative describing what happened there.",
+            "A sentence case (first letter capitalized, no punctuation) concise summary of the user story. Focus on capturing the essence of what the user attempted and what happened. Examples: 'User successfully completes purchase after address validation issue', 'New visitor explores pricing but leaves without signing up', 'Customer encounters repeated errors while configuring dashboard filters', 'User navigates complex checkout flow and abandons at payment'. Keep it under 10 words and make it a complete narrative summary without any punctuation marks.",
         },
         detected_issues: {
           type: Type.ARRAY,
@@ -153,7 +135,13 @@ export const ANALYZE_SESSION_SCHEMA = {
                 type: Type.STRING,
                 enum: ["immediate", "high", "medium", "low", "backlog"],
                 description:
-                  "immediate: Must fix right away - release blocker, outage, or critical business impact; high: Fix very soon due to high user or business impact; medium: Fix in normal sprint cycle as part of regular improvements; low: Nice-to-fix with low user impact; backlog: Non-urgent, can be deferred or tracked for future consideration",
+                  "immediate: Must fix right away - release blocker, outage, or critical business impact (only use with high confidence); high: Fix very soon due to high user or business impact (requires medium-high confidence); medium: Fix in normal sprint cycle as part of regular improvements; low: Nice-to-fix with low user impact; backlog: Non-urgent, can be deferred or tracked for future consideration. Note: Factor confidence into priority - don't assign immediate/high priority to low confidence issues",
+              },
+              confidence: {
+                type: Type.STRING,
+                enum: ["low", "medium", "high"],
+                description:
+                  "low: Issue might exist but evidence is unclear, could be user error or expected behavior; medium: Likely an issue based on observed behavior but some uncertainty remains; high: Definitely an issue with clear evidence and reproducible impact. Use this to modulate priority - low confidence issues should not have immediate/high priority",
               },
               times: {
                 type: Type.ARRAY,
@@ -177,6 +165,7 @@ export const ANALYZE_SESSION_SCHEMA = {
               "type",
               "severity",
               "priority",
+              "confidence",
               "times",
               "story",
             ],
@@ -185,6 +174,7 @@ export const ANALYZE_SESSION_SCHEMA = {
               "type",
               "severity",
               "priority",
+              "confidence",
               "times",
               "story",
             ],
@@ -202,27 +192,22 @@ export const ANALYZE_SESSION_SCHEMA = {
           description:
             "A numerical health score from 0-100 based on this strict rubric: 90-100 = Flawless session where user achieved all goals effortlessly and features worked perfectly; 70-89 = Successful session where user achieved main goals with only minor friction; 50-69 = Mixed session with partial success but noticeable challenges; 30-49 = Struggling session where significant obstacles prevented goal achievement; 0-29 = Failed session where user was unable to accomplish goals due to major issues. Be consistent in applying this rubric so scores can be reliably compared across sessions.",
         },
-        name: {
-          type: Type.STRING,
-          description:
-            "A sentence case (first letter capitalized, no punctuation) concise summary of the user story. Focus on capturing the essence of what the user attempted and what happened. Examples: 'User successfully completes purchase after address validation issue', 'New visitor explores pricing but leaves without signing up', 'Customer encounters repeated errors while configuring dashboard filters', 'User navigates complex checkout flow and abandons at payment'. Keep it under 10 words and make it a complete narrative summary without any punctuation marks.",
-        },
       },
       required: [
         "story",
-        "detected_features",
+        "features",
+        "name",
         "detected_issues",
         "health",
         "score",
-        "name",
       ],
       propertyOrdering: [
         "story",
-        "detected_features",
+        "features",
+        "name",
         "detected_issues",
         "health",
         "score",
-        "name",
       ],
       description:
         "The full analysis object. Only provided if valid_video is true, otherwise must be null.",
@@ -322,6 +307,7 @@ This ${session.active_duration ? `${Math.round(session.active_duration / 60)}-mi
 **Type:** ${detectedIssue.type}
 **Severity:** ${detectedIssue.severity}
 **Priority:** ${detectedIssue.priority}
+**Confidence:** ${detectedIssue.confidence || "medium"}
 **Story:** ${detectedIssue.story}
 
 ${(() => {
@@ -417,7 +403,12 @@ export const ISSUE_SCHEMA = z.object({
   priority: z
     .enum(["immediate", "high", "medium", "low", "backlog"])
     .describe(
-      "immediate: Must fix right away (release blocker, outage, critical business impact); high: Fix very soon due to high user/business impact; medium: Fix in normal sprint cycle; low: Nice-to-fix with low impact; backlog: Non-urgent, can be deferred for later",
+      "immediate: Must fix right away (release blocker, outage, critical business impact - only use with high confidence); high: Fix very soon due to high user/business impact (requires medium-high confidence); medium: Fix in normal sprint cycle; low: Nice-to-fix with low impact; backlog: Non-urgent, can be deferred for later. Note: Factor confidence into priority - low confidence issues should not have immediate/high priority",
+    ),
+  confidence: z
+    .enum(["low", "medium", "high"])
+    .describe(
+      "low: Issue might exist but evidence is unclear, could be user error or expected behavior; medium: Likely an issue based on observed behavior but some uncertainty remains; high: Definitely an issue with clear evidence and reproducible impact",
     ),
   name: z
     .string()

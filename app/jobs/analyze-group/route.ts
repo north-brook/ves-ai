@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
           *,
           sessions(
             *,
-            session_features(feature:features(*)),
+            session_pages(page:pages(*)),
             session_issues(issue:issues(*))
           )
         )
@@ -150,15 +150,18 @@ export async function POST(request: NextRequest) {
     console.log(`🧠 [ANALYZE GROUP] Analysis complete`);
 
     // Write debug file
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    await writeDebugFile(`debug-${timestamp}-analyze-group-${project_group_id}.txt`, {
-      timestamp: new Date().toISOString(),
-      job: "analyze-group",
-      id: project_group_id,
-      systemPrompt: ANALYZE_GROUP_SYSTEM,
-      userPrompt: groupPrompt,
-      modelResponse: JSON.stringify(object, null, 2),
-    });
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    await writeDebugFile(
+      `debug-${timestamp}-analyze-group-${project_group_id}.txt`,
+      {
+        timestamp: new Date().toISOString(),
+        job: "analyze-group",
+        id: project_group_id,
+        systemPrompt: ANALYZE_GROUP_SYSTEM,
+        userPrompt: groupPrompt,
+        modelResponse: JSON.stringify(object, null, 2),
+      },
+    );
 
     const { error: finishUpdateError } = await supabase
       .from("project_groups")

@@ -27,7 +27,7 @@ export default function ProgressBar({ currentStep }: ProgressBarProps) {
                     ? "border-accent-purple bg-accent-purple text-white"
                     : step.number === currentStep
                       ? "border-accent-purple bg-background text-accent-purple"
-                      : "border-border bg-background text-foreground-secondary",
+                      : "border-border bg-background text-slate-600 dark:text-slate-400",
                 )}
               >
                 {step.number < currentStep ? (

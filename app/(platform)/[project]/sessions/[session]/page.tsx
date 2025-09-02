@@ -40,11 +40,11 @@ export default async function SessionDetailPage({
   params: Promise<{ project: string; session: string }>;
 }) {
   return (
-    <div className="mx-auto max-w-7xl px-6 py-12">
+    <>
       <Suspense fallback={<SessionSkeleton />}>
         <LoadedSession params={params} />
       </Suspense>
-    </div>
+    </>
   );
 }
 
@@ -83,7 +83,7 @@ async function LoadedSession({
 
   const { data: session, error: sessionError } = await supabase
     .from("sessions")
-    .select("*")
+    .select("*, user:project_users(*), group:project_groups(*)")
     .eq("id", sessionId)
     .eq("project_id", project.id)
     .single();
@@ -103,52 +103,52 @@ function SessionSkeleton() {
   return (
     <>
       <div className="border-border mb-8 border-b pb-6">
-        <div className="bg-surface-secondary mb-4 h-4 w-32 animate-pulse rounded" />
+        <div className="bg-slate-200 dark:bg-slate-800 mb-4 h-4 w-32 animate-pulse rounded" />
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <div className="bg-surface-secondary h-9 w-64 animate-pulse rounded" />
+            <div className="bg-slate-200 dark:bg-slate-800 h-9 w-64 animate-pulse rounded" />
             <div className="mt-4 flex flex-wrap items-center gap-4">
-              <div className="bg-surface-secondary h-4 w-32 animate-pulse rounded" />
-              <div className="bg-surface-secondary h-4 w-40 animate-pulse rounded" />
-              <div className="bg-surface-secondary h-4 w-20 animate-pulse rounded" />
+              <div className="bg-slate-200 dark:bg-slate-800 h-4 w-32 animate-pulse rounded" />
+              <div className="bg-slate-200 dark:bg-slate-800 h-4 w-40 animate-pulse rounded" />
+              <div className="bg-slate-200 dark:bg-slate-800 h-4 w-20 animate-pulse rounded" />
             </div>
             <div className="mt-4 flex gap-2">
               {[1, 2, 3].map((i) => (
                 <div
                   key={i}
-                  className="bg-surface-secondary h-7 w-20 animate-pulse rounded-full"
+                  className="bg-slate-200 dark:bg-slate-800 h-7 w-20 animate-pulse rounded-full"
                 />
               ))}
             </div>
           </div>
-          <div className="bg-surface-secondary h-7 w-24 animate-pulse rounded-full" />
+          <div className="bg-slate-200 dark:bg-slate-800 h-7 w-24 animate-pulse rounded-full" />
         </div>
       </div>
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="space-y-8 lg:col-span-2">
-          <div className="border-border bg-surface rounded-lg border p-6">
-            <div className="bg-surface-secondary mb-4 h-7 w-32 animate-pulse rounded" />
+          <div className="border-border bg-slate-50 dark:bg-slate-900 rounded-lg border p-6">
+            <div className="bg-slate-200 dark:bg-slate-800 mb-4 h-7 w-32 animate-pulse rounded" />
             <div className="aspect-video w-full animate-pulse rounded-lg bg-black/20" />
           </div>
 
-          <div className="border-border bg-surface rounded-lg border p-6">
-            <div className="bg-surface-secondary mb-4 h-7 w-32 animate-pulse rounded" />
+          <div className="border-border bg-slate-50 dark:bg-slate-900 rounded-lg border p-6">
+            <div className="bg-slate-200 dark:bg-slate-800 mb-4 h-7 w-32 animate-pulse rounded" />
             <div className="space-y-3">
-              <div className="bg-surface-secondary h-4 w-full animate-pulse rounded" />
-              <div className="bg-surface-secondary h-4 w-5/6 animate-pulse rounded" />
-              <div className="bg-surface-secondary h-4 w-4/6 animate-pulse rounded" />
+              <div className="bg-slate-200 dark:bg-slate-800 h-4 w-full animate-pulse rounded" />
+              <div className="bg-slate-200 dark:bg-slate-800 h-4 w-5/6 animate-pulse rounded" />
+              <div className="bg-slate-200 dark:bg-slate-800 h-4 w-4/6 animate-pulse rounded" />
             </div>
           </div>
         </div>
 
         <div className="space-y-8">
-          <div className="border-border bg-surface rounded-lg border p-6">
-            <div className="bg-surface-secondary mb-4 h-6 w-32 animate-pulse rounded" />
+          <div className="border-border bg-slate-50 dark:bg-slate-900 rounded-lg border p-6">
+            <div className="bg-slate-200 dark:bg-slate-800 mb-4 h-6 w-32 animate-pulse rounded" />
             <div className="space-y-3">
               {[1, 2].map((i) => (
                 <div
                   key={i}
-                  className="bg-surface-secondary h-16 animate-pulse rounded-lg"
+                  className="bg-slate-200 dark:bg-slate-800 h-16 animate-pulse rounded-lg"
                 />
               ))}
             </div>

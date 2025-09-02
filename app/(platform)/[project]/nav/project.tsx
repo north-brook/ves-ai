@@ -13,7 +13,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
-export default function ProjectSelector({ projects }: { projects: Project[] }) {
+export default function NavProject({ projects }: { projects: Project[] }) {
   const [isOpen, setIsOpen] = useState(false);
   const params = useParams();
   const router = useRouter();
@@ -24,23 +24,19 @@ export default function ProjectSelector({ projects }: { projects: Project[] }) {
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
-        <button className="border-border bg-background hover:bg-surface flex items-center gap-2 rounded-lg border px-4 py-2 font-medium transition-colors">
+        <button className="flex items-center gap-2 rounded-md px-2 py-1 font-medium transition-all duration-300 hover:bg-slate-50 dark:hover:bg-slate-900 [nav[data-collapsed='true']_&]:gap-0">
           {currentProject?.image && (
             <Image
               src={currentProject?.image || ""}
               alt={currentProject?.name || ""}
               width={20}
               height={20}
+              className="flex-shrink-0"
             />
           )}
-          <span className="text-foreground">
+          <span className="text-foreground overflow-hidden whitespace-nowrap transition-all duration-300 [nav[data-collapsed='true']_&]:w-0 [nav[data-collapsed='true']_&]:opacity-0">
             {currentProject ? currentProject.name : "Select Project"}
           </span>
-          <ChevronDown
-            className={`text-foreground-secondary h-4 w-4 transition-transform ${
-              isOpen ? "rotate-180" : ""
-            }`}
-          />
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-64 p-1" align="start">
@@ -52,10 +48,10 @@ export default function ProjectSelector({ projects }: { projects: Project[] }) {
               setIsOpen(false);
             }}
             className={cn(
-              "hover:bg-surface flex w-full items-center gap-2 rounded px-3 py-2 text-left transition-colors",
+              "flex w-full items-center gap-2 rounded px-3 py-2 text-left transition-colors hover:bg-slate-50 dark:hover:bg-slate-900",
               project.slug === currentProjectSlug
-                ? "bg-surface text-foreground"
-                : "text-foreground-secondary",
+                ? "text-foreground bg-slate-50 dark:bg-slate-900"
+                : "text-slate-600 dark:text-slate-400",
             )}
           >
             {project.image && (
@@ -75,7 +71,7 @@ export default function ProjectSelector({ projects }: { projects: Project[] }) {
         <Link
           href="/new"
           onClick={() => setIsOpen(false)}
-          className="text-foreground-secondary hover:bg-surface hover:text-foreground flex w-full items-center gap-2 rounded px-3 py-2 text-left transition-colors"
+          className="hover:text-foreground flex w-full items-center gap-2 rounded px-3 py-2 text-left text-slate-600 transition-colors hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-900"
         >
           <Plus className="h-4 w-4" />
           <span className="font-medium">New Project</span>

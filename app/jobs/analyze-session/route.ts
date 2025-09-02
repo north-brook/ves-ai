@@ -7,7 +7,7 @@ import {
   GoogleGenAI,
 } from "@google/genai";
 import nextJobs from "../sync-sessions/next-job";
-import { SessionDetectedPages, SessionDetectedIssue } from "@/types";
+import { SessionDetectedIssue } from "@/types";
 import { embed, generateObject } from "ai";
 import { openai, OpenAIResponsesProviderOptions } from "@ai-sdk/openai";
 import {
@@ -17,10 +17,9 @@ import {
   RECONCILE_ISSUE_PROMPT,
   RECONCILE_ISSUE_SCHEMA,
 } from "@/app/jobs/analyze-session/prompts";
-import constructContext from "./context";
-import { AnalyzePageJobRequest } from "../analyze-page/route";
 import { AnalyzeUserJobRequest } from "../analyze-user/route";
 import { writeDebugFile, clearDebugFile } from "../debug/helper";
+import constructContext from "./context";
 
 export type AnalyzeSessionJobRequest = {
   session_id: string;
@@ -152,7 +151,7 @@ export async function POST(request: NextRequest) {
       });
 
       // Prepare the user prompt for debugging
-      const userPromptContent = `Video: ${session.video_uri}\n\nContext:\n${context}`;
+      const userPromptContent = `Video: ${session.video_uri}`;
 
       const response = await ai.models.generateContent({
         model: "gemini-2.5-pro",
@@ -199,9 +198,9 @@ export async function POST(request: NextRequest) {
         notes: string | null;
         analysis: {
           story: string;
-          detected_pages: SessionDetectedPages[];
-          detected_issues: SessionDetectedIssue[];
+          features: string[];
           name: string;
+          detected_issues: SessionDetectedIssue[];
           health: string;
           score: number;
         } | null;
@@ -225,7 +224,7 @@ export async function POST(request: NextRequest) {
 
       // Valid session - validate the analysis data
       const data = parsedResponse.analysis;
-      if (!data || !data.story || !data.detected_pages || !data.name) {
+      if (!data || !data.story || !data.name || !data.detected_issues) {
         console.error(`❌ [ANALYZE SESSION] Invalid analysis data:`, data);
         return NextResponse.json(
           { error: "Invalid analysis data" },
@@ -233,13 +232,10 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Extract page paths for embedding
-      const pagePaths = data.detected_pages.map((p) => p.path);
-
       // embed the session name, pages, and story
       const { embedding } = await embed({
         model: openai.textEmbeddingModel("text-embedding-3-small"),
-        value: `${data.name}\n${pagePaths.join(", ")}\n${data.story}`,
+        value: `${data.name}\n${data.story}`,
       });
 
       const { data: analyzedSession, error: analysisError } = await supabase
@@ -248,7 +244,7 @@ export async function POST(request: NextRequest) {
           name: data.name,
           status: "analyzed",
           story: data.story,
-          detected_pages: data.detected_pages,
+          features: data.features,
           detected_issues: data.detected_issues,
           health: data.health,
           score: data.score,
@@ -269,136 +265,6 @@ export async function POST(request: NextRequest) {
       console.log(
         `✨ [ANALYZE SESSION] Successfully analyzed session ${session_id}`,
       );
-
-      // Track reconciled feature IDs for triggering analyze-feature
-      const reconciledPageIds = new Set<string>();
-
-      // Prepare for feature reconciliation debug
-      let pageRunNumber = 0;
-
-      for (const detectedPage of data.detected_pages) {
-        pageRunNumber++;
-        
-        try {
-          // Check if page already exists in the project by path
-          const { data: existingPage } = await supabase
-            .from("pages")
-            .select("*")
-            .eq("project_id", analyzedSession.project_id)
-            .eq("path", detectedPage.path)
-            .single();
-
-          let pageId: string;
-          
-          if (existingPage) {
-            // Page already exists, use its ID
-            pageId = existingPage.id;
-            reconciledPageIds.add(pageId);
-          } else {
-            // Create new page
-            const { data: newPage, error: createPageError } = await supabase
-              .from("pages")
-              .insert({
-                project_id: analyzedSession.project_id,
-                path: detectedPage.path,
-                status: "pending" as const,
-              })
-              .select()
-              .single();
-
-            if (createPageError || !newPage) {
-              console.error(
-                `❌ [ANALYZE SESSION] Failed to create page:`,
-                createPageError,
-              );
-              Sentry.captureException(createPageError, {
-                tags: { job: "analyzeSession", step: "createPage" },
-                extra: {
-                  sessionId: session_id,
-                  pagePath: detectedPage.path,
-                },
-              });
-              continue;
-            }
-            
-            pageId = newPage.id;
-            reconciledPageIds.add(pageId);
-          }
-
-          // Check if session-page link already exists
-          const { data: existingLink } = await supabase
-            .from("session_pages")
-            .select("*")
-            .eq("session_id", analyzedSession.id)
-            .eq("page_id", pageId)
-            .single();
-
-          if (existingLink) {
-            // Update existing link with new story and times
-            const { error: updateLinkError } = await supabase
-              .from("session_pages")
-              .update({
-                story: detectedPage.story,
-                times: detectedPage.times,
-              })
-              .eq("session_id", analyzedSession.id)
-              .eq("page_id", pageId);
-
-            if (updateLinkError) {
-              console.error(
-                `❌ [ANALYZE SESSION] Failed to update session-page link:`,
-                updateLinkError,
-              );
-              Sentry.captureException(updateLinkError, {
-                tags: { job: "analyzeSession", step: "updateSessionPage" },
-                extra: {
-                  sessionId: session_id,
-                  pageId,
-                  pagePath: detectedPage.path,
-                },
-              });
-            }
-          } else {
-            // Create new session-page link
-            const { error: linkError } = await supabase
-              .from("session_pages")
-              .insert({
-                project_id: analyzedSession.project_id,
-                session_id: analyzedSession.id,
-                page_id: pageId,
-                story: detectedPage.story,
-                times: detectedPage.times,
-              });
-
-            if (linkError) {
-              console.error(
-                `❌ [ANALYZE SESSION] Failed to link session to page:`,
-                linkError,
-              );
-              Sentry.captureException(linkError, {
-                tags: { job: "analyzeSession", step: "linkSessionPage" },
-                extra: {
-                  sessionId: session_id,
-                  pageId,
-                  pagePath: detectedPage.path,
-                },
-              });
-            }
-          }
-        } catch (error) {
-          console.error(
-            `❌ [ANALYZE SESSION] Failed to process detected page:`,
-            error,
-          );
-          Sentry.captureException(error, {
-            tags: { job: "analyzeSession", step: "processDetectedPage" },
-            extra: {
-              sessionId: session_id,
-              pagePath: detectedPage.path,
-            },
-          });
-        }
-      }
 
       // Track reconciled issue IDs (currently not used for triggering but may be in future)
       const reconciledIssueIds = new Set<string>();
@@ -551,15 +417,13 @@ export async function POST(request: NextRequest) {
                 sessionIssueError = error;
               } else {
                 // Create new link
-                const { error } = await supabase
-                  .from("session_issues")
-                  .insert({
-                    project_id: analyzedSession.project_id,
-                    session_id: analyzedSession.id,
-                    issue_id: existingIssue.id,
-                    story: detectedIssue.story,
-                    times: detectedIssue.times,
-                  });
+                const { error } = await supabase.from("session_issues").insert({
+                  project_id: analyzedSession.project_id,
+                  session_id: analyzedSession.id,
+                  issue_id: existingIssue.id,
+                  story: detectedIssue.story,
+                  times: detectedIssue.times,
+                });
                 sessionIssueError = error;
               }
 
@@ -686,15 +550,13 @@ export async function POST(request: NextRequest) {
                 sessionIssueError = error;
               } else {
                 // Create new link
-                const { error } = await supabase
-                  .from("session_issues")
-                  .insert({
-                    project_id: analyzedSession.project_id,
-                    session_id: analyzedSession.id,
-                    issue_id: createdIssue.id,
-                    story: detectedIssue.story,
-                    times: detectedIssue.times,
-                  });
+                const { error } = await supabase.from("session_issues").insert({
+                  project_id: analyzedSession.project_id,
+                  session_id: analyzedSession.id,
+                  issue_id: createdIssue.id,
+                  story: detectedIssue.story,
+                  times: detectedIssue.times,
+                });
                 sessionIssueError = error;
               }
 
@@ -739,37 +601,6 @@ export async function POST(request: NextRequest) {
             tags: { job: "analyzeSession" },
             extra: { sessionId: session_id, issueName: detectedIssue.name },
           });
-        }
-      }
-
-      // Trigger analyze-page for all reconciled pages (fire and forget)
-      if (reconciledPageIds.size > 0) {
-        console.log(
-          `🔄 [ANALYZE SESSION] Triggering analyze-page for ${reconciledPageIds.size} pages`,
-        );
-        for (const pageId of reconciledPageIds) {
-          try {
-            fetch(`${process.env.NEXT_PUBLIC_URL}/jobs/analyze-page`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${process.env.CRON_SECRET}`,
-              },
-              body: JSON.stringify({
-                page_id: pageId,
-              } as AnalyzePageJobRequest),
-            }).catch((error) => {
-              console.error(
-                `❌ [ANALYZE SESSION] Failed to trigger analyze-page for ${pageId}:`,
-                error,
-              );
-            });
-          } catch (error) {
-            console.error(
-              `❌ [ANALYZE SESSION] Failed to trigger analyze-page for ${pageId}:`,
-              error,
-            );
-          }
         }
       }
 

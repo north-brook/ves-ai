@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
         sessions(
           *,
           project_group:project_groups(*),
-          session_features(feature:features(*)),
+          session_pages(page:pages(*)),
           session_issues(issue:issues(*))
         )
       `,

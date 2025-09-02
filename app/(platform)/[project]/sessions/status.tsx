@@ -13,18 +13,16 @@ import {
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 
-interface SessionStatusProps {
+export default function SessionStatus({
+  session,
+  size = "md",
+  showLabel = true,
+}: {
   session: Session;
   size?: "sm" | "md" | "lg";
   showLabel?: boolean;
   showProgress?: boolean;
-}
-
-export function SessionStatusBadge({
-  session,
-  size = "md",
-  showLabel = true,
-}: SessionStatusProps) {
+}) {
   const [progress, setProgress] = useState(0);
 
   const showProgress =

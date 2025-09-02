@@ -3,9 +3,6 @@
 
 :root {
   /* Light mode colors */
-  --surface: #f8f8f8;
-  --foreground-secondary: rgba(10, 10, 10, 0.7);
-  --foreground-muted: rgba(10, 10, 10, 0.4);
   --border: oklch(0.929 0.013 255.508);
 
   /* Accent colors (same in both modes) */
@@ -47,10 +44,6 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    /* Dark mode colors */
-    --surface: #141414;
-    --foreground-secondary: rgba(255, 255, 255, 0.7);
-    --foreground-muted: rgba(255, 255, 255, 0.4);
 
     --background: oklch(0.129 0.042 264.695);
     --foreground: oklch(0.984 0.003 247.858);
@@ -88,10 +81,7 @@
 
 @theme inline {
   --color-background: var(--background);
-  --color-surface: var(--surface);
   --color-foreground: var(--foreground);
-  --color-foreground-secondary: var(--foreground-secondary);
-  --color-foreground-muted: var(--foreground-muted);
   --color-border: var(--border);
   --color-accent-purple: var(--accent-purple);
   --color-accent-pink: var(--accent-pink);

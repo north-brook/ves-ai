@@ -42,7 +42,12 @@ function buildReplayHtml(
     speed: number;
     skipInactive: boolean;
     inactiveThreshold?: number;
-    mouseTail?: { strokeStyle?: string; lineWidth?: number; duration?: number };
+    mouseTail?: {
+      strokeStyle?: string;
+      lineWidth?: number;
+      duration?: number;
+      lineCap?: string;
+    };
   },
 ): string {
   const safeEvents = eventsJson.replace(/<\/script>/g, "<\\/script>");
@@ -206,6 +211,7 @@ function buildReplayHtml(
             showWarning: true,
             showDebug: true,
             blockClass: 'rr-block',
+            useVirtualDom: true,
             liveMode: false,
             insertStyleRules: []
           });
@@ -454,6 +460,7 @@ export default async function constructVideo(params: {
       strokeStyle?: string;
       lineWidth?: number;
       duration?: number;
+      lineCap?: string;
     };
   };
 }): Promise<{

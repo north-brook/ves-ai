@@ -88,91 +88,19 @@ export async function POST(request: NextRequest) {
       console.log(`   Duration: ${successData.video_duration}s`);
       console.log(`   Events: ${successData.events_uri}`);
 
-      // Trigger analysis for this session
       console.log(
-        `🤖 [CALLBACK] Checking if we should trigger analysis for session ${session.id}`,
+        `🎯 [CALLBACK] Triggering analysis for session ${session.id}`,
       );
-
-      // Get project details for limit checking
-      const { data: projectData } = await supabase
-        .from("projects")
-        .select("id, plan, subscribed_at, created_at")
-        .eq("id", session.project_id)
-        .single();
-
-      if (projectData) {
-        const plan = projectData.plan;
-
-        // Check worker limits
-        const { data: activeWorkers } = await supabase
-          .from("sessions")
-          .select("id")
-          .eq("project_id", session.project_id)
-          .in("status", ["processing", "analyzing"]);
-
-        const activeWorkerCount = activeWorkers?.length || 0;
-        const workerLimit = getWorkerLimit(plan);
-        const availableWorkers = getRemainingWorkerCapacity(
-          plan,
-          activeWorkerCount,
-        );
-
-        console.log(
-          `👷 [CALLBACK] Project ${session.project_id} (${plan}): ${activeWorkerCount}/${workerLimit} workers active`,
-        );
-
-        // Check usage limits
-        const billingPeriod = getBillingPeriod(projectData);
-        const { data: periodSessions } = await supabase
-          .from("sessions")
-          .select("video_duration")
-          .eq("project_id", session.project_id)
-          .eq("status", "analyzed")
-          .gte("analyzed_at", billingPeriod.start.toISOString())
-          .lte("analyzed_at", billingPeriod.end.toISOString());
-
-        const currentUsage = calculateTotalUsage(periodSessions || []);
-        const sessionDuration = successData.video_duration || 0;
-
-        console.log(
-          `⏱️ [CALLBACK] Project ${session.project_id}: Used ${formatSecondsToHours(currentUsage)}, Session duration: ${sessionDuration}s`,
-        );
-
-        if (
-          availableWorkers > 0 &&
-          hasRemainingAllowance(plan, currentUsage, sessionDuration)
-        ) {
-          // Trigger analysis
-
-          console.log(
-            `🎯 [CALLBACK] Triggering analysis for session ${session.id}`,
-          );
-          fetch(`${process.env.NEXT_PUBLIC_URL}/jobs/analyze-session`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${process.env.CRON_SECRET}`,
-            },
-            body: JSON.stringify({
-              session_id: session.id,
-            } as AnalyzeSessionJobRequest),
-          }).catch((_) => {});
-        } else {
-          if (availableWorkers <= 0) {
-            console.log(
-              `⚠️ [CALLBACK] Skipping analysis for session ${session.id} - no available workers`,
-            );
-          } else {
-            console.log(
-              `⚠️ [CALLBACK] Skipping analysis for session ${session.id} - would exceed usage limits`,
-            );
-          }
-        }
-      } else {
-        console.error(
-          `❌ [CALLBACK] Could not fetch project data for analysis trigger`,
-        );
-      }
+      fetch(`${process.env.NEXT_PUBLIC_URL}/jobs/analyze-session`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.CRON_SECRET}`,
+        },
+        body: JSON.stringify({
+          session_id: session.id,
+        } as AnalyzeSessionJobRequest),
+      }).catch((_) => {});
 
       return NextResponse.json({
         success: true,

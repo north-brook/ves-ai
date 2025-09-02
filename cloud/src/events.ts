@@ -375,12 +375,19 @@ function patchMetaEvents(
             const attrs =
               snapshot.data.node.childNodes[1].childNodes[1].childNodes[0]
                 .attributes;
-            width = parseInt(attrs.width, 10) || width;
-            height = parseInt(attrs.height, 10) || height;
+            const parsedWidth = parseInt(attrs.width, 10);
+            const parsedHeight = parseInt(attrs.height, 10);
+            // Only use parsed values if they're valid positive numbers
+            if (Number.isFinite(parsedWidth) && parsedWidth > 0) {
+              width = parsedWidth;
+            }
+            if (Number.isFinite(parsedHeight) && parsedHeight > 0) {
+              height = parsedHeight;
+            }
           }
           href = snapshot.data?.href || "";
         } catch (e) {
-          console.warn(`Failed to extract viewport for session ${sessionId}`);
+          console.warn(`Failed to extract viewport for session ${sessionId}, using defaults: ${width}x${height}`);
         }
 
         const metaEvent: RrwebEvent = {
@@ -442,7 +449,8 @@ function createSegments(events: RrwebEvent[]): Segment[] {
     endIndex?: number;
     duration?: number;
   } | null = null;
-  let lastActiveTime = 0;
+  // Initialize to first event timestamp to avoid massive time gaps
+  let lastActiveTime = events[0]?.timestamp || 0;
 
   for (let index = 0; index < events.length; index++) {
     const event = events[index];
@@ -859,8 +867,14 @@ export default async function constructEvents(
   }
   
   // Use reasonable defaults if we couldn't find viewport info
-  if (maxViewportWidth === 0) maxViewportWidth = 1920;
-  if (maxViewportHeight === 0) maxViewportHeight = 1080;
+  if (maxViewportWidth === 0) {
+    console.warn(`⚠️ [VIEWPORT] No width detected for session ${session_id}, using default: 1920`);
+    maxViewportWidth = 1920;
+  }
+  if (maxViewportHeight === 0) {
+    console.warn(`⚠️ [VIEWPORT] No height detected for session ${session_id}, using default: 1080`);
+    maxViewportHeight = 1080;
+  }
 
   console.log(
     `📱 [VIEWPORT] Device dimensions: ${maxViewportWidth}x${maxViewportHeight}`,

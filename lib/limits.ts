@@ -6,7 +6,6 @@ type Session = Database["public"]["Tables"]["sessions"]["Row"];
 
 // Worker limits per plan
 export const WORKER_LIMITS: Record<ProjectPlan, number> = {
-  trial: 1,
   starter: 5,
   growth: 10,
   scale: 20,
@@ -14,11 +13,10 @@ export const WORKER_LIMITS: Record<ProjectPlan, number> = {
 };
 
 // Monthly hour limits per plan (in seconds for easier calculation)
-export const MONTHLY_TIME_LIMITS: Record<ProjectPlan, number> = {
-  trial: 1 * 60 * 60, // 1 hour in seconds
-  starter: 20 * 60 * 60, // 20 hours in seconds
-  growth: 100 * 60 * 60, // 100 hours in seconds
-  scale: 300 * 60 * 60, // 300 hours in seconds
+export const MONTHLY_SESSION_LIMITS: Record<ProjectPlan, number> = {
+  starter: 100,
+  growth: 1000,
+  scale: 10000,
   enterprise: 999999 * 60 * 60, // Effectively unlimited
 };
 
@@ -26,14 +24,14 @@ export const MONTHLY_TIME_LIMITS: Record<ProjectPlan, number> = {
  * Get the number of available workers for a project
  */
 export function getWorkerLimit(plan: ProjectPlan): number {
-  return WORKER_LIMITS[plan] || WORKER_LIMITS.trial;
+  return WORKER_LIMITS[plan];
 }
 
 /**
  * Get the monthly hour limit for a project (in seconds)
  */
-export function getMonthlyTimeLimit(plan: ProjectPlan): number {
-  return MONTHLY_TIME_LIMITS[plan] || MONTHLY_TIME_LIMITS.trial;
+export function getMonthlySessionLimit(plan: ProjectPlan): number {
+  return MONTHLY_SESSION_LIMITS[plan];
 }
 
 /**
@@ -44,8 +42,8 @@ export function getBillingPeriod(
 ): { start: Date; end: Date } {
   const now = new Date();
 
-  if (project.plan === "trial") {
-    // Trial is total since creation, not monthly
+  if (project.plan === "starter") {
+    // Starter is total since creation, not monthly
     return {
       start: new Date(project.created_at),
       end: now,
@@ -75,17 +73,6 @@ export function getBillingPeriod(
 }
 
 /**
- * Calculate total usage in seconds for a list of sessions
- */
-export function calculateTotalUsage(
-  sessions: Pick<Session, "video_duration">[],
-): number {
-  return sessions.reduce((total, session) => {
-    return total + (session.video_duration || 0);
-  }, 0);
-}
-
-/**
  * Calculate remaining worker capacity
  */
 export function getRemainingWorkerCapacity(
@@ -97,26 +84,15 @@ export function getRemainingWorkerCapacity(
 }
 
 /**
- * Check if project has remaining hourly allowance
+ * Check if project has remaining session allowance
  */
-export function hasRemainingAllowance(
+export function hasRemainingSessionAllowance(
   plan: ProjectPlan,
-  currentUsageSeconds: number,
-  sessionDurationSeconds: number = 0,
+  sessions: Pick<Session, "id">[],
 ): boolean {
-  const limit = getMonthlyTimeLimit(plan);
-  return currentUsageSeconds + sessionDurationSeconds <= limit;
-}
-
-/**
- * Calculate remaining allowance in seconds
- */
-export function getRemainingAllowance(
-  plan: ProjectPlan,
-  currentUsageSeconds: number,
-): number {
-  const limit = getMonthlyTimeLimit(plan);
-  return Math.max(0, limit - currentUsageSeconds);
+  const limit = getMonthlySessionLimit(plan);
+  const currentUsage = sessions.length;
+  return currentUsage <= limit;
 }
 
 /**
@@ -135,4 +111,19 @@ export function formatSecondsToHours(seconds: number): string {
   }
 
   return `${hours}h ${minutes}m`;
+}
+
+/**
+ * Format number to human readable
+ */
+export function formatNumberToHumanReadable(number: number): string {
+  if (number >= 1000000) {
+    return `${(number / 1000000).toFixed(1)}M`;
+  }
+
+  if (number >= 1000) {
+    return `${(number / 1000).toFixed(1)}K`;
+  }
+
+  return number.toString();
 }

@@ -1,36 +1,40 @@
 "use client";
 
-import { formatSecondsToHours, getMonthlyTimeLimit } from "@/lib/limits";
+import { getMonthlySessionLimit } from "@/lib/limits";
 import { titlefy } from "@/lib/slugify";
 import { cn } from "@/lib/utils";
 import { Project } from "@/types";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useSessionsAnalyzed } from "../(overview)/live";
 
-export default function PlanBadge({
+export default function NavPlan({
   projects,
   analyzedSessions,
 }: {
   projects: Project[];
   analyzedSessions: {
     project_id: string;
-    video_duration: number;
+    count: number;
   }[];
 }) {
   const params = useParams();
 
   const currentProject = projects.find((p) => p.slug === params.project);
 
-  if (!currentProject) return null;
+  const sessionsAnalyzed = useSessionsAnalyzed({
+    projectId: currentProject?.id,
+    initialSessionsAnalyzed:
+      analyzedSessions?.find((s) => s.project_id === currentProject?.id)
+        ?.count || 0,
+  });
 
-  const currentSeconds =
-    analyzedSessions?.reduce((acc, s) => acc + (s.video_duration || 0), 0) || 0;
-
-  // Calculate hours remaining based on plan
-  const monthlyLimitSeconds = getMonthlyTimeLimit(currentProject?.plan);
+  const monthlyLimitSessions = getMonthlySessionLimit(
+    currentProject?.plan || "starter",
+  );
 
   const usagePercentage = Math.min(
-    (currentSeconds / monthlyLimitSeconds) * 100,
+    ((sessionsAnalyzed || 0) / monthlyLimitSessions) * 100,
     100,
   );
   const strokeDasharray = 2 * Math.PI * 7; // 7 is radius
@@ -41,29 +45,28 @@ export default function PlanBadge({
     <>
       <Link
         href={`/${params.project}/plans`}
-        className="border-border bg-background hover:bg-surface flex items-center gap-2.5 rounded-lg border py-2.5 pr-3 pl-4 text-sm transition-colors"
+        className="flex items-center gap-2.5 rounded-md px-2 py-1 text-sm transition-all duration-300 hover:bg-slate-50 hover:dark:bg-slate-900 [nav[data-collapsed='true']_&]:gap-0 [nav[data-collapsed='true']_&]:pr-2 [nav[data-collapsed='true']_&]:pl-2"
       >
-        <span className="text-foreground-secondary font-medium">
-          {titlefy(currentProject.plan)}
+        <span className="overflow-hidden font-medium whitespace-nowrap text-slate-600 transition-all duration-300 dark:text-slate-400 [nav[data-collapsed='true']_&]:w-0 [nav[data-collapsed='true']_&]:opacity-0">
+          {titlefy(currentProject?.plan || "starter")}
         </span>
 
         <span
           className={cn(
-            "text-xs",
+            "overflow-hidden text-xs whitespace-nowrap transition-all duration-300 [nav[data-collapsed='true']_&]:w-0 [nav[data-collapsed='true']_&]:opacity-0",
             usagePercentage >= 70
               ? "text-orange-500"
-              : "text-foreground-secondary",
+              : "text-slate-600 dark:text-slate-400",
           )}
         >
-          {formatSecondsToHours(currentSeconds)} /{" "}
-          {formatSecondsToHours(monthlyLimitSeconds)}
+          {sessionsAnalyzed} / {monthlyLimitSessions}
         </span>
         <svg
           className={cn(
-            "h-4 w-4 -rotate-90",
+            "h-4 w-4 flex-shrink-0 -rotate-90 transition-all duration-300 [nav[data-collapsed='true']_&]:ml-0",
             usagePercentage >= 70
               ? "text-orange-500"
-              : "text-foreground-secondary",
+              : "text-slate-600 dark:text-slate-400",
           )}
           viewBox="0 0 16 16"
         >

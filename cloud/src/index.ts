@@ -110,7 +110,7 @@ async function processRecordingAsync(body: ProcessRequest) {
         speed: 1,
         width: Math.max(320, deviceWidth),
         height: Math.max(240, deviceHeight),
-        mouseTail: { strokeStyle: "green", lineWidth: 2 },
+        mouseTail: { strokeStyle: "red", lineWidth: 2, lineCap: "round" },
       },
     });
 
