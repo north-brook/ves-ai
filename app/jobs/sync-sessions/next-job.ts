@@ -1,10 +1,9 @@
 import adminSupabase from "@/lib/supabase/admin";
 import * as Sentry from "@sentry/nextjs";
 import {
-  calculateTotalUsage,
   getBillingPeriod,
   getWorkerLimit,
-  hasRemainingAllowance,
+  hasRemainingSessionAllowance,
 } from "@/lib/limits";
 import { ProcessJobRequest } from "../process-replay/route";
 
@@ -71,14 +70,13 @@ export default async function nextJobs(
     const billingPeriod = getBillingPeriod(projectData);
     const { data: periodSessions } = await supabase
       .from("sessions")
-      .select("video_duration")
+      .select("id")
       .eq("project_id", projectId)
       .eq("status", "analyzed")
       .gte("analyzed_at", billingPeriod.start.toISOString())
       .lte("analyzed_at", billingPeriod.end.toISOString());
 
-    const currentUsage = calculateTotalUsage(periodSessions || []);
-    if (!hasRemainingAllowance(plan, currentUsage)) {
+    if (!hasRemainingSessionAllowance(plan, periodSessions || [])) {
       console.log(
         `⚠️ [NEXT JOB] Project ${projectId} reached usage limit, stopping session processing`,
       );

@@ -235,7 +235,7 @@ export async function POST(request: NextRequest) {
       // embed the session name, pages, and story
       const { embedding } = await embed({
         model: openai.textEmbeddingModel("text-embedding-3-small"),
-        value: `${data.name}\n${data.story}`,
+        value: `${data.name}\n${data.features.join(", ")}`,
       });
 
       const { data: analyzedSession, error: analysisError } = await supabase
@@ -282,7 +282,7 @@ export async function POST(request: NextRequest) {
           // get 10 related issues (by embedding similarity)
           const { embedding: detectedIssueEmbedding } = await embed({
             model: openai.textEmbeddingModel("text-embedding-3-small"),
-            value: `${detectedIssue.name}\n${detectedIssue.type}\n${detectedIssue.severity}\n${detectedIssue.story}`,
+            value: `${detectedIssue.name}`,
           });
 
           const { data: relatedIssueData, error: relatedIssueError } =
@@ -290,6 +290,7 @@ export async function POST(request: NextRequest) {
               query_embedding: detectedIssueEmbedding as unknown as string,
               match_threshold: 0.5,
               match_count: 10,
+              project_id: analyzedSession.project_id,
             });
 
           if (relatedIssueError) {
@@ -454,6 +455,7 @@ export async function POST(request: NextRequest) {
                   .update({
                     ...issueResponse.issueUpdate,
                     embedding: updatedIssueEmbedding as unknown as string,
+                    status: "pending",
                   })
                   .eq("id", existingIssue.id);
 
@@ -507,6 +509,7 @@ export async function POST(request: NextRequest) {
                   project_id: analyzedSession.project_id,
                   ...issueResponse.newIssue,
                   embedding: newIssueEmbedding as unknown as string,
+                  status: "pending",
                 })
                 .select()
                 .single();

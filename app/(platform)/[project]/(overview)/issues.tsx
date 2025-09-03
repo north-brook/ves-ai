@@ -31,11 +31,11 @@ export default async function PriorityIssues({
 
   return (
     <div className="w-full">
-      <h2 className="text-foreground mb-4 text-xl font-medium">
+      <h2 className="text-foreground mb-4 text-xl font-semibold">
         Priority Issues
       </h2>
       {priorityIssues?.length && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {priorityIssues.map((issue) => (
             <IssueCard key={issue.id} issue={issue} />
           ))}

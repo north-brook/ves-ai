@@ -10,29 +10,66 @@ export default function NavWrapper({
 }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const lastScrollY = useRef(0);
+  const isScrolling = useRef(false);
+  const scrollTimeout = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
+    let prevScrollY = window.scrollY;
 
-      // Collapse when scrolled down more than 50px
-      if (currentScrollY > 50) {
-        setIsCollapsed(true);
-      } else {
-        setIsCollapsed(false);
+    const handleScroll = () => {
+      // Clear any existing timeout
+      if (scrollTimeout.current) {
+        clearTimeout(scrollTimeout.current);
       }
 
-      lastScrollY.current = currentScrollY;
+      // Mark that we're actively scrolling
+      if (!isScrolling.current) {
+        isScrolling.current = true;
+        prevScrollY = lastScrollY.current;
+      }
+
+      const currentScrollY = window.scrollY;
+
+      // Set a timeout to mark scrolling as complete
+      scrollTimeout.current = setTimeout(() => {
+        isScrolling.current = false;
+        lastScrollY.current = currentScrollY;
+      }, 150);
+
+      // Calculate the true scroll delta from when scrolling started
+      const scrollDelta = currentScrollY - prevScrollY;
+
+      // Only collapse/expand based on significant intentional scrolling
+      if (Math.abs(scrollDelta) > 30) {
+        if (scrollDelta > 0 && currentScrollY > 100) {
+          // Scrolling down significantly
+          setIsCollapsed(true);
+        } else if (scrollDelta < -30) {
+          // Scrolling up significantly
+          setIsCollapsed(false);
+        }
+      }
+
+      // Always expand near the top
+      if (currentScrollY < 50) {
+        setIsCollapsed(false);
+      }
     };
 
     // Add scroll listener with passive flag for better performance
     window.addEventListener("scroll", handleScroll, { passive: true });
 
-    // Check initial scroll position
-    handleScroll();
+    // Set initial state
+    lastScrollY.current = window.scrollY;
+    if (window.scrollY > 100) {
+      setIsCollapsed(true);
+    }
 
     return () => {
       window.removeEventListener("scroll", handleScroll);
+      if (scrollTimeout.current) {
+        clearTimeout(scrollTimeout.current);
+      }
     };
   }, []);
 
@@ -40,7 +77,7 @@ export default function NavWrapper({
     <nav
       data-collapsed={isCollapsed ? "true" : undefined}
       className={cn(
-        "border-border bg-background/80 sticky top-0 z-50 flex w-full flex-col items-center justify-start border-b backdrop-blur-lg transition-all duration-300 ease-in-out",
+        "border-border bg-background/90 sticky top-0 z-50 flex w-full flex-col items-center justify-start border-b backdrop-blur-lg transition-all duration-300 ease-in-out",
       )}
     >
       {children}

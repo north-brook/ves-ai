@@ -54,33 +54,25 @@ export function SessionList({
   const displaySessions = searchResults || sessions;
 
   return (
-    <div className="border-border bg-slate-50 dark:bg-slate-900 rounded-lg border">
-      <div className="border-border border-b p-4">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="font-display text-xl font-semibold">
-            {displaySessions.length} Sessions
-          </h2>
-
-          <div className="relative flex-1 sm:w-64">
-            <Search className="text-slate-600 dark:text-slate-400 absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search sessions..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="border-border bg-background focus:ring-accent-purple w-full rounded-lg border py-3 pr-4 pl-10 text-sm focus:ring focus:outline-none"
-              disabled={isPending}
-            />
-            {isPending && (
-              <div className="absolute top-1/2 right-3 -translate-y-1/2">
-                <div className="border-slate-600 dark:border-slate-400 h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" />
-              </div>
-            )}
+    <div className="flex flex-col gap-4">
+      <div className="relative w-full">
+        <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-600 dark:text-slate-400" />
+        <input
+          type="text"
+          placeholder="Search sessions..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="border-border bg-background focus:ring-accent-purple w-full rounded-lg border py-3 pr-4 pl-10 text-sm focus:ring focus:outline-none"
+          disabled={isPending}
+        />
+        {isPending && (
+          <div className="absolute top-1/2 right-3 -translate-y-1/2">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-600 border-t-transparent dark:border-slate-400" />
           </div>
-        </div>
+        )}
       </div>
 
-      <div className="divide-border divide-y">
+      <div className="flex flex-col gap-3">
         {displaySessions.length === 0 ? (
           <div className="p-8 text-center">
             {searchQuery ? (
@@ -89,8 +81,10 @@ export function SessionList({
               </p>
             ) : (
               <div className="flex flex-col items-center gap-3">
-                <LoaderCircle className="text-slate-600 dark:text-slate-400 h-6 w-6 animate-spin" />
-                <p className="text-slate-600 dark:text-slate-400">Awaiting sessions</p>
+                <LoaderCircle className="h-6 w-6 animate-spin text-slate-600 dark:text-slate-400" />
+                <p className="text-slate-600 dark:text-slate-400">
+                  Awaiting sessions
+                </p>
               </div>
             )}
           </div>

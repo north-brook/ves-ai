@@ -47,13 +47,13 @@ export default function NavPlan({
         href={`/${params.project}/plans`}
         className="flex items-center gap-2.5 rounded-md px-2 py-1 text-sm transition-all duration-300 hover:bg-slate-50 hover:dark:bg-slate-900 [nav[data-collapsed='true']_&]:gap-0 [nav[data-collapsed='true']_&]:pr-2 [nav[data-collapsed='true']_&]:pl-2"
       >
-        <span className="overflow-hidden font-medium whitespace-nowrap text-slate-600 transition-all duration-300 dark:text-slate-400 [nav[data-collapsed='true']_&]:w-0 [nav[data-collapsed='true']_&]:opacity-0">
+        <span className="hidden overflow-hidden font-medium whitespace-nowrap text-slate-600 transition-all duration-300 md:block dark:text-slate-400 [nav[data-collapsed='true']_&]:w-0 [nav[data-collapsed='true']_&]:opacity-0">
           {titlefy(currentProject?.plan || "starter")}
         </span>
 
         <span
           className={cn(
-            "overflow-hidden text-xs whitespace-nowrap transition-all duration-300 [nav[data-collapsed='true']_&]:w-0 [nav[data-collapsed='true']_&]:opacity-0",
+            "hidden overflow-hidden text-xs whitespace-nowrap transition-all duration-300 md:block [nav[data-collapsed='true']_&]:w-0 [nav[data-collapsed='true']_&]:opacity-0",
             usagePercentage >= 70
               ? "text-orange-500"
               : "text-slate-600 dark:text-slate-400",

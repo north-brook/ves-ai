@@ -15,7 +15,7 @@ export default async function ProjectNav() {
     <NavWrapper>
       <div className="flex w-full max-w-7xl items-center justify-between px-6 transition-all duration-300">
         <div className="flex items-center gap-2">
-          <Link href="/" className="py-3">
+          <Link href="/" className="py-2.5">
             <NavLogo />
           </Link>
 
@@ -27,7 +27,7 @@ export default async function ProjectNav() {
           <Suspense fallback={<ProjectSkeleton />}>
             <LoadedProject />
           </Suspense>
-          <div className="h-full opacity-0 transition-all duration-300 [nav[data-collapsed='true']_&]:opacity-100">
+          <div className="pointer-events-none hidden h-full w-0 opacity-0 transition-opacity duration-300 md:block [nav[data-collapsed='true']_&]:pointer-events-auto [nav[data-collapsed='true']_&]:w-full [nav[data-collapsed='true']_&]:opacity-100">
             <NavLinks />
           </div>
         </div>
@@ -42,7 +42,7 @@ export default async function ProjectNav() {
         </div>
       </div>
 
-      <div className="w-full px-6 [nav[data-collapsed='true']_&]:hidden">
+      <div className="w-full overflow-x-auto px-6 [nav[data-collapsed='true']_&]:hidden">
         <NavLinks />
       </div>
     </NavWrapper>

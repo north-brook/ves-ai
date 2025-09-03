@@ -12,11 +12,13 @@ export default function useLiveUsers({
   projectId: string;
   initialUsers: (ProjectUser & {
     group: ProjectGroup | null;
+    sessions: { id: string }[];
   })[];
 }) {
   const [users, setUsers] = useState<
     (ProjectUser & {
       group: ProjectGroup | null;
+      sessions: { id: string }[];
     })[]
   >(initialUsers);
 
@@ -47,10 +49,10 @@ export default function useLiveUsers({
               console.log("➕ New user inserted:", payload.new);
               const newUser = payload.new as ProjectUser;
 
-              // get session user, group, and issues
+              // get user with group and sessions
               const { data: user } = await supabase
                 .from("project_users")
-                .select("*, group:project_groups(*)")
+                .select("*, group:project_groups(*), sessions(id)")
                 .eq("id", newUser.id)
                 .single();
 
@@ -75,10 +77,10 @@ export default function useLiveUsers({
               console.log("✏️ User updated:", payload.new);
               const updatedUser = payload.new as ProjectUser;
 
-              // get session user, group, and issues
+              // get user with group and sessions
               const { data: user } = await supabase
                 .from("project_users")
-                .select("*, group:project_groups(*)")
+                .select("*, group:project_groups(*), sessions(id)")
                 .eq("id", updatedUser.id)
                 .single();
 

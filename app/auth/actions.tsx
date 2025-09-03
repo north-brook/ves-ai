@@ -76,7 +76,7 @@ export async function syncAuth(auth: {
 
   const { data: existingUser } = await supabase
     .from("users")
-    .select("*, projects(*)")
+    .select("*, roles(project:projects(*))")
     .eq("id", auth.authUser.id)
     .single();
 
@@ -86,7 +86,7 @@ export async function syncAuth(auth: {
   if (existingUser) {
     // EXISTING USER
     user = existingUser;
-    project = existingUser.projects?.[0];
+    project = existingUser?.roles?.[0]?.project;
   } else {
     // NEW USER
 

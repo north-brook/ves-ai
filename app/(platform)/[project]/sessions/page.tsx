@@ -65,5 +65,20 @@ async function LoadedSessions({ projectSlug }: { projectSlug: string }) {
 }
 
 function SessionsSkeleton() {
-  return <div></div>;
+  return (
+    <div className="w-full space-y-4">
+      {/* Search bar skeleton */}
+      <div className="h-10 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-700" />
+
+      {/* Session cards skeleton */}
+      <div className="space-y-3">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div
+            key={i}
+            className="h-[240px] animate-pulse rounded-lg bg-slate-200 dark:bg-slate-700"
+          />
+        ))}
+      </div>
+    </div>
+  );
 }

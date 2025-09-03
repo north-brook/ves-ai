@@ -24,13 +24,15 @@ export async function searchSessions(
   });
 
   // Use the match_sessions function for vector similarity search
-  const { data: matchedSessions, error: matchError } = await supabase
-    .rpc("match_sessions", {
+  const { data: matchedSessions, error: matchError } = await supabase.rpc(
+    "match_sessions",
+    {
       query_embedding: embedding as unknown as string,
       match_threshold: 0.5, // Adjust threshold as needed
       match_count: 50, // Limit results
-    })
-    .eq("project_id", projectId);
+      project_id: projectId,
+    },
+  );
 
   if (matchError) {
     console.error("Error matching sessions:", matchError);
@@ -40,6 +42,8 @@ export async function searchSessions(
   if (!matchedSessions || matchedSessions.length === 0) {
     return [];
   }
+
+  console.log("matchedSessions", matchedSessions);
 
   return (
     await Promise.all(

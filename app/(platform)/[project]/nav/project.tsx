@@ -34,7 +34,7 @@ export default function NavProject({ projects }: { projects: Project[] }) {
               className="flex-shrink-0"
             />
           )}
-          <span className="text-foreground overflow-hidden whitespace-nowrap transition-all duration-300 [nav[data-collapsed='true']_&]:w-0 [nav[data-collapsed='true']_&]:opacity-0">
+          <span className="text-foreground overflow-hidden font-semibold whitespace-nowrap transition-all duration-300 [nav[data-collapsed='true']_&]:w-0 [nav[data-collapsed='true']_&]:opacity-0">
             {currentProject ? currentProject.name : "Select Project"}
           </span>
         </button>

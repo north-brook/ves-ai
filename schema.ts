@@ -55,46 +55,61 @@ export type Database = {
       }
       issues: {
         Row: {
-          confidence: Database["public"]["Enums"]["issue_confidence"]
+          analysis_hash: string | null
+          analyzed_at: string | null
+          confidence: Database["public"]["Enums"]["issue_confidence"] | null
           created_at: string
           embedding: string | null
           external_id: string | null
+          external_status:
+            | Database["public"]["Enums"]["issue_external_status"]
+            | null
           id: string
-          name: string
-          priority: Database["public"]["Enums"]["issue_priority"]
+          name: string | null
+          priority: Database["public"]["Enums"]["issue_priority"] | null
           project_id: string
-          severity: Database["public"]["Enums"]["issue_severity"]
-          status: Database["public"]["Enums"]["issue_status"] | null
-          story: string
-          type: Database["public"]["Enums"]["issue_type"]
+          severity: Database["public"]["Enums"]["issue_severity"] | null
+          status: Database["public"]["Enums"]["issue_status"]
+          story: string | null
+          type: Database["public"]["Enums"]["issue_type"] | null
         }
         Insert: {
-          confidence: Database["public"]["Enums"]["issue_confidence"]
+          analysis_hash?: string | null
+          analyzed_at?: string | null
+          confidence?: Database["public"]["Enums"]["issue_confidence"] | null
           created_at?: string
           embedding?: string | null
           external_id?: string | null
+          external_status?:
+            | Database["public"]["Enums"]["issue_external_status"]
+            | null
           id?: string
-          name: string
-          priority: Database["public"]["Enums"]["issue_priority"]
+          name?: string | null
+          priority?: Database["public"]["Enums"]["issue_priority"] | null
           project_id: string
-          severity: Database["public"]["Enums"]["issue_severity"]
-          status?: Database["public"]["Enums"]["issue_status"] | null
-          story: string
-          type: Database["public"]["Enums"]["issue_type"]
+          severity?: Database["public"]["Enums"]["issue_severity"] | null
+          status?: Database["public"]["Enums"]["issue_status"]
+          story?: string | null
+          type?: Database["public"]["Enums"]["issue_type"] | null
         }
         Update: {
-          confidence?: Database["public"]["Enums"]["issue_confidence"]
+          analysis_hash?: string | null
+          analyzed_at?: string | null
+          confidence?: Database["public"]["Enums"]["issue_confidence"] | null
           created_at?: string
           embedding?: string | null
           external_id?: string | null
+          external_status?:
+            | Database["public"]["Enums"]["issue_external_status"]
+            | null
           id?: string
-          name?: string
-          priority?: Database["public"]["Enums"]["issue_priority"]
+          name?: string | null
+          priority?: Database["public"]["Enums"]["issue_priority"] | null
           project_id?: string
-          severity?: Database["public"]["Enums"]["issue_severity"]
-          status?: Database["public"]["Enums"]["issue_status"] | null
-          story?: string
-          type?: Database["public"]["Enums"]["issue_type"]
+          severity?: Database["public"]["Enums"]["issue_severity"] | null
+          status?: Database["public"]["Enums"]["issue_status"]
+          story?: string | null
+          type?: Database["public"]["Enums"]["issue_type"] | null
         }
         Relationships: [
           {
@@ -172,6 +187,7 @@ export type Database = {
           project_id: string
           properties: Json | null
           score: number | null
+          session_at: string | null
           status: Database["public"]["Enums"]["project_user_status"]
           story: string | null
         }
@@ -187,6 +203,7 @@ export type Database = {
           project_id: string
           properties?: Json | null
           score?: number | null
+          session_at?: string | null
           status: Database["public"]["Enums"]["project_user_status"]
           story?: string | null
         }
@@ -202,6 +219,7 @@ export type Database = {
           project_id?: string
           properties?: Json | null
           score?: number | null
+          session_at?: string | null
           status?: Database["public"]["Enums"]["project_user_status"]
           story?: string | null
         }
@@ -496,6 +514,8 @@ export type Database = {
       }
       users: {
         Row: {
+          analysis_hash: string | null
+          analyzed_at: string | null
           created_at: string
           email: string
           first_name: string | null
@@ -504,6 +524,8 @@ export type Database = {
           last_name: string | null
         }
         Insert: {
+          analysis_hash?: string | null
+          analyzed_at?: string | null
           created_at?: string
           email: string
           first_name?: string | null
@@ -512,6 +534,8 @@ export type Database = {
           last_name?: string | null
         }
         Update: {
+          analysis_hash?: string | null
+          analyzed_at?: string | null
           created_at?: string
           email?: string
           first_name?: string | null
@@ -526,21 +550,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      match_features: {
-        Args: {
-          match_count: number
-          match_threshold: number
-          query_embedding: string
-        }
-        Returns: {
-          id: string
-          similarity: number
-        }[]
-      }
       match_issues: {
         Args: {
           match_count: number
           match_threshold: number
+          project_id: string
           query_embedding: string
         }
         Returns: {
@@ -552,6 +566,7 @@ export type Database = {
         Args: {
           match_count: number
           match_threshold: number
+          project_id: string
           query_embedding: string
         }
         Returns: {
@@ -567,9 +582,7 @@ export type Database = {
     Enums: {
       destination_type: "linear"
       issue_confidence: "low" | "medium" | "high"
-      issue_priority: "immediate" | "high" | "medium" | "low" | "backlog"
-      issue_severity: "critical" | "high" | "medium" | "low" | "suggestion"
-      issue_status:
+      issue_external_status:
         | "backlog"
         | "todo"
         | "in_progress"
@@ -577,6 +590,9 @@ export type Database = {
         | "done"
         | "canceled"
         | "duplicate"
+      issue_priority: "immediate" | "high" | "medium" | "low" | "backlog"
+      issue_severity: "critical" | "high" | "medium" | "low" | "suggestion"
+      issue_status: "pending" | "analyzing" | "analyzed" | "failed"
       issue_type: "bug" | "usability" | "improvement" | "feature"
       page_status: "pending" | "analyzing" | "analyzed" | "failed"
       project_group_status: "pending" | "analyzing" | "analyzed" | "failed"
@@ -719,9 +735,7 @@ export const Constants = {
     Enums: {
       destination_type: ["linear"],
       issue_confidence: ["low", "medium", "high"],
-      issue_priority: ["immediate", "high", "medium", "low", "backlog"],
-      issue_severity: ["critical", "high", "medium", "low", "suggestion"],
-      issue_status: [
+      issue_external_status: [
         "backlog",
         "todo",
         "in_progress",
@@ -730,6 +744,9 @@ export const Constants = {
         "canceled",
         "duplicate",
       ],
+      issue_priority: ["immediate", "high", "medium", "low", "backlog"],
+      issue_severity: ["critical", "high", "medium", "low", "suggestion"],
+      issue_status: ["pending", "analyzing", "analyzed", "failed"],
       issue_type: ["bug", "usability", "improvement", "feature"],
       page_status: ["pending", "analyzing", "analyzed", "failed"],
       project_group_status: ["pending", "analyzing", "analyzed", "failed"],

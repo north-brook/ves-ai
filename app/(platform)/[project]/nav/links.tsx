@@ -29,7 +29,7 @@ export default function NavLinks() {
   if (!params.project) return null;
 
   return (
-    <div className="flex h-full w-full max-w-7xl items-stretch justify-start gap-4 transition-all duration-300 [nav[data-collapsed='true']_&]:gap-0">
+    <div className="flex h-full w-full max-w-7xl items-stretch justify-start gap-0 transition-all duration-300 md:gap-2 [nav[data-collapsed='true']_&]:gap-0">
       {NAV_ITEMS(params.project as string).map((item) => (
         <ProjectLink
           key={item.href}
@@ -55,10 +55,10 @@ function ProjectLink({
     <Link
       href={href}
       className={cn(
-        "flex items-center justify-center border-b px-3 py-3 text-sm transition-all duration-300",
+        "flex items-center justify-center border-t-2 border-b-2 border-t-transparent px-3 pt-1 pb-3 text-sm transition-all duration-300 [nav[data-collapsed='true']_&]:pt-3",
         active
-          ? "text-foreground border-foreground"
-          : "hover:text-foreground border-transparent text-slate-600 hover:border-slate-300 dark:text-slate-400",
+          ? "text-foreground border-b-foreground font-semibold"
+          : "hover:text-foreground border-b-transparent text-slate-600 hover:border-b-slate-300 dark:text-slate-400",
       )}
     >
       {label}

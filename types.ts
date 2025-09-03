@@ -25,6 +25,7 @@ export type Session = MergeDeep<
 >;
 export type ProjectUser = Tables<"project_users">;
 export type ProjectGroup = Tables<"project_groups">;
+export type SessionIssue = Tables<"session_issues">;
 export type Issue = Tables<"issues">;
 
 export type ProjectPlan = Enums<"project_plan">;
