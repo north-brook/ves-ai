@@ -1,4 +1,4 @@
-import { Project, Session, ProjectUser, ProjectGroup, Page } from "@/types";
+import { Project, Session, ProjectUser, ProjectGroup } from "@/types";
 import { Tables } from "@/schema";
 import { z } from "zod";
 
@@ -55,7 +55,6 @@ export const ANALYZE_PROJECT_PROMPT = ({
   recentSessions,
   recentUsers,
   recentGroups,
-  pages,
   weeklyNewIssues,
   openCriticalHighIssues,
   stats,
@@ -64,7 +63,6 @@ export const ANALYZE_PROJECT_PROMPT = ({
   recentSessions: Session[];
   recentUsers: ProjectUser[];
   recentGroups: ProjectGroup[];
-  pages: Page[];
   weeklyNewIssues: Issue[]; // Issues created in the last week
   openCriticalHighIssues: Issue[]; // All critical/high priority issues still open
   stats: {
@@ -87,7 +85,6 @@ export const ANALYZE_PROJECT_PROMPT = ({
 - New Sessions: ${recentSessions.length}
 - Active Users: ${recentUsers.length}
 - Active Organizations: ${recentGroups.length}
-- Total Pages Tracked: ${pages.length}
 
 # Weekly Metrics (Last 7 Days)
 - Sessions This Week: ${stats.weeklySessionCount}
@@ -117,13 +114,6 @@ ${session.name ? `- Summary: ${session.name}` : ""}
 
 ${session.story ? `### Session Story\n${session.story}\n` : ""}
 ${session.health ? `### Session Health\n${session.health}\n` : ""}
-${
-  session.detected_pages &&
-  Array.isArray(session.detected_pages) &&
-  session.detected_pages.length > 0
-    ? `### Pages Used\n${session.detected_pages.map((f) => f.path).join(", ")}\n`
-    : ""
-}
 `,
         )
         .join("\n---\n")
@@ -170,26 +160,6 @@ ${group.health ? `### Group Health\n${group.health}\n` : ""}
         )
         .join("\n---\n")
     : "No active groups this week"
-}
-
-# All Pages
-${
-  pages.length > 0
-    ? pages
-        .filter((f) => f.score !== null)
-        .sort((a, b) => (b.score || 0) - (a.score || 0))
-        .map(
-          (page, index) => `
-## Page ${index + 1}: ${page.path}
-- Page ID: ${page.id}
-- Score: ${page.score !== null && page.score !== undefined ? `${page.score}/100` : "Not scored"}
-
-${page.story ? `### Page Story\n${page.story}\n` : ""}
-${page.health ? `### Page Health\n${page.health}\n` : ""}
-`,
-        )
-        .join("\n---\n")
-    : "No pages analyzed yet"
 }
 
 # New Issues This Week

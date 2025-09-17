@@ -29,18 +29,19 @@ export default async function PriorityIssues({
 
   if (issuesError) console.error(issuesError);
 
+  if (!priorityIssues?.length) return null;
+
   return (
     <div className="w-full">
       <h2 className="text-foreground mb-4 text-xl font-semibold">
         Priority Issues
       </h2>
-      {priorityIssues?.length && (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {priorityIssues.map((issue) => (
-            <IssueCard key={issue.id} issue={issue} />
-          ))}
-        </div>
-      )}
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {priorityIssues.map((issue) => (
+          <IssueCard key={issue.id} issue={issue} />
+        ))}
+      </div>
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import adminSupabase from "@/lib/supabase/admin";
 import * as Sentry from "@sentry/nextjs";
 import { generateObject } from "ai";
-import { openai, OpenAIResponsesProviderOptions } from "@ai-sdk/openai";
+import { google, GoogleGenerativeAIProviderOptions } from "@ai-sdk/google";
 import {
   ANALYZE_PROJECT_PROMPT,
   ANALYZE_PROJECT_SCHEMA,
@@ -68,7 +68,6 @@ export async function POST(request: NextRequest) {
         *,
         project_user:project_users(*),
         project_group:project_groups(*),
-        session_pages(page:pages(*)),
         session_issues(issue:issues(*))
       `,
       )
@@ -112,18 +111,6 @@ export async function POST(request: NextRequest) {
         groupsError,
       );
       throw new Error("Failed to fetch groups");
-    }
-
-    // Fetch all pages for the project
-    const { data: pages, error: pagesError } = await supabase
-      .from("pages")
-      .select("*")
-      .eq("project_id", project_id)
-      .order("score", { ascending: false, nullsFirst: false });
-
-    if (pagesError) {
-      console.error(`❌ [ANALYZE PROJECT] Failed to fetch pages:`, pagesError);
-      throw new Error("Failed to fetch pages");
     }
 
     // Calculate weekly statistics
@@ -187,7 +174,6 @@ export async function POST(request: NextRequest) {
     console.log(`   Sessions This Week: ${stats.weeklySessionCount}`);
     console.log(`   Active Users This Week: ${stats.weeklyUserCount}`);
     console.log(`   Active Groups This Week: ${stats.weeklyGroupCount}`);
-    console.log(`   Total Features: ${pages?.length || 0}`);
     console.log(
       `   Avg Session Score (Week): ${stats.weeklyAverageSessionScore.toFixed(1)}`,
     );
@@ -208,19 +194,19 @@ export async function POST(request: NextRequest) {
       recentSessions: recentSessions || [],
       recentUsers: recentUsers || [],
       recentGroups: recentGroups || [],
-      pages: pages || [],
       weeklyNewIssues: weeklyNewIssues || [],
       openCriticalHighIssues: openCriticalHighIssues || [],
       stats,
     });
 
     const { object } = await generateObject({
-      model: openai.responses("gpt-5"),
+      model: google("gemini-2.5-pro"),
       providerOptions: {
-        openai: {
-          reasoningEffort: "high",
-          strictJsonSchema: true,
-        } satisfies OpenAIResponsesProviderOptions,
+        google: {
+          thinkingConfig: {
+            thinkingBudget: 32768,
+          },
+        } satisfies GoogleGenerativeAIProviderOptions,
       },
       system: ANALYZE_PROJECT_SYSTEM,
       schema: ANALYZE_PROJECT_SCHEMA,

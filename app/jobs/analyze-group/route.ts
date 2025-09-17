@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import adminSupabase from "@/lib/supabase/admin";
 import * as Sentry from "@sentry/nextjs";
 import { generateObject } from "ai";
-import { openai, OpenAIResponsesProviderOptions } from "@ai-sdk/openai";
+import { google, GoogleGenerativeAIProviderOptions } from "@ai-sdk/google";
 import {
   ANALYZE_GROUP_PROMPT,
   ANALYZE_GROUP_SCHEMA,
@@ -51,7 +51,6 @@ export async function POST(request: NextRequest) {
           *,
           sessions(
             *,
-            session_pages(page:pages(*)),
             session_issues(issue:issues(*))
           )
         )
@@ -135,12 +134,13 @@ export async function POST(request: NextRequest) {
     });
 
     const { object } = await generateObject({
-      model: openai.responses("gpt-5"),
+      model: google("gemini-2.5-pro"),
       providerOptions: {
-        openai: {
-          reasoningEffort: "high",
-          strictJsonSchema: true,
-        } satisfies OpenAIResponsesProviderOptions,
+        google: {
+          thinkingConfig: {
+            thinkingBudget: 32768,
+          },
+        } satisfies GoogleGenerativeAIProviderOptions,
       },
       system: ANALYZE_GROUP_SYSTEM,
       schema: ANALYZE_GROUP_SCHEMA,

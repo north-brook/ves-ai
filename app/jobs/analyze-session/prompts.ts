@@ -375,10 +375,7 @@ Consider these factors when deciding whether to merge or create new:
 # Your Task
 
 1. Analyze if the detected issue has the same root cause as any existing issue
-2. If merging, use \`mergeIssue\` with an enhanced story that includes:
-   - The new reproduction case from this session
-   - Updated severity/priority if this instance is worse
-   - Additional context about impact
+2. If merging, use \`mergeIssue\`
 3. If creating new, use \`createIssue\` with complete details
 4. Call \`done\` with success: true after your action
 
@@ -427,11 +424,6 @@ export const RECONCILE_ISSUE_SCHEMA = z.object({
     .nullable(z.string())
     .describe(
       "Required when decision is 'merge'. The exact name of the existing issue from the relatedIssues list that represents the same problem. Must match exactly as it appears in the list. Set to null when decision is 'create'.",
-    ),
-  issueUpdate: z
-    .nullable(ISSUE_SCHEMA)
-    .describe(
-      "Required when decision is 'merge'. The enhanced issue definition that combines the existing issue's information with new details from this detection. Include the new reproduction narrative, preserve the highest severity/priority levels, and add any additional context. Set to null when decision is 'create'.",
     ),
   newIssue: z
     .nullable(ISSUE_SCHEMA)

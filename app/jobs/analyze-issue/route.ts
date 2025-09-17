@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import adminSupabase from "@/lib/supabase/admin";
 import * as Sentry from "@sentry/nextjs";
 import { generateObject } from "ai";
-import { openai, OpenAIResponsesProviderOptions } from "@ai-sdk/openai";
+import { google, GoogleGenerativeAIProviderOptions } from "@ai-sdk/google";
 import {
   ANALYZE_ISSUE_PROMPT,
   ANALYZE_ISSUE_SCHEMA,
@@ -30,15 +30,10 @@ export async function POST(request: NextRequest) {
 
     if (!issue_id) {
       console.error("❌ [ANALYZE ISSUE] Missing issue_id");
-      return NextResponse.json(
-        { error: "Missing issue_id" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Missing issue_id" }, { status: 400 });
     }
 
-    console.log(
-      `🧠 [ANALYZE ISSUE] Starting analysis for issue ${issue_id}`,
-    );
+    console.log(`🧠 [ANALYZE ISSUE] Starting analysis for issue ${issue_id}`);
     const supabase = adminSupabase();
 
     // Fetch issue details with all linked session_issues and their sessions
@@ -86,7 +81,9 @@ export async function POST(request: NextRequest) {
 
     // Calculate hash based on session_issue IDs to detect changes
     const analysisHash = createHash("sha256")
-      .update(JSON.stringify(session_issues.map((si: any) => si.session_id).sort()))
+      .update(
+        JSON.stringify(session_issues.map((si: any) => si.session_id).sort()),
+      )
       .digest("hex");
 
     if (issue.analysis_hash === analysisHash && !force) {
@@ -123,17 +120,16 @@ export async function POST(request: NextRequest) {
       })),
     });
 
-    console.log(
-      `🤖 [ANALYZE ISSUE] Generating analysis with AI...`,
-    );
+    console.log(`🤖 [ANALYZE ISSUE] Generating analysis with AI...`);
 
     const { object } = await generateObject({
-      model: openai.responses("gpt-5"),
+      model: google("gemini-2.5-pro"),
       providerOptions: {
-        openai: {
-          reasoningEffort: "high",
-          strictJsonSchema: true,
-        } satisfies OpenAIResponsesProviderOptions,
+        google: {
+          thinkingConfig: {
+            thinkingBudget: 32768,
+          },
+        } satisfies GoogleGenerativeAIProviderOptions,
       },
       system: ANALYZE_ISSUE_SYSTEM,
       schema: ANALYZE_ISSUE_SCHEMA,
@@ -149,17 +145,14 @@ export async function POST(request: NextRequest) {
 
     // Write debug file for analysis review
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    await writeDebugFile(
-      `debug-${timestamp}-analyze-issue-${issue_id}.txt`,
-      {
-        timestamp: new Date().toISOString(),
-        job: "analyze-issue",
-        id: issue_id,
-        systemPrompt: ANALYZE_ISSUE_SYSTEM,
-        userPrompt: userPrompt,
-        modelResponse: JSON.stringify(object, null, 2),
-      },
-    );
+    await writeDebugFile(`debug-${timestamp}-analyze-issue-${issue_id}.txt`, {
+      timestamp: new Date().toISOString(),
+      job: "analyze-issue",
+      id: issue_id,
+      systemPrompt: ANALYZE_ISSUE_SYSTEM,
+      userPrompt: userPrompt,
+      modelResponse: JSON.stringify(object, null, 2),
+    });
 
     // Update issue with analysis results
     const { error: finishUpdateError } = await supabase
@@ -185,9 +178,7 @@ export async function POST(request: NextRequest) {
       throw new Error("Failed to update issue with analysis");
     }
 
-    console.log(
-      `✅ [ANALYZE ISSUE] Successfully analyzed issue ${issue_id}`,
-    );
+    console.log(`✅ [ANALYZE ISSUE] Successfully analyzed issue ${issue_id}`);
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error: unknown) {

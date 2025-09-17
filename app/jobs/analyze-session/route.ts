@@ -20,6 +20,7 @@ import {
 import { AnalyzeUserJobRequest } from "../analyze-user/route";
 import { writeDebugFile, clearDebugFile } from "../debug/helper";
 import constructContext from "./context";
+import { AnalyzeIssueJobRequest } from "../analyze-issue/route";
 
 export type AnalyzeSessionJobRequest = {
   session_id: string;
@@ -342,10 +343,7 @@ export async function POST(request: NextRequest) {
 
           // Process the response based on the decision
           if (issueResponse.decision === "merge") {
-            if (
-              !issueResponse.existingIssueName ||
-              !issueResponse.issueUpdate
-            ) {
+            if (!issueResponse.existingIssueName) {
               console.error(
                 `❌ [ANALYZE SESSION] Invalid merge response - missing required fields`,
               );
@@ -388,7 +386,6 @@ export async function POST(request: NextRequest) {
                     sessionId: session_id,
                     issueName: detectedIssue.name,
                     existingIssueName: issueResponse.existingIssueName,
-                    issueUpdate: issueResponse.issueUpdate,
                   },
                 },
               );
@@ -439,41 +436,25 @@ export async function POST(request: NextRequest) {
                     sessionId: session_id,
                     issueName: detectedIssue.name,
                     existingIssueName: issueResponse.existingIssueName,
-                    issueUpdate: issueResponse.issueUpdate,
                   },
                 });
               } else {
-                // Embed the updated issue
-                const { embedding: updatedIssueEmbedding } = await embed({
-                  model: openai.textEmbeddingModel("text-embedding-3-small"),
-                  value: `${issueResponse.issueUpdate.name}\n${issueResponse.issueUpdate.type}\n${issueResponse.issueUpdate.story}`,
-                });
-
-                // Update the issue with the new information
-                const { error: updatedIssueError } = await supabase
-                  .from("issues")
-                  .update({
-                    ...issueResponse.issueUpdate,
-                    embedding: updatedIssueEmbedding as unknown as string,
-                    status: "pending",
-                  })
-                  .eq("id", existingIssue.id);
-
-                if (updatedIssueError) {
+                // analyze the issue
+                fetch(`${process.env.NEXT_PUBLIC_URL}/jobs/analyze-issue`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${process.env.CRON_SECRET}`,
+                  },
+                  body: JSON.stringify({
+                    issue_id: existingIssue.id,
+                  } as AnalyzeIssueJobRequest),
+                }).catch((error) => {
                   console.error(
-                    `❌ [ANALYZE SESSION] Failed to update issue after merge:`,
-                    updatedIssueError,
+                    `❌ [ANALYZE ISSUE] Failed to trigger analyze-issue:`,
+                    error,
                   );
-                  Sentry.captureException(updatedIssueError, {
-                    tags: { job: "analyzeSession", step: "mergeIssue" },
-                    extra: {
-                      sessionId: session_id,
-                      issueName: detectedIssue.name,
-                      existingIssueName: issueResponse.existingIssueName,
-                      issueUpdate: issueResponse.issueUpdate,
-                    },
-                  });
-                }
+                });
               }
             }
           } else {

@@ -56,7 +56,6 @@ async function LoadedUsers({ projectSlug }: { projectSlug: string }) {
     .from("project_users")
     .select("*, group:project_groups(*), sessions(id)")
     .eq("project_id", project.id)
-    .neq("status", "pending")
     .order("analyzed_at", { ascending: false });
 
   return (
@@ -75,7 +74,10 @@ function UsersSkeleton() {
       {/* User cards skeleton */}
       <div className="space-y-3">
         {[1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className="h-32 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-700" />
+          <div
+            key={i}
+            className="h-32 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-700"
+          />
         ))}
       </div>
     </div>
