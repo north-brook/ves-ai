@@ -122,7 +122,7 @@ export async function saveProject(formData: FormData) {
         image:
           imageUrl ||
           `https://www.google.com/s2/favicons?domain=${domain}&sz=128`,
-        plan: "trial",
+        plan: "starter",
       })
       .select()
       .single();

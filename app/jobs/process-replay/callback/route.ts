@@ -3,14 +3,6 @@ import adminSupabase from "@/lib/supabase/admin";
 import * as Sentry from "@sentry/nextjs";
 import type { SuccessPayload, ErrorPayload } from "@/cloud/src/types";
 import { Database } from "@/types";
-import {
-  getWorkerLimit,
-  getBillingPeriod,
-  calculateTotalUsage,
-  getRemainingWorkerCapacity,
-  hasRemainingAllowance,
-  formatSecondsToHours,
-} from "@/lib/limits";
 import { AnalyzeSessionJobRequest } from "@/app/jobs/analyze-session/route";
 
 export async function POST(request: NextRequest) {

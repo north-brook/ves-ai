@@ -98,13 +98,13 @@ export function useSessionsAnalyzed({
           },
           async (payload) => {
             if (payload.eventType === "INSERT") {
-              const newSession = payload.new as any;
+              const newSession = payload.new;
               if (newSession.status === "analyzed") {
                 setSessionsAnalyzed((prev) => prev + 1);
               }
             } else if (payload.eventType === "UPDATE") {
-              const oldSession = payload.old as any;
-              const newSession = payload.new as any;
+              const oldSession = payload.old;
+              const newSession = payload.new;
 
               if (
                 oldSession.status !== "analyzed" &&
@@ -118,7 +118,7 @@ export function useSessionsAnalyzed({
                 setSessionsAnalyzed((prev) => Math.max(0, prev - 1));
               }
             } else if (payload.eventType === "DELETE") {
-              const deletedSession = payload.old as any;
+              const deletedSession = payload.old;
               if (deletedSession.status === "analyzed") {
                 setSessionsAnalyzed((prev) => Math.max(0, prev - 1));
               }

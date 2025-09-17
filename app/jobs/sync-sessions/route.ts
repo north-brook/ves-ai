@@ -550,7 +550,7 @@ async function pullSessionsFromSource(
           .single();
 
         if (projectUser) {
-          let update: Partial<ProjectUser> = {
+          const update: Partial<ProjectUser> = {
             session_at: recording.end_time,
           };
 

@@ -81,9 +81,7 @@ export async function POST(request: NextRequest) {
 
     // Calculate hash based on session_issue IDs to detect changes
     const analysisHash = createHash("sha256")
-      .update(
-        JSON.stringify(session_issues.map((si: any) => si.session_id).sort()),
-      )
+      .update(JSON.stringify(session_issues.map((si) => si.session_id).sort()))
       .digest("hex");
 
     if (issue.analysis_hash === analysisHash && !force) {
@@ -114,7 +112,7 @@ export async function POST(request: NextRequest) {
     // Prepare prompt for AI analysis
     const userPrompt = ANALYZE_ISSUE_PROMPT({
       issue,
-      sessionIssues: session_issues.map((si: any) => ({
+      sessionIssues: session_issues.map((si) => ({
         ...si,
         session: si.session,
       })),
