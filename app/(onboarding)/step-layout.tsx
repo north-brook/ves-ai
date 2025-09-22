@@ -17,11 +17,11 @@ export function StepLayout({
 }: StepLayoutProps) {
   return (
     <div className="mx-auto max-w-2xl">
-      <div className="bg-surface/50 border-border relative rounded-2xl border p-8 backdrop-blur-sm">
+      <div className="bg-slate-50/50 dark:bg-slate-900/50 border-border relative rounded-2xl border p-8 backdrop-blur-sm">
         {backHref && (
           <Link
             href={backHref}
-            className="text-foreground-secondary hover:text-foreground absolute -top-12 left-0 flex items-center gap-2 text-sm transition-colors"
+            className="text-slate-600 dark:text-slate-400 hover:text-foreground absolute -top-12 left-0 flex items-center gap-2 text-sm transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
             Back
@@ -31,7 +31,7 @@ export function StepLayout({
         <div className="mb-8">
           <h2 className="font-display text-3xl font-bold">{title}</h2>
           {description && (
-            <p className="text-foreground-secondary mt-2 text-lg">
+            <p className="text-slate-600 dark:text-slate-400 mt-2 text-lg">
               {description}
             </p>
           )}

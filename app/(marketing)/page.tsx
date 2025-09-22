@@ -15,6 +15,12 @@ import Linear from "@/components/linear";
 import LogInButton, { LoadingLogInButton } from "@/app/auth/log-in-button";
 import serverSupabase from "@/lib/supabase/server";
 import { Suspense } from "react";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "VES AI • AI Session Analysis for Product Teams",
+  description: "Use AI to watch every session replay and get actionable product improvements. Connect PostHog, find bugs, flag UX issues, and prepare rich tickets for Linear.",
+};
 
 export default async function LandingPage() {
   return (
@@ -28,7 +34,7 @@ export default async function LandingPage() {
             <h1 className="font-display mb-6 text-5xl leading-tight font-bold md:text-6xl lg:text-7xl">
               Watch and analyze every user session with AI
             </h1>
-            <p className="text-foreground-secondary mx-auto mb-10 max-w-2xl items-end text-xl">
+            <p className="text-slate-600 dark:text-slate-400 mx-auto mb-10 max-w-2xl items-end text-xl">
               Connect{" "}
               <PostHog size={20} className="mx-1 inline-block align-baseline" />
               , and VES will review your replays, find bugs, identify
@@ -62,7 +68,7 @@ export default async function LandingPage() {
                   className="ml-1 inline-block align-baseline"
                 />
               </h3>
-              <p className="text-foreground-secondary">
+              <p className="text-slate-600 dark:text-slate-400">
                 We instantly start watching every session replay.
               </p>
             </div>
@@ -74,7 +80,7 @@ export default async function LandingPage() {
               <h3 className="font-display mb-3 text-2xl font-bold">
                 2. AI Review
               </h3>
-              <p className="text-foreground-secondary">
+              <p className="text-slate-600 dark:text-slate-400">
                 Every session is analyzed for bugs, friction points, and
                 opportunities.
               </p>
@@ -91,7 +97,7 @@ export default async function LandingPage() {
                   className="ml-1 inline-block align-baseline"
                 />
               </h3>
-              <p className="text-foreground-secondary">
+              <p className="text-slate-600 dark:text-slate-400">
                 Clear, prioritized tickets appear in your backlog automatically.
               </p>
             </div>
@@ -100,7 +106,7 @@ export default async function LandingPage() {
       </section>
 
       {/* Why Use VES */}
-      <section className="bg-surface px-6 py-24">
+      <section className="bg-slate-50 dark:bg-slate-900 px-6 py-24">
         <div className="mx-auto max-w-6xl">
           <h2 className="font-display mb-16 text-center text-4xl font-bold md:text-5xl">
             Why Use VES
@@ -113,7 +119,7 @@ export default async function LandingPage() {
                 <h3 className="font-display mb-2 text-xl font-bold">
                   Catch every issue
                 </h3>
-                <p className="text-foreground-secondary">
+                <p className="text-slate-600 dark:text-slate-400">
                   No more relying on random QA or user complaints
                 </p>
               </div>
@@ -125,7 +131,7 @@ export default async function LandingPage() {
                 <h3 className="font-display mb-2 text-xl font-bold">
                   Ship better features
                 </h3>
-                <p className="text-foreground-secondary">
+                <p className="text-slate-600 dark:text-slate-400">
                   Ideas come from real user behavior
                 </p>
               </div>
@@ -137,7 +143,7 @@ export default async function LandingPage() {
                 <h3 className="font-display mb-2 text-xl font-bold">
                   Save PM time
                 </h3>
-                <p className="text-foreground-secondary">
+                <p className="text-slate-600 dark:text-slate-400">
                   AI handles the review work for you
                 </p>
               </div>
@@ -149,7 +155,7 @@ export default async function LandingPage() {
                 <h3 className="font-display mb-2 text-xl font-bold">
                   No workflow changes
                 </h3>
-                <p className="text-foreground-secondary">
+                <p className="text-slate-600 dark:text-slate-400">
                   Everything appears in Linear
                 </p>
               </div>
@@ -166,21 +172,21 @@ export default async function LandingPage() {
           </h2>
 
           <div className="grid gap-8 md:grid-cols-3">
-            <div className="border-border bg-surface rounded-2xl border p-8">
+            <div className="border-border bg-slate-50 dark:bg-slate-900 rounded-2xl border p-8">
               <Rocket className="text-accent-purple mb-4 h-8 w-8" />
               <h3 className="font-display mb-3 text-xl font-bold">
                 Product teams who want to ship faster
               </h3>
             </div>
 
-            <div className="border-border bg-surface rounded-2xl border p-8">
+            <div className="border-border bg-slate-50 dark:bg-slate-900 rounded-2xl border p-8">
               <Users className="text-accent-pink mb-4 h-8 w-8" />
               <h3 className="font-display mb-3 text-xl font-bold">
                 Startups who need PM superpowers without hiring
               </h3>
             </div>
 
-            <div className="border-border bg-surface rounded-2xl border p-8">
+            <div className="border-border bg-slate-50 dark:bg-slate-900 rounded-2xl border p-8">
               <Target className="text-accent-orange mb-4 h-8 w-8" />
               <h3 className="font-display mb-3 text-xl font-bold">
                 SaaS companies who want zero missed bugs or UX issues

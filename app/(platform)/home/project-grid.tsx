@@ -34,22 +34,22 @@ export async function ProjectGrid() {
         <Link
           key={project.id}
           href={`/${project.slug}`}
-          className="group relative rounded-lg border border-border bg-surface p-6 transition-all hover:border-foreground-secondary hover:shadow-lg"
+          className="group relative rounded-lg border border-border bg-slate-50 dark:bg-slate-900 p-6 transition-all hover:border-slate-600 dark:hover:border-slate-400 hover:shadow-lg"
         >
           <div className="flex items-start justify-between">
             <div>
               <h2 className="font-display text-xl font-semibold">
                 {project.name}
               </h2>
-              <p className="text-foreground-secondary mt-1 text-sm">
+              <p className="text-slate-600 dark:text-slate-400 mt-1 text-sm">
                 {project.domain}
               </p>
             </div>
-            <ArrowRight className="h-5 w-5 text-foreground-secondary transition-transform group-hover:translate-x-1" />
+            <ArrowRight className="h-5 w-5 text-slate-600 dark:text-slate-400 transition-transform group-hover:translate-x-1" />
           </div>
 
           <div className="mt-4 flex items-center gap-2">
-            <span className="rounded-full bg-surface-secondary px-3 py-1 text-xs font-medium text-foreground-secondary">
+            <span className="rounded-full bg-slate-200 dark:bg-slate-800 px-3 py-1 text-xs font-medium text-slate-600 dark:text-slate-400">
               {project.plan.charAt(0).toUpperCase() + project.plan.slice(1)} Plan
             </span>
           </div>
@@ -58,14 +58,14 @@ export async function ProjectGrid() {
 
       <Link
         href="/new"
-        className="group flex items-center justify-center rounded-lg border border-dashed border-border bg-surface/50 p-6 transition-all hover:border-foreground-secondary hover:bg-surface"
+        className="group flex items-center justify-center rounded-lg border border-dashed border-border bg-slate-50/50 dark:bg-slate-900/50 p-6 transition-all hover:border-slate-600 dark:hover:border-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900"
       >
         <div className="text-center">
           <div className="from-accent-purple to-accent-pink mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br">
             <ArrowRight className="h-6 w-6 text-white" />
           </div>
           <p className="font-medium text-foreground">Create New Project</p>
-          <p className="text-foreground-secondary mt-1 text-sm">
+          <p className="text-slate-600 dark:text-slate-400 mt-1 text-sm">
             Set up a new project
           </p>
         </div>
@@ -80,10 +80,10 @@ export function ProjectGridSkeleton() {
       {[1, 2].map((i) => (
         <div
           key={i}
-          className="h-32 animate-pulse rounded-lg border border-border bg-surface"
+          className="h-32 animate-pulse rounded-lg border border-border bg-slate-50 dark:bg-slate-900"
         />
       ))}
-      <div className="h-32 animate-pulse rounded-lg border border-dashed border-border bg-surface/50" />
+      <div className="h-32 animate-pulse rounded-lg border border-dashed border-border bg-slate-50/50 dark:bg-slate-900/50" />
     </div>
   );
 }

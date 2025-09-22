@@ -13,11 +13,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Destination } from "@/types";
+import { Destination, Project } from "@/types";
 
 interface LinearFormProps {
-  projectSlug: string;
-  existingDestination?: Destination | null;
+  project: Project;
+  destination?: Destination | null;
   linearData?: {
     organization: {
       id: string;
@@ -34,8 +34,8 @@ interface LinearFormProps {
 }
 
 export function LinearForm({
-  projectSlug,
-  existingDestination,
+  project,
+  destination,
   linearData,
 }: LinearFormProps) {
   const searchParams = useSearchParams();
@@ -43,7 +43,7 @@ export function LinearForm({
   const success = searchParams.get("success");
 
   const [selectedTeam, setSelectedTeam] = useState(
-    existingDestination?.destination_team || "",
+    destination?.destination_team || "",
   );
 
   const isConnected = !!linearData?.organization;
@@ -52,20 +52,20 @@ export function LinearForm({
 
   // Auto-select first team when data loads
   useEffect(() => {
-    if (
-      teams.length > 0 &&
-      !selectedTeam &&
-      !existingDestination?.destination_team
-    ) {
+    if (teams.length > 0 && !selectedTeam && !destination?.destination_team) {
       setSelectedTeam(teams[0].id);
     }
-  }, [teams, selectedTeam, existingDestination?.destination_team]);
+  }, [teams, selectedTeam, destination?.destination_team]);
 
   const saveMutation = useMutation({
     mutationFn: saveLinearSettings,
     onSettled: (data) => {
       if (data?.error) toast.error(data.error);
     },
+  });
+
+  const connectMutation = useMutation({
+    mutationFn: initiateLinearOAuth,
   });
 
   useEffect(() => {
@@ -79,18 +79,18 @@ export function LinearForm({
 
   return (
     <form action={saveMutation.mutate} className="space-y-6">
-      <input type="hidden" name="projectSlug" value={projectSlug} />
+      <input type="hidden" name="projectSlug" value={project.slug} />
       <input
         type="hidden"
         name="linearWorkspace"
         value={linearData?.organization?.id || ""}
       />
 
-      <div className="bg-surface/50 border-border rounded-lg border p-4">
+      <div className="border-border rounded-lg border bg-slate-50/50 p-4 dark:bg-slate-900/50">
         <div className="flex items-center gap-3">
           <div className="flex-1">
             <h3 className="font-medium">Connect Linear Account</h3>
-            <p className="text-foreground-secondary text-sm">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
               {isConnected
                 ? "Connected and ready"
                 : "Authorize access to create issues"}
@@ -98,17 +98,22 @@ export function LinearForm({
           </div>
           {!isConnected ? (
             <button
-              onClick={() => initiateLinearOAuth(projectSlug)}
-              className="border-border bg-background hover:bg-surface flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
+              type="button"
+              onClick={() => initiateLinearOAuth(project.slug)}
+              className="border-border bg-background flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors hover:bg-slate-50 hover:dark:bg-slate-900"
             >
               Connect Linear
-              <ExternalLink className="h-4 w-4" />
+              {connectMutation.isIdle ? (
+                <ExternalLink className="h-4 w-4" />
+              ) : (
+                <LoaderCircle className="text-foreground h-4 w-4 animate-spin" />
+              )}
             </button>
           ) : (
             <button
-              onClick={() => initiateLinearOAuth(projectSlug)}
+              onClick={() => initiateLinearOAuth(project.slug)}
               type="submit"
-              className="border-border bg-background hover:bg-surface rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
+              className="border-border bg-background rounded-lg border px-4 py-2 text-sm font-medium transition-colors hover:bg-slate-50 hover:dark:bg-slate-900"
             >
               Reconnect
             </button>
@@ -124,12 +129,12 @@ export function LinearForm({
           Linear Workspace
         </label>
         <div
-          className={`bg-surface border-border rounded-lg border px-4 py-3 ${!isConnected ? "opacity-50" : ""}`}
+          className={`border-border rounded-lg border bg-slate-50 px-4 py-3 dark:bg-slate-900 ${!isConnected ? "opacity-50" : ""}`}
         >
           {isConnected ? (
             <span className="text-foreground">{workspaceName}</span>
           ) : (
-            <span className="text-foreground-secondary">
+            <span className="text-slate-600 dark:text-slate-400">
               Connect Linear to see workspace
             </span>
           )}
@@ -164,7 +169,7 @@ export function LinearForm({
                 </SelectItem>
               ))
             ) : (
-              <div className="text-foreground-secondary px-2 py-1.5 text-sm">
+              <div className="px-2 py-1.5 text-sm text-slate-600 dark:text-slate-400">
                 {!isConnected
                   ? "Connect Linear to load teams"
                   : "No teams found"}
@@ -195,16 +200,16 @@ export function LinearForm({
 export function LinearFormSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="bg-surface h-20 w-full animate-pulse rounded-lg" />
+      <div className="h-20 w-full animate-pulse rounded-lg bg-slate-50 dark:bg-slate-900" />
 
       <div>
-        <div className="bg-surface mb-2 h-5 w-32 animate-pulse rounded" />
-        <div className="bg-surface h-12 w-full animate-pulse rounded-lg" />
+        <div className="mb-2 h-5 w-32 animate-pulse rounded bg-slate-50 dark:bg-slate-900" />
+        <div className="h-12 w-full animate-pulse rounded-lg bg-slate-50 dark:bg-slate-900" />
       </div>
 
       <div>
-        <div className="bg-surface mb-2 h-5 w-32 animate-pulse rounded" />
-        <div className="bg-surface h-12 w-full animate-pulse rounded-lg" />
+        <div className="mb-2 h-5 w-32 animate-pulse rounded bg-slate-50 dark:bg-slate-900" />
+        <div className="h-12 w-full animate-pulse rounded-lg bg-slate-50 dark:bg-slate-900" />
       </div>
 
       <div className="from-accent-purple/20 via-accent-pink/20 to-accent-orange/20 h-14 w-full animate-pulse rounded-lg bg-gradient-to-r" />

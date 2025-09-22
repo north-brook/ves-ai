@@ -1,5 +1,5 @@
-import { Navigation } from "./navigation";
-import { Footer } from "@/components/footer";
+import MarketingNav from "./nav";
+import Footer from "@/components/footer";
 
 export default function MarketingLayout({
   children,
@@ -7,9 +7,9 @@ export default function MarketingLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <Navigation />
-      <main className="pt-20">{children}</main>
+    <div className="bg-background text-foreground min-h-screen">
+      <MarketingNav />
+      <main>{children}</main>
       <Footer />
     </div>
   );

@@ -12,20 +12,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Source } from "@/types";
+import { Project, Source } from "@/types";
 
 interface PostHogFormProps {
-  projectSlug: string;
-  existingSource?: Source | null;
+  project: Project;
+  source?: Source | null;
 }
 
-export function PostHogForm({ projectSlug, existingSource }: PostHogFormProps) {
-  const [apiKey, setApiKey] = useState(existingSource?.source_key || "");
-  const [host, setHost] = useState(
-    existingSource?.source_host || "https://us.posthog.com",
+export function PostHogForm({ project, source }: PostHogFormProps) {
+  const [apiKey, setApiKey] = useState(source?.source_key || "");
+  const [hostSelection, setHostSelection] = useState(
+    source?.source_host &&
+      !source.source_host.includes("us.posthog.com") &&
+      !source.source_host.includes("eu.posthog.com")
+      ? "custom"
+      : source?.source_host || "https://us.posthog.com",
+  );
+  const [customHost, setCustomHost] = useState(
+    source?.source_host &&
+      !source.source_host.includes("us.posthog.com") &&
+      !source.source_host.includes("eu.posthog.com")
+      ? source.source_host
+      : "",
   );
   const [selectedProject, setSelectedProject] = useState(
-    existingSource?.source_project || "",
+    source?.source_project || "",
   );
 
   const connectMutation = useMutation({
@@ -35,15 +46,18 @@ export function PostHogForm({ projectSlug, existingSource }: PostHogFormProps) {
     },
   });
 
+  // Determine the actual host to use
+  const actualHost = hostSelection === "custom" ? customHost : hostSelection;
+
   // Fetch projects when API key and host are provided
   const { data: projectsData, isLoading: loadingProjects } = useQuery({
-    queryKey: ["posthog-projects", apiKey, host],
+    queryKey: ["posthog-projects", apiKey, actualHost],
     queryFn: async () => {
-      if (!apiKey || !host) return { projects: [] };
-      const result = await fetchPostHogProjects(apiKey, host);
+      if (!apiKey || !actualHost) return { projects: [] };
+      const result = await fetchPostHogProjects(apiKey, actualHost);
       return "projects" in result ? result : { projects: [] };
     },
-    enabled: !!apiKey && !!host,
+    enabled: !!apiKey && !!actualHost,
     staleTime: 30000, // Cache for 30 seconds
     retry: 1,
   });
@@ -52,32 +66,28 @@ export function PostHogForm({ projectSlug, existingSource }: PostHogFormProps) {
 
   // Auto-select the first project when projects are loaded
   useEffect(() => {
-    if (
-      projects.length > 0 &&
-      !selectedProject &&
-      !existingSource?.source_project
-    ) {
+    if (projects.length > 0 && !selectedProject && !source?.source_project) {
       setSelectedProject(projects[0].id);
     }
-  }, [projects, selectedProject, existingSource?.source_project]);
+  }, [projects, selectedProject, source?.source_project]);
 
   return (
     <form action={connectMutation.mutate} className="space-y-6">
-      <input type="hidden" name="projectSlug" value={projectSlug} />
+      <input type="hidden" name="projectSlug" value={project.slug} />
 
-      <div className="bg-surface/50 border-border rounded-lg border p-4">
+      <div className="bg-slate-50/50 dark:bg-slate-900/50 border-border rounded-lg border p-4">
         <div className="flex items-center gap-3">
           <div className="flex-1">
             <h3 className="font-medium">Create a PostHog API Key</h3>
-            <p className="text-foreground-secondary text-sm">
-              Give the key <b>All Access</b> scope
+            <p className="text-slate-600 dark:text-slate-400 text-sm">
+              Give the key <b>MCP Server</b> scope
             </p>
           </div>
           <a
             href="https://app.posthog.com/settings/user-api-keys"
             target="_blank"
             rel="noopener noreferrer"
-            className="border-border bg-background hover:bg-surface flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
+            className="border-border bg-background hover:bg-slate-50 dark:hover:bg-slate-900 flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
           >
             Get API Key
             <ExternalLink className="h-4 w-4" />
@@ -96,7 +106,7 @@ export function PostHogForm({ projectSlug, existingSource }: PostHogFormProps) {
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
           required
-          className="bg-surface border-border placeholder:text-foreground-secondary focus:border-accent-purple w-full rounded-lg border px-4 py-3 font-mono text-sm transition-colors outline-none"
+          className="bg-slate-50 dark:bg-slate-900 border-border placeholder:text-slate-600 dark:placeholder:text-slate-400 focus:border-accent-purple w-full rounded-lg border px-4 py-3 font-mono text-sm transition-colors outline-none"
           placeholder="phx_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
         />
       </div>
@@ -105,8 +115,8 @@ export function PostHogForm({ projectSlug, existingSource }: PostHogFormProps) {
         <label htmlFor="host" className="mb-2 block text-sm font-medium">
           PostHog Region/Host
         </label>
-        <input type="hidden" name="host" value={host} />
-        <Select value={host} onValueChange={setHost} required>
+        <input type="hidden" name="host" value={actualHost} />
+        <Select value={hostSelection} onValueChange={setHostSelection} required>
           <SelectTrigger>
             <SelectValue placeholder="Select a region" />
           </SelectTrigger>
@@ -120,14 +130,14 @@ export function PostHogForm({ projectSlug, existingSource }: PostHogFormProps) {
             <SelectItem value="custom">Self-hosted (custom URL)</SelectItem>
           </SelectContent>
         </Select>
-        {host === "custom" && (
+        {hostSelection === "custom" && (
           <input
             type="url"
-            value={host}
-            onChange={(e) => setHost(e.target.value)}
+            value={customHost}
+            onChange={(e) => setCustomHost(e.target.value)}
             required
-            placeholder="https://posthog.example.com"
-            className="bg-surface border-border placeholder:text-foreground-secondary focus:border-accent-purple mt-2 w-full rounded-lg border px-4 py-3 transition-colors outline-none"
+            placeholder={`https://posthog.${project.domain}`}
+            className="bg-slate-50 dark:bg-slate-900 border-border placeholder:text-slate-600 dark:placeholder:text-slate-400 focus:border-accent-purple mt-2 w-full rounded-lg border px-4 py-3 transition-colors outline-none"
           />
         )}
       </div>
@@ -167,7 +177,7 @@ export function PostHogForm({ projectSlug, existingSource }: PostHogFormProps) {
                 </SelectItem>
               ))
             ) : (
-              <div className="text-foreground-secondary px-2 py-1.5 text-sm">
+              <div className="text-slate-600 dark:text-slate-400 px-2 py-1.5 text-sm">
                 {!apiKey
                   ? "Enter API key to load projects"
                   : "No projects found"}
@@ -198,21 +208,21 @@ export function PostHogForm({ projectSlug, existingSource }: PostHogFormProps) {
 export function PostHogFormSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="bg-surface h-20 w-full animate-pulse rounded-lg" />
+      <div className="bg-slate-50 dark:bg-slate-900 h-20 w-full animate-pulse rounded-lg" />
 
       <div>
-        <div className="bg-surface mb-2 h-5 w-32 animate-pulse rounded" />
-        <div className="bg-surface h-12 w-full animate-pulse rounded-lg" />
+        <div className="bg-slate-50 dark:bg-slate-900 mb-2 h-5 w-32 animate-pulse rounded" />
+        <div className="bg-slate-50 dark:bg-slate-900 h-12 w-full animate-pulse rounded-lg" />
       </div>
 
       <div>
-        <div className="bg-surface mb-2 h-5 w-32 animate-pulse rounded" />
-        <div className="bg-surface h-12 w-full animate-pulse rounded-lg" />
+        <div className="bg-slate-50 dark:bg-slate-900 mb-2 h-5 w-32 animate-pulse rounded" />
+        <div className="bg-slate-50 dark:bg-slate-900 h-12 w-full animate-pulse rounded-lg" />
       </div>
 
       <div>
-        <div className="bg-surface mb-2 h-5 w-32 animate-pulse rounded" />
-        <div className="bg-surface h-12 w-full animate-pulse rounded-lg" />
+        <div className="bg-slate-50 dark:bg-slate-900 mb-2 h-5 w-32 animate-pulse rounded" />
+        <div className="bg-slate-50 dark:bg-slate-900 h-12 w-full animate-pulse rounded-lg" />
       </div>
 
       <div className="from-accent-purple/20 via-accent-pink/20 to-accent-orange/20 h-14 w-full animate-pulse rounded-lg bg-gradient-to-r" />

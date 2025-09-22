@@ -52,7 +52,7 @@ export default function LogInButton({
           <div className="bg-background group-hover:bg-background/90 flex items-center gap-2 rounded-[6px] px-8 py-4 transition-all">
             <Google size={20} />
             <span className="text-foreground font-semibold">
-              Sign in with Google
+              Continue with Google
             </span>
             {googleAuthMutation.isIdle ? (
               <ArrowRight
@@ -68,8 +68,8 @@ export default function LogInButton({
           </div>
         </button>
 
-        <p className="text-foreground-secondary mt-4 text-sm">
-          1 hour of free analysis. No credit card required.
+        <p className="mt-4 text-sm text-slate-600 dark:text-slate-400">
+          100 free sessions per month. No credit card required.
         </p>
       </form>
     );
@@ -81,7 +81,7 @@ export default function LogInButton({
         <div>
           <Link
             href="/home"
-            className="border-border bg-background hover:bg-surface hidden items-center gap-2 rounded-lg border px-6 py-2.5 font-medium transition-all duration-200 md:flex"
+            className="border-border bg-background hidden items-center gap-2 rounded-lg border px-6 py-2.5 font-medium transition-all duration-200 hover:bg-slate-50 md:flex dark:hover:bg-slate-900"
           >
             <span className="text-foreground font-semibold">Dashboard</span>
             <ArrowRight className="text-foreground hidden h-5 w-5 transition-transform group-hover:translate-x-1 md:block" />
@@ -94,14 +94,14 @@ export default function LogInButton({
       <form action={googleAuthMutation.mutate}>
         <button
           type="submit"
-          className="border-border bg-background hover:bg-surface hidden items-center gap-2 rounded-lg border px-6 py-2.5 font-medium transition-all duration-200 md:flex"
+          className="border-border bg-background hidden items-center gap-2 rounded-lg border px-6 py-2.5 font-medium transition-all duration-200 hover:bg-slate-50 md:flex dark:bg-slate-900"
         >
           {googleAuthMutation.isIdle ? (
             <Google size={18} />
           ) : (
             <LoaderCircle size={18} className="text-foreground animate-spin" />
           )}
-          Sign in with Google
+          Continue with Google
         </button>
       </form>
     );
@@ -119,7 +119,7 @@ export function LoadingLogInButton({
         variant === "primary" &&
           "from-accent-purple via-accent-pink to-accent-orange h-[60px] w-[280px] animate-pulse rounded-lg bg-gradient-to-r transition-all duration-200",
         variant === "secondary" &&
-          "bg-surface h-[46px] w-[223px] animate-pulse transition-all duration-200",
+          "h-[46px] w-[223px] animate-pulse bg-slate-50 transition-all duration-200 dark:bg-slate-900",
       )}
     />
   );

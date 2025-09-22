@@ -4,7 +4,7 @@ import "./globals.css";
 import Providers from "./providers";
 
 export const metadata: Metadata = {
-  title: "VES - AI Session Analysis for Product Teams",
+  title: "VES AI • AI Session Analysis for Product Teams",
   description:
     "Use AI to watch every session replay and get actionable product improvements. Connect PostHog, find bugs, flag UX issues, and prepare rich tickets for Linear.",
   keywords: [
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     canonical: "./",
   },
   openGraph: {
-    title: "VES - AI Session Analysis",
+    title: "VES • AI Session Analysis",
     description:
       "Watch every session, catch every bug, ship better features faster",
     url: "https://ves.ai",

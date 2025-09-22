@@ -141,7 +141,7 @@ export function ProjectSetupForm({
             className="hidden"
           />
           <div
-            className={`bg-surface border-border relative h-[50px] w-[50px] overflow-hidden rounded-lg border-2 transition-all ${
+            className={`bg-slate-50 dark:bg-slate-900 border-border relative h-[50px] w-[50px] overflow-hidden rounded-lg border-2 transition-all ${
               isDragging ? "border-accent-purple bg-accent-purple/10" : ""
             } hover:border-accent-purple cursor-pointer`}
             onClick={() => fileInputRef.current?.click()}
@@ -160,7 +160,7 @@ export function ProjectSetupForm({
               </>
             ) : (
               <div className="flex h-full w-full items-center justify-center">
-                <Upload className="text-foreground-secondary h-6 w-6" />
+                <Upload className="text-slate-600 dark:text-slate-400 h-6 w-6" />
               </div>
             )}
           </div>
@@ -175,7 +175,7 @@ export function ProjectSetupForm({
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            className="bg-surface border-border placeholder:text-foreground-secondary focus:border-accent-purple h-[50px] w-full rounded-lg border px-4 text-lg font-semibold transition-colors outline-none"
+            className="bg-slate-50 dark:bg-slate-900 border-border placeholder:text-slate-600 dark:placeholder:text-slate-400 focus:border-accent-purple h-[50px] w-full rounded-lg border px-4 text-lg font-semibold transition-colors outline-none"
             placeholder="ACME"
           />
         </div>
@@ -190,7 +190,7 @@ export function ProjectSetupForm({
         </label>
         <div className="relative">
           <div className="flex items-center">
-            <span className="text-foreground-secondary mr-2">{`ves.ai /`}</span>
+            <span className="text-slate-600 dark:text-slate-400 mr-2">{`ves.ai /`}</span>
             <input
               type="text"
               id="slug"
@@ -199,13 +199,13 @@ export function ProjectSetupForm({
               onChange={(e) => setSlug(e.target.value.toLowerCase())}
               required
               pattern="[a-z0-9-]+"
-              className="bg-surface border-border placeholder:text-foreground-secondary focus:border-accent-purple flex-1 rounded-lg border px-4 py-3 pr-10 transition-colors outline-none"
+              className="bg-slate-50 dark:bg-slate-900 border-border placeholder:text-slate-600 dark:placeholder:text-slate-400 focus:border-accent-purple flex-1 rounded-lg border px-4 py-3 pr-10 transition-colors outline-none"
               placeholder="my-project"
             />
             {slug.length >= 3 && (
               <div className="absolute top-1/2 right-3 -translate-y-1/2">
                 {checkingSlug ? (
-                  <LoaderCircle className="text-foreground-secondary h-4 w-4 animate-spin" />
+                  <LoaderCircle className="text-slate-600 dark:text-slate-400 h-4 w-4 animate-spin" />
                 ) : slugAvailable ? (
                   <Check className="h-4 w-4 text-green-500" />
                 ) : slugAvailable === false ? (
@@ -215,14 +215,14 @@ export function ProjectSetupForm({
             )}
           </div>
         </div>
-        <p className="text-foreground-secondary mt-1 text-xs">
+        <p className="text-slate-600 dark:text-slate-400 mt-1 text-xs">
           URL-friendly identifier for your project
         </p>
       </div>
 
       <div>
         <label htmlFor="domain" className="mb-2 block text-sm font-medium">
-          Project Domain
+          Product URL
         </label>
         <input
           type="text"
@@ -231,7 +231,7 @@ export function ProjectSetupForm({
           value={domain}
           onChange={(e) => setDomain(e.target.value)}
           required
-          className="bg-surface border-border placeholder:text-foreground-secondary focus:border-accent-purple w-full rounded-lg border px-4 py-3 transition-colors outline-none"
+          className="bg-slate-50 dark:bg-slate-900 border-border placeholder:text-slate-600 dark:placeholder:text-slate-400 focus:border-accent-purple w-full rounded-lg border px-4 py-3 transition-colors outline-none"
           placeholder="acme.com"
         />
       </div>
@@ -246,7 +246,7 @@ export function ProjectSetupForm({
           value={invites}
           onChange={(e) => setInvites(e.target.value)}
           rows={3}
-          className="bg-surface border-border placeholder:text-foreground-secondary focus:border-accent-purple w-full rounded-lg border px-4 py-3 transition-colors outline-none"
+          className="bg-slate-50 dark:bg-slate-900 border-border placeholder:text-slate-600 dark:placeholder:text-slate-400 focus:border-accent-purple w-full rounded-lg border px-4 py-3 transition-colors outline-none"
           placeholder={`bob@${domain}, alice@${domain}`}
         />
       </div>
@@ -275,26 +275,26 @@ export function ProjectSetupFormSkeleton() {
   return (
     <div className="space-y-6">
       <div className="flex items-start gap-4">
-        <div className="bg-surface h-[50px] w-[50px] animate-pulse rounded-lg" />
+        <div className="bg-slate-50 dark:bg-slate-900 h-[50px] w-[50px] animate-pulse rounded-lg" />
         <div className="flex-1">
-          <div className="bg-surface mb-2 h-5 w-24 animate-pulse rounded" />
-          <div className="bg-surface h-[50px] w-full animate-pulse rounded-lg" />
+          <div className="bg-slate-50 dark:bg-slate-900 mb-2 h-5 w-24 animate-pulse rounded" />
+          <div className="bg-slate-50 dark:bg-slate-900 h-[50px] w-full animate-pulse rounded-lg" />
         </div>
       </div>
 
       <div>
-        <div className="bg-surface mb-2 h-5 w-24 animate-pulse rounded" />
-        <div className="bg-surface h-12 w-full animate-pulse rounded-lg" />
+        <div className="bg-slate-50 dark:bg-slate-900 mb-2 h-5 w-24 animate-pulse rounded" />
+        <div className="bg-slate-50 dark:bg-slate-900 h-12 w-full animate-pulse rounded-lg" />
       </div>
 
       <div>
-        <div className="bg-surface mb-2 h-5 w-24 animate-pulse rounded" />
-        <div className="bg-surface h-12 w-full animate-pulse rounded-lg" />
+        <div className="bg-slate-50 dark:bg-slate-900 mb-2 h-5 w-24 animate-pulse rounded" />
+        <div className="bg-slate-50 dark:bg-slate-900 h-12 w-full animate-pulse rounded-lg" />
       </div>
 
       <div>
-        <div className="bg-surface mb-2 h-5 w-32 animate-pulse rounded" />
-        <div className="bg-surface h-24 w-full animate-pulse rounded-lg" />
+        <div className="bg-slate-50 dark:bg-slate-900 mb-2 h-5 w-32 animate-pulse rounded" />
+        <div className="bg-slate-50 dark:bg-slate-900 h-24 w-full animate-pulse rounded-lg" />
       </div>
 
       <div className="from-accent-purple/20 via-accent-pink/20 to-accent-orange/20 h-14 w-full animate-pulse rounded-lg bg-gradient-to-r" />

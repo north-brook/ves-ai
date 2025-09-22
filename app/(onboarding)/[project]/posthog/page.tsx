@@ -4,6 +4,29 @@ import { PostHogForm, PostHogFormSkeleton } from "./form";
 import serverSupabase from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import PostHog from "@/components/posthog";
+import type { Metadata } from "next";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ project: string }>;
+}): Promise<Metadata> {
+  const { project: projectSlug } = await params;
+  const supabase = await serverSupabase();
+  
+  const { data: project } = await supabase
+    .from("projects")
+    .select("name")
+    .eq("slug", projectSlug)
+    .single();
+
+  const projectName = project?.name || "Project";
+  
+  return {
+    title: `Connect PostHog • ${projectName} • VES AI`,
+    description: `Set up PostHog integration for ${projectName} to analyze session replays with AI.`,
+  };
+}
 
 export default async function PostHogPage({
   params,
@@ -63,14 +86,12 @@ async function LoadedPostHogForm({ projectSlug }: { projectSlug: string }) {
   }
 
   // Check if PostHog is already connected
-  const { data: existingSource } = await supabase
+  const { data: source } = await supabase
     .from("sources")
     .select("*")
     .eq("project_id", project.id)
     .eq("type", "posthog")
     .single();
 
-  return (
-    <PostHogForm projectSlug={projectSlug} existingSource={existingSource} />
-  );
+  return <PostHogForm project={project} source={source} />;
 }

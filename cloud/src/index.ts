@@ -1,32 +1,32 @@
 import express from "express";
-import { getRecordingMeta } from "./posthog";
-import { recordReplayToWebm } from "./renderer";
-import { uploadToSupabase } from "./uploader";
+import fs from "fs/promises";
 import { postCallback } from "./callback";
-import type { ErrorPayload, RenderRequest, SuccessPayload } from "./types";
-import { clampMs } from "./util";
+import type { ErrorPayload, ProcessRequest, SuccessPayload } from "./types";
+import constructEvents from "./events";
+import constructVideo from "./replay";
 
 const app = express();
 app.use(express.json({ limit: "512kb" }));
 
+const activeRecordings = new Map<
+  string,
+  { body: ProcessRequest; callbackUrl: string; startTime: number }
+>();
+
 app.get("/health", (_req, res) => res.status(200).send("ok"));
 
-app.post("/render", async (req, res) => {
-  const body = req.body as RenderRequest;
+app.post("/process", async (req, res) => {
+  const body = req.body as ProcessRequest;
 
-  // Basic validation
   const missing = [
     "source_type",
     "source_host",
     "source_key",
     "source_project",
-    "recording_id",
-    "embed_url",
-    "supabase_url",
-    "supabase_storage_url",
-    "supabase_service_role_key",
-    "supabase_bucket",
-    "supabase_file_path",
+    "project_id",
+    "session_id",
+    "external_id",
+    "active_duration",
     "callback",
   ].filter(
     (k) =>
@@ -40,148 +40,212 @@ app.post("/render", async (req, res) => {
   }
 
   console.log(
-    `🎬 [START] Recording ${body.recording_id}\n` +
+    `🎬 [START] Recording ${body.external_id}\n` +
       `  📹 Source: ${body.source_type} | Host: ${body.source_host}\n` +
-      `  🗂️ Target: ${body.supabase_bucket}/${body.supabase_file_path}`,
+      `  🗂️ Target: ${body.project_id}/${body.session_id}`,
   );
 
-  // Return 200 immediately to acknowledge receipt
-  res.status(200).json({ 
-    success: true, 
-    message: "Recording job accepted and processing",
-    recording_id: body.recording_id 
-  });
-
-  // Process the recording asynchronously
-  processRecordingAsync(body).catch((err) => {
+  try {
+    await processRecordingAsync(body);
+    res.status(200).json({
+      success: true,
+      message: "Recording processed and callback sent",
+      external_id: body.external_id,
+    });
+  } catch (err: any) {
     console.error(
-      `❌ [ASYNC ERROR] Failed to process recording ${body.recording_id}:`,
-      err
+      `❌ [ERROR] Failed to process recording ${body.external_id}:`,
+      err,
     );
-  });
+    res.status(500).json({
+      success: false,
+      error: err.message || "Recording processing failed",
+      external_id: body.external_id,
+    });
+  }
 });
 
-// Async function to process the recording
-async function processRecordingAsync(body: RenderRequest) {
+async function processRecordingAsync(body: ProcessRequest) {
   let successPayload: SuccessPayload | null = null;
   let errorPayload: ErrorPayload | null = null;
+  const processStartTime = Date.now();
+
+  let callbackUrl = body.callback;
+  if (callbackUrl.includes("localhost") && process.env.DOCKERIZED === "true") {
+    callbackUrl = callbackUrl.replace("localhost", "host.docker.internal");
+    console.log(`🔄 [DOCKER] Rewriting callback URL to: ${callbackUrl}`);
+  }
+
+  activeRecordings.set(body.external_id, {
+    body,
+    callbackUrl,
+    startTime: processStartTime,
+  });
+
+  const processHeartbeat = setInterval(() => {
+    const elapsed = (Date.now() - processStartTime) / 1000;
+    console.log(
+      `⏰ [HEARTBEAT] Recording ${body.external_id} - ${elapsed.toFixed(0)}s elapsed`,
+    );
+  }, 30_000);
 
   try {
-    // 1) Use the embed URL provided in the request
-    const embedUrl = body.embed_url;
+    const { eventsPath, deviceWidth, deviceHeight, eventsUri } =
+      await constructEvents({
+        source_type: body.source_type,
+        source_host: body.source_host,
+        source_key: body.source_key,
+        source_project: body.source_project,
+        external_id: body.external_id,
+        project_id: body.project_id,
+        session_id: body.session_id,
+      });
 
-    // 2) Fetch meta to estimate runtime
-    const meta = await getRecordingMeta(
-      body.source_host,
-      body.source_key,
-      body.source_project,
-      body.recording_id,
-    );
-
-    const expectedSeconds = Math.max(
-      5,
-      Math.floor(meta.active_seconds || meta.recording_duration || 60),
-    );
-    const expectedMs = clampMs(expectedSeconds * 1000);
-
-    console.log(
-      `📊 [META] Duration analysis:\n` +
-        `  ⏱️ Active: ${meta.active_seconds}s | Total: ${meta.recording_duration}s\n` +
-        `  🎯 Expected: ${expectedSeconds}s (clamped wait: ${Math.round(expectedMs / 1000)}s)`,
-    );
-
-    // 3) Record to WebM with retry logic for empty videos
-    let webmPath: string = "";
-    let durationSeconds: number = 0;
-    let retryCount = 0;
-    const maxRetries = 2;
-
-    while (retryCount <= maxRetries) {
-      try {
-        const result = await recordReplayToWebm(embedUrl, expectedSeconds);
-
-        // Check if the video is valid (not empty)
-        const fs = await import("fs/promises");
-        const stats = await fs.stat(result.webmPath);
-        const minSize = expectedSeconds * 5000; // Minimum ~5KB per second
-
-        if (stats.size < minSize && retryCount < maxRetries) {
-          console.log(
-            `⚠️ [RETRY] Video seems empty (${stats.size} bytes), retrying... (${retryCount + 1}/${maxRetries})`,
-          );
-          retryCount++;
-          continue;
-        }
-
-        webmPath = result.webmPath;
-        durationSeconds = result.durationSeconds;
-        break;
-      } catch (err) {
-        if (retryCount < maxRetries) {
-          console.log(
-            `⚠️ [RETRY] Recording failed, retrying... (${retryCount + 1}/${maxRetries})`,
-          );
-          retryCount++;
-        } else {
-          throw err;
-        }
-      }
-    }
-
-    if (!webmPath) {
-      throw new Error("Failed to create video after all retries");
-    }
-
-    console.log(
-      `✅ [RENDERED] Video created:\n` +
-        `  ⏱️ Duration: ${durationSeconds.toFixed(1)}s\n` +
-        `  📁 Path: ${webmPath}`,
-    );
-
-    // 4) Upload to Supabase
-    const { publicUrl } = await uploadToSupabase({
-      supabaseUrl: body.supabase_url,
-      supabaseStorageUrl: body.supabase_storage_url,
-      supabaseServiceRoleKey: body.supabase_service_role_key,
-      bucket: body.supabase_bucket,
-      filePath: body.supabase_file_path,
-      localPath: webmPath,
+    const { videoPath, videoDuration, videoUri } = await constructVideo({
+      projectId: body.project_id,
+      sessionId: body.session_id,
+      eventsPath,
+      config: {
+        skipInactive: true,
+        speed: 1,
+        width: Math.max(320, deviceWidth),
+        height: Math.max(240, deviceHeight),
+        mouseTail: { strokeStyle: "red", lineWidth: 2, lineCap: "round" },
+      },
     });
 
     console.log(
-      `☁️ [UPLOADED] Successfully uploaded:\n` + `  🔗 URL: ${publicUrl}`,
+      `✅ [RENDERED] Video created and uploaded:\n` +
+        `  ⏱️ Duration: ${videoDuration.toFixed(1)}s\n` +
+        `  📁 Local Path: ${videoPath}\n` +
+        `  ☁️ GCS URI: ${videoUri}`,
     );
+
+    try {
+      await fs.unlink(videoPath);
+      console.log(`🧹 [CLEANUP] Deleted temporary video file: ${videoPath}`);
+    } catch (cleanupErr) {
+      console.warn(`⚠️ [CLEANUP] Failed to delete temp video: ${cleanupErr}`);
+    }
+
+    try {
+      await fs.unlink(eventsPath);
+      console.log(`🧹 [CLEANUP] Deleted temporary events file: ${eventsPath}`);
+    } catch (cleanupErr) {
+      console.warn(`⚠️ [CLEANUP] Failed to delete events file: ${cleanupErr}`);
+    }
+
+    clearInterval(processHeartbeat);
 
     successPayload = {
       success: true,
-      recording_id: body.recording_id,
-      public_url: publicUrl,
-      duration_seconds: Math.round(durationSeconds),
+      external_id: body.external_id,
+      video_uri: videoUri,
+      video_duration: Math.round(videoDuration),
+      events_uri: eventsUri,
     };
-    await postCallback(body.callback, successPayload);
+    await postCallback(callbackUrl, successPayload);
 
     console.log(
-      `✅ [COMPLETED] Recording ${body.recording_id} processed successfully`
+      `✅ [COMPLETED] Recording ${body.external_id} processed successfully`,
     );
   } catch (err: any) {
+    clearInterval(processHeartbeat);
     const message = err?.message || String(err);
     console.error(
       `❌ [ERROR] Recording failed:\n` +
-        `  🆔 Recording: ${body.recording_id}\n` +
+        `  🆔 Recording: ${body.external_id}\n` +
+        `  ⏱️ Duration: ${body.active_duration}s\n` +
         `  💥 Error: ${message}\n` +
         `  📚 Stack: ${err?.stack || "No stack trace"}`,
     );
     errorPayload = {
       success: false,
       error: message,
-      recording_id: body.recording_id,
+      external_id: body.external_id,
     };
-    await postCallback(body.callback, errorPayload);
+    await postCallback(callbackUrl, errorPayload);
+  } finally {
+    clearInterval(processHeartbeat);
+    activeRecordings.delete(body.external_id);
+    const totalTime = (Date.now() - processStartTime) / 1000;
+    console.log(
+      `⏱️ [TIMING] Total processing time for ${body.external_id}: ${totalTime.toFixed(1)}s`,
+    );
   }
 }
 
+// Graceful shutdown (unchanged)
+let isShuttingDown = false;
+async function gracefulShutdown(signal: string) {
+  if (isShuttingDown) {
+    console.log(`⚠️ [SHUTDOWN] Already shutting down, ignoring ${signal}`);
+    return;
+  }
+  isShuttingDown = true;
+  console.log(
+    `\n⚠️ [SHUTDOWN] Received ${signal}, starting graceful shutdown...`,
+  );
+  if (server) {
+    server.close(() => console.log(`🚪 [SHUTDOWN] HTTP server closed`));
+  }
+  const promises: Promise<void>[] = [];
+  for (const [externalId, recording] of activeRecordings) {
+    const elapsed = ((Date.now() - recording.startTime) / 1000).toFixed(1);
+    console.log(
+      `🔔 [SHUTDOWN] Sending error callback for recording ${externalId} (${elapsed}s)`,
+    );
+    const errorPayload: ErrorPayload = {
+      success: false,
+      error: `Service shutdown (${signal}) - recording interrupted after ${elapsed}s`,
+      external_id: externalId,
+    };
+    promises.push(
+      postCallback(recording.callbackUrl, errorPayload)
+        .then(() => {
+          console.log(`✅ [SHUTDOWN] Callback sent for ${externalId}`);
+          activeRecordings.delete(externalId);
+        })
+        .catch((err) =>
+          console.error(
+            `❌ [SHUTDOWN] Failed callback for ${externalId}:`,
+            err,
+          ),
+        ),
+    );
+  }
+  if (promises.length) {
+    await Promise.race([
+      Promise.all(promises),
+      new Promise((r) => setTimeout(r, 10_000)),
+    ]);
+  } else {
+    console.log(`👍 [SHUTDOWN] No active recordings to clean up`);
+  }
+  await new Promise((r) => setTimeout(r, 1000));
+  console.log(`👋 [SHUTDOWN] Graceful shutdown complete`);
+  process.exit(0);
+}
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+process.on("SIGHUP", () => gracefulShutdown("SIGHUP"));
+process.on("uncaughtException", async (error) => {
+  console.error("💥 [FATAL] Uncaught exception:", error);
+  await gracefulShutdown("uncaughtException");
+});
+process.on("unhandledRejection", async (reason, promise) => {
+  console.error(
+    "💥 [FATAL] Unhandled rejection at:",
+    promise,
+    "reason:",
+    reason,
+  );
+  await gracefulShutdown("unhandledRejection");
+});
+
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
+let server: any;
+server = app.listen(PORT, () => {
   console.log(
     `🚀 [SERVER] Cloud recording service started:\n` +
       `  🌐 Port: ${PORT}\n` +

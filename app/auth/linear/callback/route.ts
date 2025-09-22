@@ -13,13 +13,13 @@ export async function GET(request: Request) {
   if (error) {
     console.error("Linear OAuth error:", error);
     return NextResponse.redirect(
-      `${origin}/${state}/linear?error=${encodeURIComponent(error)}`
+      `${origin}/${state}/linear?error=${encodeURIComponent(error)}`,
     );
   }
 
   if (!code || !state) {
     return NextResponse.redirect(
-      `${origin}/${state}/linear?error=${encodeURIComponent("Missing authorization code")}`
+      `${origin}/${state}/linear?error=${encodeURIComponent("Missing authorization code")}`,
     );
   }
 
@@ -47,10 +47,11 @@ export async function GET(request: Request) {
 
     const tokenData = await tokenResponse.json();
     const accessToken = tokenData.access_token;
+    const refreshToken = tokenData.refresh_token;
 
     // Get user info and default team using SDK
     const linearClient = new LinearClient({ accessToken });
-    
+
     const viewer = await linearClient.viewer;
     if (!viewer) {
       throw new Error("Failed to fetch Linear user data");
@@ -62,14 +63,14 @@ export async function GET(request: Request) {
       key: team.key,
       name: team.name,
     }));
-    
+
     if (teams.length === 0) {
       throw new Error("No Linear teams found");
     }
 
     // Save token temporarily to session/database
     const supabase = await serverSupabase();
-    
+
     // Get the project
     const { data: project } = await supabase
       .from("projects")
@@ -90,20 +91,22 @@ export async function GET(request: Request) {
       .single();
 
     if (existingDestination) {
-      // Update with token only
+      // Update with both access and refresh tokens
       await supabase
         .from("destinations")
         .update({
-          destination_token: accessToken,
+          destination_access_token: accessToken,
+          destination_refresh_token: refreshToken,
           last_active_at: new Date().toISOString(),
         })
         .eq("id", existingDestination.id);
     } else {
-      // Create with token only (team/project will be selected on next screen)
+      // Create with both access and refresh tokens (team/project will be selected on next screen)
       await supabase.from("destinations").insert({
         project_id: project.id,
         type: "linear",
-        destination_token: accessToken,
+        destination_access_token: accessToken,
+        destination_refresh_token: refreshToken,
         destination_team: teams[0].id, // Default to first team
       });
     }
@@ -117,9 +120,9 @@ export async function GET(request: Request) {
       tags: { action: "linearOAuthCallback" },
       extra: { projectSlug: state },
     });
-    
+
     return NextResponse.redirect(
-      `${origin}/${state}/linear?error=${encodeURIComponent("Failed to connect Linear")}`
+      `${origin}/${state}/linear?error=${encodeURIComponent("Failed to connect Linear")}`,
     );
   }
 }

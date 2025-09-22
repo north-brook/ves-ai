@@ -1,8 +1,8 @@
 {
   "crons": [
     {
-      "path": "/jobs/run",
-      "schedule": "*/30 * * * *"
+      "path": "/jobs/sync-sessions",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

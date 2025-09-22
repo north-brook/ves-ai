@@ -3,38 +3,41 @@ import { Suspense } from "react";
 import LogInButton, { LoadingLogInButton } from "@/app/auth/log-in-button";
 import serverSupabase from "@/lib/supabase/server";
 import Link from "next/link";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Pricing • VES AI",
+  description:
+    "Simple, transparent pricing for AI-powered session analysis. No overages, no surprises. Start with 1 hour free.",
+};
 
 const plans = [
   {
     name: "Starter",
-    hours: "20 hours of monthly analysis",
-    workers: "2 analysis workers",
-    sessions: "~200 monthly sessions",
-    price: "$199",
+    workers: "10 concurrent workers",
+    sessions: "100 monthly sessions",
+    price: "$0",
     description: "Early-stage startups",
     popular: false,
   },
   {
     name: "Growth",
-    hours: "100 hours of monthly analysis",
-    workers: "5 analysis workers",
-    sessions: "~1,000 monthly sessions",
-    price: "$699",
+    workers: "50 concurrent workers",
+    sessions: "1,000 monthly sessions",
+    price: "$500",
     description: "Growing product teams",
     popular: true,
   },
   {
     name: "Scale",
-    hours: "300 hours of monthly analysis",
-    workers: "10 analysis workers",
-    sessions: "~3,000 monthly sessions",
-    price: "$1,999",
+    workers: "100 concurrent workers",
+    sessions: "10,000 monthly sessions",
+    price: "$2,000",
     description: "Mid-market SaaS",
     popular: false,
   },
   {
     name: "Enterprise",
-    hours: "Unlimited analysis",
     workers: "Unlimited workers",
     sessions: "Unlimited",
     price: "Custom",
@@ -48,7 +51,6 @@ const features = [
   "Bug, UX, and feature suggestions",
   "Direct Linear integration",
   "Priority scoring & duplicate detection",
-  "Concurrent analysis workers for faster processing",
 ];
 
 export default function PricingPage() {
@@ -64,9 +66,9 @@ export default function PricingPage() {
               Simple plans. No overages. No surprises.
             </h1>
 
-            <p className="text-foreground-secondary mx-auto max-w-2xl text-xl">
-              Pick the plan that matches how many sessions you want VES to watch
-              each month.
+            <p className="text-slate-600 dark:text-slate-400 mx-auto max-w-2xl text-xl">
+              Get started for free with 1 hour of analysis, then pick the plan
+              that matches how many sessions you want VES to watch each month.
             </p>
           </div>
         </div>
@@ -82,7 +84,7 @@ export default function PricingPage() {
                 className={`relative rounded-2xl p-8 ${
                   plan.popular
                     ? "from-accent-purple/10 to-accent-purple/5 border-accent-purple border-2 bg-gradient-to-b"
-                    : "bg-surface border-border border"
+                    : "bg-slate-50 dark:bg-slate-900 border-border border"
                 }`}
               >
                 {plan.popular && (
@@ -102,7 +104,7 @@ export default function PricingPage() {
                     <div className="text-3xl font-bold">
                       {plan.price}
                       {plan.price !== "Custom" && (
-                        <span className="text-foreground-secondary text-lg font-normal">
+                        <span className="text-slate-600 dark:text-slate-400 text-lg font-normal">
                           /mo
                         </span>
                       )}
@@ -110,16 +112,13 @@ export default function PricingPage() {
                   </div>
 
                   <div className="border-border space-y-2 border-y py-4">
-                    <p className="text-foreground">{plan.hours}</p>
-                    <p className="text-foreground-secondary text-sm">
+                    <p className="text-foreground text-sm">{plan.sessions}</p>
+                    <p className="text-slate-600 dark:text-slate-400 text-sm">
                       {plan.workers}
-                    </p>
-                    <p className="text-foreground-secondary text-sm">
-                      {plan.sessions}
                     </p>
                   </div>
 
-                  <p className="text-foreground-secondary text-sm">
+                  <p className="text-slate-600 dark:text-slate-400 text-sm">
                     {plan.description}
                   </p>
 
@@ -174,7 +173,7 @@ export default function PricingPage() {
       </section>
 
       {/* How Billing Works */}
-      <section className="bg-surface px-6 py-24">
+      <section className="bg-slate-50 dark:bg-slate-900 px-6 py-24">
         <div className="mx-auto max-w-4xl">
           <h2 className="font-display mb-12 text-center text-3xl font-bold">
             How billing works
@@ -184,7 +183,7 @@ export default function PricingPage() {
             <div className="flex items-start gap-3">
               <span className="text-accent-purple">•</span>
               <p className="text-foreground">
-                No credit card needed for 1 hour of free analysis
+                No credit card needed for 100 monthly sessions
               </p>
             </div>
             <div className="flex items-start gap-3">
@@ -194,7 +193,7 @@ export default function PricingPage() {
             <div className="flex items-start gap-3">
               <span className="text-accent-orange">•</span>
               <p className="text-foreground">
-                Upgrade when you need more analysis hours
+                Upgrade when you need more sessions
               </p>
             </div>
           </div>
@@ -224,7 +223,7 @@ function LoadingPricingButton({
   switch (variant) {
     case "default":
       return (
-        <div className="border-border bg-background hover:bg-surface h-[50px] w-full rounded-lg border py-3 font-medium transition-all duration-200" />
+        <div className="border-border bg-background hover:bg-slate-50 dark:hover:bg-slate-900 h-[50px] w-full rounded-lg border py-3 font-medium transition-all duration-200" />
       );
     case "popular":
       return (
@@ -234,7 +233,7 @@ function LoadingPricingButton({
       );
     case "enterprise":
       return (
-        <div className="border-border bg-background hover:bg-surface block h-[50px] w-full rounded-lg border py-3 text-center font-medium transition-all duration-200" />
+        <div className="border-border bg-background hover:bg-slate-50 dark:hover:bg-slate-900 block h-[50px] w-full rounded-lg border py-3 text-center font-medium transition-all duration-200" />
       );
   }
 }
@@ -254,7 +253,7 @@ async function LoadedPricingButton({
       return (
         <Link
           href={authUser ? "/home" : "/login"}
-          className="border-border bg-background hover:bg-surface mt-[2px] flex flex-row items-center justify-center rounded-lg border py-3 font-medium transition-all duration-200"
+          className="border-border bg-background hover:bg-slate-50 dark:hover:bg-slate-900 mt-[2px] flex flex-row items-center justify-center rounded-lg border py-3 font-medium transition-all duration-200"
         >
           Get Started
         </Link>
@@ -274,7 +273,7 @@ async function LoadedPricingButton({
       return (
         <Link
           href="mailto:team@ves.ai?subject=Enterprise"
-          className="border-border bg-background hover:bg-surface mt-[2px] block w-full rounded-lg border py-3 text-center font-medium transition-all duration-200"
+          className="border-border bg-background hover:bg-slate-50 dark:hover:bg-slate-900 mt-[2px] block w-full rounded-lg border py-3 text-center font-medium transition-all duration-200"
         >
           Contact Sales
         </Link>
