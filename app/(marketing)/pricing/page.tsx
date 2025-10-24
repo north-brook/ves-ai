@@ -66,8 +66,8 @@ export default function PricingPage() {
               Simple plans. No overages. No surprises.
             </h1>
 
-            <p className="text-slate-600 dark:text-slate-400 mx-auto max-w-2xl text-xl">
-              Get started for free with 1 hour of analysis, then pick the plan
+            <p className="mx-auto max-w-2xl text-xl text-slate-600 dark:text-slate-400">
+              Get started for free with 100 monthly sessions, then pick the plan
               that matches how many sessions you want VES to watch each month.
             </p>
           </div>
@@ -84,7 +84,7 @@ export default function PricingPage() {
                 className={`relative rounded-2xl p-8 ${
                   plan.popular
                     ? "from-accent-purple/10 to-accent-purple/5 border-accent-purple border-2 bg-gradient-to-b"
-                    : "bg-slate-50 dark:bg-slate-900 border-border border"
+                    : "border-border border bg-slate-50 dark:bg-slate-900"
                 }`}
               >
                 {plan.popular && (
@@ -104,7 +104,7 @@ export default function PricingPage() {
                     <div className="text-3xl font-bold">
                       {plan.price}
                       {plan.price !== "Custom" && (
-                        <span className="text-slate-600 dark:text-slate-400 text-lg font-normal">
+                        <span className="text-lg font-normal text-slate-600 dark:text-slate-400">
                           /mo
                         </span>
                       )}
@@ -113,12 +113,12 @@ export default function PricingPage() {
 
                   <div className="border-border space-y-2 border-y py-4">
                     <p className="text-foreground text-sm">{plan.sessions}</p>
-                    <p className="text-slate-600 dark:text-slate-400 text-sm">
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
                       {plan.workers}
                     </p>
                   </div>
 
-                  <p className="text-slate-600 dark:text-slate-400 text-sm">
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
                     {plan.description}
                   </p>
 
@@ -173,7 +173,7 @@ export default function PricingPage() {
       </section>
 
       {/* How Billing Works */}
-      <section className="bg-slate-50 dark:bg-slate-900 px-6 py-24">
+      <section className="bg-slate-50 px-6 py-24 dark:bg-slate-900">
         <div className="mx-auto max-w-4xl">
           <h2 className="font-display mb-12 text-center text-3xl font-bold">
             How billing works
@@ -223,7 +223,7 @@ function LoadingPricingButton({
   switch (variant) {
     case "default":
       return (
-        <div className="border-border bg-background hover:bg-slate-50 dark:hover:bg-slate-900 h-[50px] w-full rounded-lg border py-3 font-medium transition-all duration-200" />
+        <div className="border-border bg-background h-[50px] w-full rounded-lg border py-3 font-medium transition-all duration-200 hover:bg-slate-50 dark:hover:bg-slate-900" />
       );
     case "popular":
       return (
@@ -233,7 +233,7 @@ function LoadingPricingButton({
       );
     case "enterprise":
       return (
-        <div className="border-border bg-background hover:bg-slate-50 dark:hover:bg-slate-900 block h-[50px] w-full rounded-lg border py-3 text-center font-medium transition-all duration-200" />
+        <div className="border-border bg-background block h-[50px] w-full rounded-lg border py-3 text-center font-medium transition-all duration-200 hover:bg-slate-50 dark:hover:bg-slate-900" />
       );
   }
 }
@@ -253,7 +253,7 @@ async function LoadedPricingButton({
       return (
         <Link
           href={authUser ? "/home" : "/login"}
-          className="border-border bg-background hover:bg-slate-50 dark:hover:bg-slate-900 mt-[2px] flex flex-row items-center justify-center rounded-lg border py-3 font-medium transition-all duration-200"
+          className="border-border bg-background mt-[2px] flex flex-row items-center justify-center rounded-lg border py-3 font-medium transition-all duration-200 hover:bg-slate-50 dark:hover:bg-slate-900"
         >
           Get Started
         </Link>
@@ -273,7 +273,7 @@ async function LoadedPricingButton({
       return (
         <Link
           href="mailto:team@ves.ai?subject=Enterprise"
-          className="border-border bg-background hover:bg-slate-50 dark:hover:bg-slate-900 mt-[2px] block w-full rounded-lg border py-3 text-center font-medium transition-all duration-200"
+          className="border-border bg-background mt-[2px] block w-full rounded-lg border py-3 text-center font-medium transition-all duration-200 hover:bg-slate-50 dark:hover:bg-slate-900"
         >
           Contact Sales
         </Link>
