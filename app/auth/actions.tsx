@@ -126,6 +126,13 @@ export async function syncAuth(auth: {
     // INIT USER
 
     // create user in db
+    console.log("creating user in db", {
+      id: auth.authUser.id,
+      first_name,
+      last_name,
+      email,
+      image,
+    });
     const { data: newUser, error } = await supabase
       .from("users")
       .insert({
