@@ -14,7 +14,14 @@ export async function GET(request: Request) {
     console.log("exchanging code for session", code);
     const { data: auth, error } =
       await supabase.auth.exchangeCodeForSession(code);
-    if (!error) {
+    if (error) {
+      console.error("error exchanging code for session", error);
+      Sentry.captureException(error, {
+        tags: { action: "authCallback", step: "exchangeCodeForSession" },
+        extra: { code },
+      });
+      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_URL}/auth/error`);
+    } else {
       const syncResult = await syncAuth({
         authUser: auth.user,
         authSession: auth.session,
