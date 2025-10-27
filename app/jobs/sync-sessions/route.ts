@@ -137,10 +137,7 @@ export async function GET(request: NextRequest) {
               );
 
               // Pull sessions only (don't process yet)
-              const newSessionIds = await pullSessionsFromSource(
-                source,
-                supabase,
-              );
+              const newSessionIds = await pullSessionsFromSource(source);
 
               totalNewSessions += newSessionIds.length;
 
@@ -272,10 +269,9 @@ export async function GET(request: NextRequest) {
   }
 }
 
-async function pullSessionsFromSource(
-  source: Source,
-  supabase: ReturnType<typeof adminSupabase>,
-): Promise<string[]> {
+async function pullSessionsFromSource(source: Source): Promise<string[]> {
+  const supabase = adminSupabase();
+
   console.log(
     `🔍 [SYNC SESSIONS] Fetching recordings from PostHog for source ${source.id}`,
   );
@@ -631,7 +627,7 @@ async function pullSessionsFromSource(
             total_duration: recording.recording_duration,
             active_duration: recording.active_seconds,
           })
-          .select()
+          .select("id")
           .single();
 
         if (insertError) {

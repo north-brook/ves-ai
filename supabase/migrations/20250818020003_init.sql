@@ -1,5 +1,3 @@
-
-
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
@@ -11,67 +9,27 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
-
 CREATE EXTENSION IF NOT EXISTS "pg_net" WITH SCHEMA "extensions";
-
-
-
-
-
 
 COMMENT ON SCHEMA "public" IS 'standard public schema';
 
-
-
 CREATE EXTENSION IF NOT EXISTS "pg_graphql" WITH SCHEMA "graphql";
-
-
-
-
-
 
 CREATE EXTENSION IF NOT EXISTS "pg_stat_statements" WITH SCHEMA "extensions";
 
-
-
-
-
-
 CREATE EXTENSION IF NOT EXISTS "pgcrypto" WITH SCHEMA "extensions";
-
-
-
-
-
 
 CREATE EXTENSION IF NOT EXISTS "supabase_vault" WITH SCHEMA "vault";
 
-
-
-
-
-
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA "extensions";
 
-
-
-
-
-
 CREATE EXTENSION IF NOT EXISTS "vector" WITH SCHEMA "extensions";
-
-
-
-
-
 
 CREATE TYPE "public"."destination_type" AS ENUM (
     'linear'
 );
 
-
 ALTER TYPE "public"."destination_type" OWNER TO "postgres";
-
 
 CREATE TYPE "public"."project_plan" AS ENUM (
     'trial',
@@ -81,9 +39,7 @@ CREATE TYPE "public"."project_plan" AS ENUM (
     'enterprise'
 );
 
-
 ALTER TYPE "public"."project_plan" OWNER TO "postgres";
-
 
 CREATE TYPE "public"."session_status" AS ENUM (
     'pending',
@@ -94,17 +50,13 @@ CREATE TYPE "public"."session_status" AS ENUM (
     'failed'
 );
 
-
 ALTER TYPE "public"."session_status" OWNER TO "postgres";
-
 
 CREATE TYPE "public"."source_type" AS ENUM (
     'posthog'
 );
 
-
 ALTER TYPE "public"."source_type" OWNER TO "postgres";
-
 
 CREATE OR REPLACE FUNCTION "public"."match_sessions"("query_embedding" "extensions"."vector", "match_threshold" double precision, "match_count" integer) RETURNS TABLE("id" "uuid", "similarity" double precision)
     LANGUAGE "sql" STABLE
@@ -119,9 +71,7 @@ CREATE OR REPLACE FUNCTION "public"."match_sessions"("query_embedding" "extensio
   limit match_count;
 $$;
 
-
 ALTER FUNCTION "public"."match_sessions"("query_embedding" "extensions"."vector", "match_threshold" double precision, "match_count" integer) OWNER TO "postgres";
-
 
 CREATE OR REPLACE FUNCTION "public"."project_access"("project_id" "uuid", "user_id" "uuid") RETURNS boolean
     LANGUAGE "plpgsql"
@@ -133,13 +83,11 @@ CREATE OR REPLACE FUNCTION "public"."project_access"("project_id" "uuid", "user_
     );
 END;$_$;
 
-
 ALTER FUNCTION "public"."project_access"("project_id" "uuid", "user_id" "uuid") OWNER TO "postgres";
 
 SET default_tablespace = '';
 
 SET default_table_access_method = "heap";
-
 
 CREATE TABLE IF NOT EXISTS "public"."destinations" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
@@ -152,9 +100,7 @@ CREATE TABLE IF NOT EXISTS "public"."destinations" (
     "destination_workspace" "text"
 );
 
-
 ALTER TABLE "public"."destinations" OWNER TO "postgres";
-
 
 CREATE TABLE IF NOT EXISTS "public"."projects" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
@@ -167,9 +113,7 @@ CREATE TABLE IF NOT EXISTS "public"."projects" (
     "subscribed_at" timestamp with time zone
 );
 
-
 ALTER TABLE "public"."projects" OWNER TO "postgres";
-
 
 CREATE TABLE IF NOT EXISTS "public"."roles" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
@@ -179,9 +123,7 @@ CREATE TABLE IF NOT EXISTS "public"."roles" (
     "user_id" "uuid"
 );
 
-
 ALTER TABLE "public"."roles" OWNER TO "postgres";
-
 
 CREATE TABLE IF NOT EXISTS "public"."session_tickets" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
@@ -191,9 +133,7 @@ CREATE TABLE IF NOT EXISTS "public"."session_tickets" (
     "project_id" "uuid" NOT NULL
 );
 
-
 ALTER TABLE "public"."session_tickets" OWNER TO "postgres";
-
 
 CREATE TABLE IF NOT EXISTS "public"."sessions" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
@@ -201,7 +141,7 @@ CREATE TABLE IF NOT EXISTS "public"."sessions" (
     "project_id" "uuid" NOT NULL,
     "source_id" "uuid" NOT NULL,
     "status" "public"."session_status" NOT NULL,
-    "external_id" "text" NOT NULL,
+    "recording_id" "text" NOT NULL,
     "embed_url" "text",
     "video_url" "text",
     "name" "text",
@@ -215,9 +155,7 @@ CREATE TABLE IF NOT EXISTS "public"."sessions" (
     "video_duration" numeric
 );
 
-
 ALTER TABLE "public"."sessions" OWNER TO "postgres";
-
 
 CREATE TABLE IF NOT EXISTS "public"."sources" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
@@ -230,9 +168,7 @@ CREATE TABLE IF NOT EXISTS "public"."sources" (
     "last_active_at" timestamp with time zone
 );
 
-
 ALTER TABLE "public"."sources" OWNER TO "postgres";
-
 
 CREATE TABLE IF NOT EXISTS "public"."tickets" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
@@ -248,9 +184,7 @@ CREATE TABLE IF NOT EXISTS "public"."tickets" (
     "url" "text" NOT NULL
 );
 
-
 ALTER TABLE "public"."tickets" OWNER TO "postgres";
-
 
 CREATE TABLE IF NOT EXISTS "public"."users" (
     "id" "uuid" NOT NULL,
@@ -261,274 +195,163 @@ CREATE TABLE IF NOT EXISTS "public"."users" (
     "image" "text"
 );
 
-
 ALTER TABLE "public"."users" OWNER TO "postgres";
-
 
 ALTER TABLE ONLY "public"."destinations"
     ADD CONSTRAINT "destinations_pkey" PRIMARY KEY ("id");
 
-
-
 ALTER TABLE ONLY "public"."projects"
     ADD CONSTRAINT "projects_pkey" PRIMARY KEY ("id");
-
-
 
 ALTER TABLE ONLY "public"."roles"
     ADD CONSTRAINT "roles_pkey" PRIMARY KEY ("id");
 
-
-
 ALTER TABLE ONLY "public"."session_tickets"
     ADD CONSTRAINT "session_tickets_pkey" PRIMARY KEY ("id");
-
-
 
 ALTER TABLE ONLY "public"."sessions"
     ADD CONSTRAINT "sessions_pkey" PRIMARY KEY ("id");
 
-
-
 ALTER TABLE ONLY "public"."sources"
     ADD CONSTRAINT "sources_pkey" PRIMARY KEY ("id");
-
-
 
 ALTER TABLE ONLY "public"."tickets"
     ADD CONSTRAINT "tickets_pkey" PRIMARY KEY ("id");
 
-
-
 ALTER TABLE ONLY "public"."users"
     ADD CONSTRAINT "users_pkey" PRIMARY KEY ("id");
-
-
 
 ALTER TABLE ONLY "public"."destinations"
     ADD CONSTRAINT "destinations_project_id_fkey" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON UPDATE CASCADE ON DELETE CASCADE;
 
-
-
 ALTER TABLE ONLY "public"."roles"
     ADD CONSTRAINT "roles_project_id_fkey" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON UPDATE CASCADE ON DELETE CASCADE;
-
-
 
 ALTER TABLE ONLY "public"."roles"
     ADD CONSTRAINT "roles_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON UPDATE CASCADE ON DELETE CASCADE;
 
-
-
 ALTER TABLE ONLY "public"."session_tickets"
     ADD CONSTRAINT "session_tickets_project_id_fkey" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON UPDATE CASCADE ON DELETE CASCADE;
-
-
 
 ALTER TABLE ONLY "public"."session_tickets"
     ADD CONSTRAINT "session_tickets_session_id_fkey" FOREIGN KEY ("session_id") REFERENCES "public"."sessions"("id") ON UPDATE CASCADE ON DELETE CASCADE;
 
-
-
 ALTER TABLE ONLY "public"."session_tickets"
     ADD CONSTRAINT "session_tickets_ticket_id_fkey" FOREIGN KEY ("ticket_id") REFERENCES "public"."tickets"("id") ON UPDATE CASCADE ON DELETE CASCADE;
-
-
 
 ALTER TABLE ONLY "public"."sessions"
     ADD CONSTRAINT "sessions_project_id_fkey" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON UPDATE CASCADE ON DELETE CASCADE;
 
-
-
 ALTER TABLE ONLY "public"."sessions"
     ADD CONSTRAINT "sessions_source_id_fkey" FOREIGN KEY ("source_id") REFERENCES "public"."sources"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
-
-
 
 ALTER TABLE ONLY "public"."sources"
     ADD CONSTRAINT "sources_project_id_fkey" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON UPDATE CASCADE ON DELETE CASCADE;
 
-
-
 ALTER TABLE ONLY "public"."tickets"
     ADD CONSTRAINT "tickets_destination_id_fkey" FOREIGN KEY ("destination_id") REFERENCES "public"."destinations"("id") ON UPDATE CASCADE ON DELETE CASCADE;
-
-
 
 ALTER TABLE ONLY "public"."tickets"
     ADD CONSTRAINT "tickets_project_id_fkey" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON UPDATE CASCADE ON DELETE CASCADE;
 
-
-
 CREATE POLICY "Projects are public" ON "public"."projects" FOR SELECT USING (true);
-
-
 
 CREATE POLICY "Users can create new projects" ON "public"."projects" FOR INSERT TO "authenticated" WITH CHECK (true);
 
-
-
 CREATE POLICY "Users can link sessions to tickets" ON "public"."session_tickets" TO "authenticated" USING ("public"."project_access"("project_id", ( SELECT "auth"."uid"() AS "uid")));
-
-
 
 CREATE POLICY "Users can manage project sessions" ON "public"."sessions" TO "authenticated" USING ("public"."project_access"("project_id", ( SELECT "auth"."uid"() AS "uid")));
 
-
-
 CREATE POLICY "Users can manage project tickets" ON "public"."tickets" TO "authenticated" USING ("public"."project_access"("project_id", ( SELECT "auth"."uid"() AS "uid")));
-
-
 
 CREATE POLICY "Users can manage their colleagues" ON "public"."roles" USING ("public"."project_access"("project_id", ( SELECT "auth"."uid"() AS "uid")));
 
-
-
 CREATE POLICY "Users can manage their project destinations" ON "public"."destinations" TO "authenticated" USING ("public"."project_access"("project_id", ( SELECT "auth"."uid"() AS "uid")));
-
-
 
 CREATE POLICY "Users can manage their project sources" ON "public"."sources" TO "authenticated" USING ("public"."project_access"("project_id", ( SELECT "auth"."uid"() AS "uid")));
 
-
-
 CREATE POLICY "Users can manage their projects" ON "public"."projects" TO "authenticated" USING ("public"."project_access"("id", ( SELECT "auth"."uid"() AS "uid")));
-
-
 
 CREATE POLICY "Users can manage themselves" ON "public"."users" TO "authenticated" USING (("id" = ( SELECT "auth"."uid"() AS "uid"))) WITH CHECK (("id" = ( SELECT "auth"."uid"() AS "uid")));
 
-
-
 CREATE POLICY "Users can see their roles" ON "public"."roles" FOR SELECT TO "authenticated" USING (("user_id" = ( SELECT "auth"."uid"() AS "uid")));
-
-
 
 ALTER TABLE "public"."destinations" ENABLE ROW LEVEL SECURITY;
 
-
 ALTER TABLE "public"."projects" ENABLE ROW LEVEL SECURITY;
-
 
 ALTER TABLE "public"."roles" ENABLE ROW LEVEL SECURITY;
 
-
 ALTER TABLE "public"."session_tickets" ENABLE ROW LEVEL SECURITY;
-
 
 ALTER TABLE "public"."sessions" ENABLE ROW LEVEL SECURITY;
 
-
 ALTER TABLE "public"."sources" ENABLE ROW LEVEL SECURITY;
-
 
 ALTER TABLE "public"."tickets" ENABLE ROW LEVEL SECURITY;
 
-
 ALTER TABLE "public"."users" ENABLE ROW LEVEL SECURITY;
 
-
-
-
 ALTER PUBLICATION "supabase_realtime" OWNER TO "postgres";
-
-
-
-
 
 GRANT USAGE ON SCHEMA "public" TO "postgres";
 GRANT USAGE ON SCHEMA "public" TO "anon";
 GRANT USAGE ON SCHEMA "public" TO "authenticated";
 GRANT USAGE ON SCHEMA "public" TO "service_role";
 
-
-
-
-
 GRANT ALL ON FUNCTION "public"."project_access"("project_id" "uuid", "user_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."project_access"("project_id" "uuid", "user_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."project_access"("project_id" "uuid", "user_id" "uuid") TO "service_role";
-
 
 GRANT ALL ON TABLE "public"."destinations" TO "anon";
 GRANT ALL ON TABLE "public"."destinations" TO "authenticated";
 GRANT ALL ON TABLE "public"."destinations" TO "service_role";
 
-
-
 GRANT ALL ON TABLE "public"."projects" TO "anon";
 GRANT ALL ON TABLE "public"."projects" TO "authenticated";
 GRANT ALL ON TABLE "public"."projects" TO "service_role";
-
-
 
 GRANT ALL ON TABLE "public"."roles" TO "anon";
 GRANT ALL ON TABLE "public"."roles" TO "authenticated";
 GRANT ALL ON TABLE "public"."roles" TO "service_role";
 
-
-
 GRANT ALL ON TABLE "public"."session_tickets" TO "anon";
 GRANT ALL ON TABLE "public"."session_tickets" TO "authenticated";
 GRANT ALL ON TABLE "public"."session_tickets" TO "service_role";
-
-
 
 GRANT ALL ON TABLE "public"."sessions" TO "anon";
 GRANT ALL ON TABLE "public"."sessions" TO "authenticated";
 GRANT ALL ON TABLE "public"."sessions" TO "service_role";
 
-
-
 GRANT ALL ON TABLE "public"."sources" TO "anon";
 GRANT ALL ON TABLE "public"."sources" TO "authenticated";
 GRANT ALL ON TABLE "public"."sources" TO "service_role";
-
-
 
 GRANT ALL ON TABLE "public"."tickets" TO "anon";
 GRANT ALL ON TABLE "public"."tickets" TO "authenticated";
 GRANT ALL ON TABLE "public"."tickets" TO "service_role";
 
-
-
 GRANT ALL ON TABLE "public"."users" TO "anon";
 GRANT ALL ON TABLE "public"."users" TO "authenticated";
 GRANT ALL ON TABLE "public"."users" TO "service_role";
-
-
-
-
-
-
-
-
 
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "postgres";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "service_role";
 
-
-
-
-
-
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "postgres";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "service_role";
-
-
-
-
-
 
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "postgres";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "service_role";
 
-
-
 RESET ALL;
+
+--
+-- Dumped schema changes for auth and storage
+--
