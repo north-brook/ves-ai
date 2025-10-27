@@ -57,7 +57,7 @@ export type Database = {
         Row: {
           analysis_hash: string | null
           analyzed_at: string | null
-          confidence: Database["public"]["Enums"]["issue_confidence"] | null
+          confidence: Database["public"]["Enums"]["issue_confidence"]
           created_at: string
           embedding: string | null
           external_id: string | null
@@ -65,18 +65,18 @@ export type Database = {
             | Database["public"]["Enums"]["issue_external_status"]
             | null
           id: string
-          name: string | null
-          priority: Database["public"]["Enums"]["issue_priority"] | null
+          name: string
+          priority: Database["public"]["Enums"]["issue_priority"]
           project_id: string
-          severity: Database["public"]["Enums"]["issue_severity"] | null
+          severity: Database["public"]["Enums"]["issue_severity"]
           status: Database["public"]["Enums"]["issue_status"]
-          story: string | null
-          type: Database["public"]["Enums"]["issue_type"] | null
+          story: string
+          type: Database["public"]["Enums"]["issue_type"]
         }
         Insert: {
           analysis_hash?: string | null
           analyzed_at?: string | null
-          confidence?: Database["public"]["Enums"]["issue_confidence"] | null
+          confidence: Database["public"]["Enums"]["issue_confidence"]
           created_at?: string
           embedding?: string | null
           external_id?: string | null
@@ -84,18 +84,18 @@ export type Database = {
             | Database["public"]["Enums"]["issue_external_status"]
             | null
           id?: string
-          name?: string | null
-          priority?: Database["public"]["Enums"]["issue_priority"] | null
+          name: string
+          priority: Database["public"]["Enums"]["issue_priority"]
           project_id: string
-          severity?: Database["public"]["Enums"]["issue_severity"] | null
+          severity: Database["public"]["Enums"]["issue_severity"]
           status?: Database["public"]["Enums"]["issue_status"]
-          story?: string | null
-          type?: Database["public"]["Enums"]["issue_type"] | null
+          story: string
+          type: Database["public"]["Enums"]["issue_type"]
         }
         Update: {
           analysis_hash?: string | null
           analyzed_at?: string | null
-          confidence?: Database["public"]["Enums"]["issue_confidence"] | null
+          confidence?: Database["public"]["Enums"]["issue_confidence"]
           created_at?: string
           embedding?: string | null
           external_id?: string | null
@@ -103,13 +103,13 @@ export type Database = {
             | Database["public"]["Enums"]["issue_external_status"]
             | null
           id?: string
-          name?: string | null
-          priority?: Database["public"]["Enums"]["issue_priority"] | null
+          name?: string
+          priority?: Database["public"]["Enums"]["issue_priority"]
           project_id?: string
-          severity?: Database["public"]["Enums"]["issue_severity"] | null
+          severity?: Database["public"]["Enums"]["issue_severity"]
           status?: Database["public"]["Enums"]["issue_status"]
-          story?: string | null
-          type?: Database["public"]["Enums"]["issue_type"] | null
+          story?: string
+          type?: Database["public"]["Enums"]["issue_type"]
         }
         Relationships: [
           {
@@ -514,8 +514,6 @@ export type Database = {
       }
       users: {
         Row: {
-          analysis_hash: string | null
-          analyzed_at: string | null
           created_at: string
           email: string
           first_name: string | null
@@ -524,8 +522,6 @@ export type Database = {
           last_name: string | null
         }
         Insert: {
-          analysis_hash?: string | null
-          analyzed_at?: string | null
           created_at?: string
           email: string
           first_name?: string | null
@@ -534,8 +530,6 @@ export type Database = {
           last_name?: string | null
         }
         Update: {
-          analysis_hash?: string | null
-          analyzed_at?: string | null
           created_at?: string
           email?: string
           first_name?: string | null

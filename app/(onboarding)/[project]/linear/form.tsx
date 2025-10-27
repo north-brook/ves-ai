@@ -195,14 +195,13 @@ export function LinearForm({
             )}
           </div>
         </button>
-
-        <Link
-          href={`/${project.slug}/welcome`}
-          className="text-slate-600 dark:text-slate-400 hover:text-foreground flex w-full items-center justify-center py-2 text-sm transition-colors"
-        >
-          Skip for now
-        </Link>
       </div>
+      <Link
+        href={`/${project.slug}/welcome`}
+        className="hover:text-foreground flex w-full items-center justify-center py-2 text-sm text-slate-600 transition-colors dark:text-slate-400"
+      >
+        Skip for now
+      </Link>
     </form>
   );
 }
