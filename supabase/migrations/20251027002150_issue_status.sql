@@ -1,21 +1,16 @@
-create type "public"."issue_external_status" as enum ('backlog', 'todo', 'in_progress', 'in_review', 'done', 'canceled', 'duplicate');
+-- Drop the old status column
+alter table "public"."issues" drop column "status";
 
-alter table "public"."issues" alter column "status" drop default;
+-- Drop the old enum type
+drop type if exists "public"."issue_status";
 
-alter type "public"."issue_status" rename to "issue_status__old_version_to_be_dropped";
-
+-- Create new enum types
 create type "public"."issue_status" as enum ('pending', 'analyzing', 'analyzed', 'failed');
 
-alter table "public"."issues" alter column status type "public"."issue_status" using status::text::"public"."issue_status";
+create type "public"."issue_external_status" as enum ('backlog', 'todo', 'in_progress', 'in_review', 'done', 'canceled', 'duplicate');
 
-alter table "public"."issues" alter column "status" set default None;
+-- Add the new status column
+alter table "public"."issues" add column "status" issue_status not null default 'pending'::issue_status;
 
-drop type "public"."issue_status__old_version_to_be_dropped";
-
+-- Add the external_status column
 alter table "public"."issues" add column "external_status" issue_external_status;
-
-alter table "public"."issues" alter column "status" set default 'pending'::issue_status;
-
-alter table "public"."issues" alter column "status" set not null;
-
-
