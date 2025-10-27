@@ -631,7 +631,7 @@ async function pullSessionsFromSource(
             total_duration: recording.recording_duration,
             active_duration: recording.active_seconds,
           })
-          .select()
+          .select("id")
           .single();
 
         if (insertError) {
