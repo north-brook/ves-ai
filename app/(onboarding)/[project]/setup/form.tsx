@@ -66,17 +66,12 @@ export function ProjectSetupForm({
 
   // Update image when domain changes (only if no custom image)
   useEffect(() => {
-    if (
-      domain &&
-      domain !== defaults.domain &&
-      !imageFile &&
-      imageUrl === defaults.image
-    ) {
+    if (domain && !imageFile) {
       const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
       setImageUrl(faviconUrl);
       setImagePreview(faviconUrl);
     }
-  }, [domain, defaults.domain, defaults.image, imageFile, imageUrl]);
+  }, [domain, imageFile]);
 
   const handleImageSelect = (file: File) => {
     if (!file.type.startsWith("image/")) {
@@ -141,7 +136,7 @@ export function ProjectSetupForm({
             className="hidden"
           />
           <div
-            className={`bg-slate-50 dark:bg-slate-900 border-border relative h-[50px] w-[50px] overflow-hidden rounded-lg border-2 transition-all ${
+            className={`border-border relative h-[50px] w-[50px] overflow-hidden rounded-lg border-2 bg-slate-50 transition-all dark:bg-slate-900 ${
               isDragging ? "border-accent-purple bg-accent-purple/10" : ""
             } hover:border-accent-purple cursor-pointer`}
             onClick={() => fileInputRef.current?.click()}
@@ -160,7 +155,7 @@ export function ProjectSetupForm({
               </>
             ) : (
               <div className="flex h-full w-full items-center justify-center">
-                <Upload className="text-slate-600 dark:text-slate-400 h-6 w-6" />
+                <Upload className="h-6 w-6 text-slate-600 dark:text-slate-400" />
               </div>
             )}
           </div>
@@ -175,7 +170,7 @@ export function ProjectSetupForm({
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            className="bg-slate-50 dark:bg-slate-900 border-border placeholder:text-slate-600 dark:placeholder:text-slate-400 focus:border-accent-purple h-[50px] w-full rounded-lg border px-4 text-lg font-semibold transition-colors outline-none"
+            className="border-border focus:border-accent-purple h-[50px] w-full rounded-lg border bg-slate-50 px-4 text-lg font-semibold transition-colors outline-none placeholder:text-slate-600 dark:bg-slate-900 dark:placeholder:text-slate-400"
             placeholder="ACME"
           />
         </div>
@@ -190,7 +185,7 @@ export function ProjectSetupForm({
         </label>
         <div className="relative">
           <div className="flex items-center">
-            <span className="text-slate-600 dark:text-slate-400 mr-2">{`ves.ai /`}</span>
+            <span className="mr-2 text-slate-600 dark:text-slate-400">{`ves.ai /`}</span>
             <input
               type="text"
               id="slug"
@@ -199,13 +194,13 @@ export function ProjectSetupForm({
               onChange={(e) => setSlug(e.target.value.toLowerCase())}
               required
               pattern="[a-z0-9-]+"
-              className="bg-slate-50 dark:bg-slate-900 border-border placeholder:text-slate-600 dark:placeholder:text-slate-400 focus:border-accent-purple flex-1 rounded-lg border px-4 py-3 pr-10 transition-colors outline-none"
+              className="border-border focus:border-accent-purple flex-1 rounded-lg border bg-slate-50 px-4 py-3 pr-10 transition-colors outline-none placeholder:text-slate-600 dark:bg-slate-900 dark:placeholder:text-slate-400"
               placeholder="my-project"
             />
             {slug.length >= 3 && (
               <div className="absolute top-1/2 right-3 -translate-y-1/2">
                 {checkingSlug ? (
-                  <LoaderCircle className="text-slate-600 dark:text-slate-400 h-4 w-4 animate-spin" />
+                  <LoaderCircle className="h-4 w-4 animate-spin text-slate-600 dark:text-slate-400" />
                 ) : slugAvailable ? (
                   <Check className="h-4 w-4 text-green-500" />
                 ) : slugAvailable === false ? (
@@ -215,7 +210,7 @@ export function ProjectSetupForm({
             )}
           </div>
         </div>
-        <p className="text-slate-600 dark:text-slate-400 mt-1 text-xs">
+        <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
           URL-friendly identifier for your project
         </p>
       </div>
@@ -231,7 +226,7 @@ export function ProjectSetupForm({
           value={domain}
           onChange={(e) => setDomain(e.target.value)}
           required
-          className="bg-slate-50 dark:bg-slate-900 border-border placeholder:text-slate-600 dark:placeholder:text-slate-400 focus:border-accent-purple w-full rounded-lg border px-4 py-3 transition-colors outline-none"
+          className="border-border focus:border-accent-purple w-full rounded-lg border bg-slate-50 px-4 py-3 transition-colors outline-none placeholder:text-slate-600 dark:bg-slate-900 dark:placeholder:text-slate-400"
           placeholder="acme.com"
         />
       </div>
@@ -246,7 +241,7 @@ export function ProjectSetupForm({
           value={invites}
           onChange={(e) => setInvites(e.target.value)}
           rows={3}
-          className="bg-slate-50 dark:bg-slate-900 border-border placeholder:text-slate-600 dark:placeholder:text-slate-400 focus:border-accent-purple w-full rounded-lg border px-4 py-3 transition-colors outline-none"
+          className="border-border focus:border-accent-purple w-full rounded-lg border bg-slate-50 px-4 py-3 transition-colors outline-none placeholder:text-slate-600 dark:bg-slate-900 dark:placeholder:text-slate-400"
           placeholder={`bob@${domain}, alice@${domain}`}
         />
       </div>
@@ -275,26 +270,26 @@ export function ProjectSetupFormSkeleton() {
   return (
     <div className="space-y-6">
       <div className="flex items-start gap-4">
-        <div className="bg-slate-50 dark:bg-slate-900 h-[50px] w-[50px] animate-pulse rounded-lg" />
+        <div className="h-[50px] w-[50px] animate-pulse rounded-lg bg-slate-50 dark:bg-slate-900" />
         <div className="flex-1">
-          <div className="bg-slate-50 dark:bg-slate-900 mb-2 h-5 w-24 animate-pulse rounded" />
-          <div className="bg-slate-50 dark:bg-slate-900 h-[50px] w-full animate-pulse rounded-lg" />
+          <div className="mb-2 h-5 w-24 animate-pulse rounded bg-slate-50 dark:bg-slate-900" />
+          <div className="h-[50px] w-full animate-pulse rounded-lg bg-slate-50 dark:bg-slate-900" />
         </div>
       </div>
 
       <div>
-        <div className="bg-slate-50 dark:bg-slate-900 mb-2 h-5 w-24 animate-pulse rounded" />
-        <div className="bg-slate-50 dark:bg-slate-900 h-12 w-full animate-pulse rounded-lg" />
+        <div className="mb-2 h-5 w-24 animate-pulse rounded bg-slate-50 dark:bg-slate-900" />
+        <div className="h-12 w-full animate-pulse rounded-lg bg-slate-50 dark:bg-slate-900" />
       </div>
 
       <div>
-        <div className="bg-slate-50 dark:bg-slate-900 mb-2 h-5 w-24 animate-pulse rounded" />
-        <div className="bg-slate-50 dark:bg-slate-900 h-12 w-full animate-pulse rounded-lg" />
+        <div className="mb-2 h-5 w-24 animate-pulse rounded bg-slate-50 dark:bg-slate-900" />
+        <div className="h-12 w-full animate-pulse rounded-lg bg-slate-50 dark:bg-slate-900" />
       </div>
 
       <div>
-        <div className="bg-slate-50 dark:bg-slate-900 mb-2 h-5 w-32 animate-pulse rounded" />
-        <div className="bg-slate-50 dark:bg-slate-900 h-24 w-full animate-pulse rounded-lg" />
+        <div className="mb-2 h-5 w-32 animate-pulse rounded bg-slate-50 dark:bg-slate-900" />
+        <div className="h-24 w-full animate-pulse rounded-lg bg-slate-50 dark:bg-slate-900" />
       </div>
 
       <div className="from-accent-purple/20 via-accent-pink/20 to-accent-orange/20 h-14 w-full animate-pulse rounded-lg bg-gradient-to-r" />

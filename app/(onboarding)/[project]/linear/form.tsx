@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Destination, Project } from "@/types";
+import Link from "next/link";
 
 interface LinearFormProps {
   project: Project;
@@ -179,20 +180,29 @@ export function LinearForm({
         </Select>
       </div>
 
-      <button
-        type="submit"
-        disabled={saveMutation.isPending || !selectedTeam || !isConnected}
-        className="group font-display from-accent-purple via-accent-pink to-accent-orange relative w-full rounded-lg bg-gradient-to-r p-[2px] text-lg font-semibold transition-all duration-200 disabled:opacity-50"
-      >
-        <div className="bg-background group-hover:bg-background/90 flex items-center justify-center gap-2 rounded-[6px] px-8 py-4 transition-all">
-          <span className="text-foreground font-semibold">Continue</span>
-          {saveMutation.isPending ? (
-            <LoaderCircle className="text-foreground h-5 w-5 animate-spin" />
-          ) : (
-            <ArrowRight className="text-foreground h-5 w-5 transition-transform group-hover:translate-x-1" />
-          )}
-        </div>
-      </button>
+      <div className="space-y-3">
+        <button
+          type="submit"
+          disabled={saveMutation.isPending || !selectedTeam || !isConnected}
+          className="group font-display from-accent-purple via-accent-pink to-accent-orange relative w-full rounded-lg bg-gradient-to-r p-[2px] text-lg font-semibold transition-all duration-200 disabled:opacity-50"
+        >
+          <div className="bg-background group-hover:bg-background/90 flex items-center justify-center gap-2 rounded-[6px] px-8 py-4 transition-all">
+            <span className="text-foreground font-semibold">Continue</span>
+            {saveMutation.isPending ? (
+              <LoaderCircle className="text-foreground h-5 w-5 animate-spin" />
+            ) : (
+              <ArrowRight className="text-foreground h-5 w-5 transition-transform group-hover:translate-x-1" />
+            )}
+          </div>
+        </button>
+
+        <Link
+          href={`/${project.slug}/welcome`}
+          className="text-slate-600 dark:text-slate-400 hover:text-foreground flex w-full items-center justify-center py-2 text-sm transition-colors"
+        >
+          Skip for now
+        </Link>
+      </div>
     </form>
   );
 }
