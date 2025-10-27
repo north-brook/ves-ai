@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import adminSupabase from "@/lib/supabase/admin";
 import * as Sentry from "@sentry/nextjs";
-import { Database, ProjectUser } from "@/types";
+import { Database } from "@/types";
 import nextJobs from "./next-job";
 import { Json } from "@/schema";
 
@@ -499,92 +499,47 @@ async function pullSessionsFromSource(
           continue;
         }
 
-        // check if the project group exists
+        // upsert the project group to avoid duplicates
         let projectGroupId: string | null = null;
         if (groupId) {
-          const { data: projectGroup } = await supabase
+          const { data: projectGroup, error: upsertError } = await supabase
             .from("project_groups")
-            .select("id")
-            .eq("project_id", source.project_id)
-            .eq("external_id", groupId)
-            .single();
-
-          if (projectGroup) projectGroupId = projectGroup.id;
-
-          if (!projectGroupId) {
-            // create the project group
-            const { data: newProjectGroup, error: insertError } = await supabase
-              .from("project_groups")
-              .insert({
+            .upsert(
+              {
                 project_id: source.project_id,
                 external_id: groupId,
                 name: groupName,
                 properties: groupProperties[groupId] || null,
                 status: "pending",
-              })
-              .select("id")
-              .single();
+              },
+              {
+                onConflict: "project_id,external_id",
+                ignoreDuplicates: false,
+              },
+            )
+            .select("id")
+            .single();
 
-            if (insertError) {
-              console.error(
-                `❌ [PULL] Error creating project group for recording ${recording.id}:`,
-                insertError,
-              );
-              Sentry.captureException(insertError, {
-                tags: { job: "syncSessions", step: "insertProjectGroup" },
-                extra: { externalId: recording.id, sourceId: source.id },
-              });
-            } else {
-              projectGroupId = newProjectGroup.id;
-            }
+          if (upsertError) {
+            console.error(
+              `❌ [PULL] Error upserting project group for recording ${recording.id}:`,
+              upsertError,
+            );
+            Sentry.captureException(upsertError, {
+              tags: { job: "syncSessions", step: "upsertProjectGroup" },
+              extra: { externalId: recording.id, sourceId: source.id },
+            });
+          } else if (projectGroup) {
+            projectGroupId = projectGroup.id;
           }
         }
 
-        // check if the project user exists
+        // upsert the project user to avoid duplicates
         let projectUserId: string | null = null;
-        const { data: projectUser } = await supabase
+        const { data: projectUser, error: upsertError } = await supabase
           .from("project_users")
-          .select("id, project_group_id")
-          .eq("project_id", source.project_id)
-          .eq("external_id", recording.person?.uuid)
-          .single();
-
-        if (projectUser) {
-          const update: Partial<ProjectUser> = {
-            session_at: recording.end_time,
-          };
-
-          projectUserId = projectUser.id;
-          if (projectUser.project_group_id)
-            groupId = projectUser.project_group_id;
-          else if (projectGroupId) {
-            update.project_group_id = projectGroupId;
-          }
-
-          // update the project user with the project group id
-          const { error: updateError } = await supabase
-            .from("project_users")
-            .update(update)
-            .eq("id", projectUserId);
-
-          if (updateError) {
-            console.error(
-              `❌ [PULL] Error updating project user with project group id:`,
-              updateError,
-            );
-            Sentry.captureException(updateError, {
-              tags: {
-                job: "syncSessions",
-                step: "updateProjectUserGroup",
-              },
-              extra: { externalId: recording.id, sourceId: source.id },
-            });
-          }
-        } else {
-          // create the project user
-          const { data: newProjectUser, error: insertError } = await supabase
-            .from("project_users")
-            .insert({
+          .upsert(
+            {
               project_id: source.project_id,
               external_id: recording.person?.uuid,
               name:
@@ -597,22 +552,27 @@ async function pullSessionsFromSource(
               properties: recording.person?.properties as Json,
               project_group_id: projectGroupId,
               status: "pending",
-            })
-            .select("id")
-            .single();
+              session_at: recording.end_time,
+            },
+            {
+              onConflict: "project_id,external_id",
+              ignoreDuplicates: false,
+            },
+          )
+          .select("id")
+          .single();
 
-          if (insertError) {
-            console.error(
-              `❌ [PULL SESSION] Error creating project user for recording ${recording.id}:`,
-              insertError,
-            );
-            Sentry.captureException(insertError, {
-              tags: { job: "syncSessions", step: "insertProjectUser" },
-              extra: { externalId: recording.id, sourceId: source.id },
-            });
-          } else {
-            projectUserId = newProjectUser.id;
-          }
+        if (upsertError) {
+          console.error(
+            `❌ [PULL] Error upserting project user for recording ${recording.id}:`,
+            upsertError,
+          );
+          Sentry.captureException(upsertError, {
+            tags: { job: "syncSessions", step: "upsertProjectUser" },
+            extra: { externalId: recording.id, sourceId: source.id },
+          });
+        } else if (projectUser) {
+          projectUserId = projectUser.id;
         }
 
         // if we couldn't create a project user, we will skip this recording
