@@ -1,28 +1,23 @@
 "use client";
 
+import { ProjectGroup, ProjectUser, Session } from "@/types";
+import { format, formatDistanceToNow } from "date-fns";
 import {
-  ArrowLeft,
+  Activity,
+  Building2,
   Calendar,
   Clock,
-  Activity,
-  Building,
   User,
   Video,
 } from "lucide-react";
-import Link from "next/link";
-import { formatDistanceToNow, format } from "date-fns";
-import SessionStatus from "@/app/(platform)/[project]/sessions/status";
-import { Project, ProjectGroup, ProjectUser, Session } from "@/types";
 
-export function SessionHeader({
+export default function SessionHeader({
   session,
-  project,
 }: {
   session: Session & {
     user: ProjectUser;
     group: ProjectGroup | null;
   };
-  project: Project;
 }) {
   const formatDuration = (seconds: number | null) => {
     if (!seconds) return "N/A";
@@ -40,21 +35,21 @@ export function SessionHeader({
   };
 
   return (
-    <div className="border-border mb-8 border-b pb-6">
+    <div className="mb-8 border-b border-slate-200 pb-6 dark:border-slate-800">
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <h1 className="font-display text-3xl font-bold">
             {session.name ? (
               session.name
             ) : (
-              <span className="text-slate-600 dark:text-slate-400 italic">
+              <span className="text-slate-600 italic dark:text-slate-400">
                 {session.session_at
                   ? format(new Date(session.session_at), "EEEE MMMM d h:mmaaa")
                   : "Date unknown"}
               </span>
             )}
           </h1>
-          <div className="text-slate-600 dark:text-slate-400 mt-4 flex flex-wrap items-center gap-4 text-sm">
+          <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
             <div className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
               <span>
@@ -85,7 +80,7 @@ export function SessionHeader({
             )}
             {session.group && (
               <div className="flex items-center gap-1">
-                <Building className="h-4 w-4" />
+                <Building2 className="h-4 w-4" />
                 <span>{session.group.name}</span>
               </div>
             )}
@@ -104,7 +99,6 @@ export function SessionHeader({
             </div>
           )}
         </div>
-        <SessionStatus session={session} size="lg" />
       </div>
     </div>
   );

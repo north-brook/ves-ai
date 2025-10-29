@@ -1,7 +1,6 @@
-import ProjectNav from "./nav";
-import Footer from "@/components/footer";
 import type { Metadata } from "next";
-import SyncSessions from "./(overview)/sync";
+import SideBar from "./sidebar";
+import SyncSessions from "./sync";
 
 export const metadata: Metadata = {
   robots: {
@@ -10,19 +9,20 @@ export const metadata: Metadata = {
   },
 };
 
-export default function PlatformLayout({
+export default function ProjectLayout({
   children,
+  params,
 }: {
+  params: Promise<{ project: string }>;
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-background text-foreground min-h-screen">
-      <ProjectNav />
-      <SyncSessions />
-      <main className="mx-auto flex max-w-7xl flex-col items-stretch gap-6 px-6 py-12">
+    <>
+      <div className="flex min-h-[calc(100vh-48px)] w-full flex-row pl-12">
         {children}
-      </main>
-      <Footer />
-    </div>
+      </div>
+      <SideBar params={params} />
+      <SyncSessions />
+    </>
   );
 }

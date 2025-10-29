@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Issue } from "@/types";
 import clientSupabase from "@/lib/supabase/client";
+import { Issue, ProjectGroup, ProjectUser, Session } from "@/types";
 import { RealtimeChannel } from "@supabase/supabase-js";
+import { useEffect, useState } from "react";
 
 export default function useLiveIssues({
   projectId,
@@ -11,21 +11,27 @@ export default function useLiveIssues({
 }: {
   projectId: string;
   initialIssues: (Issue & {
-    sessions: { id: string }[];
+    sessions: (Session & {
+      user: ProjectUser;
+      group: ProjectGroup | null;
+    })[];
   })[];
 }) {
   const [issues, setIssues] = useState<
     (Issue & {
-      sessions: { id: string }[];
+      sessions: (Session & {
+        user: ProjectUser;
+        group: ProjectGroup | null;
+      })[];
     })[]
   >(initialIssues);
 
-  // Setup realtime subscription for sessions
+  // Setup realtime subscription for issues
   let channel: RealtimeChannel;
   useEffect(() => {
     console.log("🔌 Setting up realtime subscriptions for project:", projectId);
     const supabase = clientSupabase();
-    // Subscribe to changes in sessions table
+    // Subscribe to changes in issues table
     // Using a simpler channel name and configuration
     const channelName = `project-${projectId}-issues`;
     console.log("📡 Creating channel:", channelName);
@@ -39,7 +45,7 @@ export default function useLiveIssues({
             event: "*",
             schema: "public",
             table: "issues",
-            filter: `project_id=eq.${projectId}`,
+            filter: `project_id=eq.${projectId},status=analyzed`,
           },
           async (payload) => {
             console.log(
@@ -54,7 +60,9 @@ export default function useLiveIssues({
               // get session user, group, and issues
               const { data: issue } = await supabase
                 .from("issues")
-                .select("*, sessions(id)")
+                .select(
+                  "*, sessions(*, user:project_users(*), group:project_groups(*))",
+                )
                 .eq("id", newIssue.id)
                 .single();
 
@@ -82,7 +90,9 @@ export default function useLiveIssues({
               // get session user, group, and issues
               const { data: issue } = await supabase
                 .from("issues")
-                .select("*, sessions(*)")
+                .select(
+                  "*, sessions(*, user:project_users(*), group:project_groups(*))",
+                )
                 .eq("id", updatedIssue.id)
                 .single();
 

@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { ArrowRight, LoaderCircle, Upload, Check, X } from "lucide-react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { saveProject } from "./actions";
 import slugify from "@/lib/slugify";
-import { toast } from "sonner";
 import clientSupabase from "@/lib/supabase/client";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { ArrowRight, Check, LoaderCircle, Upload, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { saveProject } from "./actions";
 
 interface ProjectSetupFormProps {
   defaults: {
@@ -136,7 +136,7 @@ export function ProjectSetupForm({
             className="hidden"
           />
           <div
-            className={`border-border relative h-[50px] w-[50px] overflow-hidden rounded-lg border-2 bg-slate-50 transition-all dark:bg-slate-900 ${
+            className={`relative h-[50px] w-[50px] overflow-hidden rounded-lg border-2 border-slate-200 bg-slate-50 transition-all dark:border-slate-800 dark:bg-slate-900 ${
               isDragging ? "border-accent-purple bg-accent-purple/10" : ""
             } hover:border-accent-purple cursor-pointer`}
             onClick={() => fileInputRef.current?.click()}
@@ -170,7 +170,7 @@ export function ProjectSetupForm({
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            className="border-border focus:border-accent-purple h-[50px] w-full rounded-lg border bg-slate-50 px-4 text-lg font-semibold transition-colors outline-none placeholder:text-slate-600 dark:bg-slate-900 dark:placeholder:text-slate-400"
+            className="focus:border-accent-purple h-[50px] w-full rounded-lg border border-slate-200 bg-slate-50 px-4 text-lg font-semibold transition-colors outline-none placeholder:text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:placeholder:text-slate-400"
             placeholder="ACME"
           />
         </div>
@@ -194,7 +194,7 @@ export function ProjectSetupForm({
               onChange={(e) => setSlug(e.target.value.toLowerCase())}
               required
               pattern="[a-z0-9-]+"
-              className="border-border focus:border-accent-purple flex-1 rounded-lg border bg-slate-50 px-4 py-3 pr-10 transition-colors outline-none placeholder:text-slate-600 dark:bg-slate-900 dark:placeholder:text-slate-400"
+              className="focus:border-accent-purple flex-1 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 pr-10 transition-colors outline-none placeholder:text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:placeholder:text-slate-400"
               placeholder="my-project"
             />
             {slug.length >= 3 && (
@@ -226,7 +226,7 @@ export function ProjectSetupForm({
           value={domain}
           onChange={(e) => setDomain(e.target.value)}
           required
-          className="border-border focus:border-accent-purple w-full rounded-lg border bg-slate-50 px-4 py-3 transition-colors outline-none placeholder:text-slate-600 dark:bg-slate-900 dark:placeholder:text-slate-400"
+          className="focus:border-accent-purple w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 transition-colors outline-none placeholder:text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:placeholder:text-slate-400"
           placeholder="acme.com"
         />
       </div>
@@ -241,7 +241,7 @@ export function ProjectSetupForm({
           value={invites}
           onChange={(e) => setInvites(e.target.value)}
           rows={3}
-          className="border-border focus:border-accent-purple w-full rounded-lg border bg-slate-50 px-4 py-3 transition-colors outline-none placeholder:text-slate-600 dark:bg-slate-900 dark:placeholder:text-slate-400"
+          className="focus:border-accent-purple w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 transition-colors outline-none placeholder:text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:placeholder:text-slate-400"
           placeholder={`bob@${domain}, alice@${domain}`}
         />
       </div>

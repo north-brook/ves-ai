@@ -120,3 +120,9 @@ Key tables:
 - PostHog proxy configured to bypass ad blockers
 - Real-time features use Supabase subscriptions
 - Video processing is async via Cloud Run service
+
+### Styling
+
+- Uses tailwind `slate` color theme
+- `text-slate-800 dark:text-slate-200` for headings
+- `border-slate-200 dark:border-slate-800` for borders

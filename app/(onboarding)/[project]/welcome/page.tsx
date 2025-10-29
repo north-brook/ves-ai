@@ -1,8 +1,8 @@
-import { Activity, ArrowRight, Bug, Lightbulb } from "lucide-react";
 import serverSupabase from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+import { Activity, ArrowRight, Bug, Lightbulb } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 export async function generateMetadata({
   params,
@@ -78,7 +78,7 @@ export default async function WelcomePage({
         </p>
       </div>
 
-      <div className="border-border mb-8 space-y-4 rounded-2xl border bg-slate-50/50 p-6 backdrop-blur-sm dark:bg-slate-900/50">
+      <div className="mb-8 space-y-4 rounded-2xl border border-slate-200 bg-slate-50/50 p-6 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/50">
         <h2 className="font-display mb-4 text-xl font-semibold">
           What happens next
         </h2>

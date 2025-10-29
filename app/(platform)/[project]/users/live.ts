@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ProjectGroup, ProjectUser } from "@/types";
 import clientSupabase from "@/lib/supabase/client";
+import { ProjectGroup, ProjectUser, Session } from "@/types";
 import { RealtimeChannel } from "@supabase/supabase-js";
+import { useEffect, useState } from "react";
 
 export default function useLiveUsers({
   projectId,
@@ -12,22 +12,22 @@ export default function useLiveUsers({
   projectId: string;
   initialUsers: (ProjectUser & {
     group: ProjectGroup | null;
-    sessions: { id: string }[];
+    sessions: Session[];
   })[];
 }) {
   const [users, setUsers] = useState<
     (ProjectUser & {
       group: ProjectGroup | null;
-      sessions: { id: string }[];
+      sessions: Session[];
     })[]
   >(initialUsers);
 
-  // Setup realtime subscription for sessions
+  // Setup realtime subscription for users
   let channel: RealtimeChannel;
   useEffect(() => {
     console.log("🔌 Setting up realtime subscriptions for project:", projectId);
     const supabase = clientSupabase();
-    // Subscribe to changes in sessions table
+    // Subscribe to changes in project_users table
     // Using a simpler channel name and configuration
     const channelName = `project-${projectId}-users`;
     console.log("📡 Creating channel:", channelName);
@@ -41,7 +41,7 @@ export default function useLiveUsers({
             event: "*",
             schema: "public",
             table: "project_users",
-            filter: `project_id=eq.${projectId}`,
+            filter: `project_id=eq.${projectId},status=eq.analyzed`,
           },
           async (payload) => {
             console.log("📡 User change detected:", payload.eventType, payload);
@@ -52,7 +52,7 @@ export default function useLiveUsers({
               // get user with group and sessions
               const { data: user } = await supabase
                 .from("project_users")
-                .select("*, group:project_groups(*), sessions(id)")
+                .select("*, group:project_groups(*), sessions(*)")
                 .eq("id", newUser.id)
                 .single();
 
@@ -64,11 +64,11 @@ export default function useLiveUsers({
                   : [user, ...prev];
 
                 return updated.sort((a, b) => {
-                  const dateA = a.created_at
-                    ? new Date(a.created_at).getTime()
+                  const dateA = a.session_at
+                    ? new Date(a.session_at).getTime()
                     : 0;
-                  const dateB = b.created_at
-                    ? new Date(b.created_at).getTime()
+                  const dateB = b.session_at
+                    ? new Date(b.session_at).getTime()
                     : 0;
                   return dateB - dateA;
                 });
@@ -80,7 +80,7 @@ export default function useLiveUsers({
               // get user with group and sessions
               const { data: user } = await supabase
                 .from("project_users")
-                .select("*, group:project_groups(*), sessions(id)")
+                .select("*, group:project_groups(*), sessions(*)")
                 .eq("id", updatedUser.id)
                 .single();
 
@@ -91,13 +91,13 @@ export default function useLiveUsers({
                   ? prev.map((u) => (u.id === user.id ? user : u))
                   : [user, ...prev];
 
-                // Sort by created_at descending (most recent first)
+                // Sort by session_at descending (most recent first)
                 return updated.sort((a, b) => {
-                  const dateA = a.created_at
-                    ? new Date(a.created_at).getTime()
+                  const dateA = a.session_at
+                    ? new Date(a.session_at).getTime()
                     : 0;
-                  const dateB = b.created_at
-                    ? new Date(b.created_at).getTime()
+                  const dateB = b.session_at
+                    ? new Date(b.session_at).getTime()
                     : 0;
                   return dateB - dateA;
                 });

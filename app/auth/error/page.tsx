@@ -1,6 +1,6 @@
 import { AlertCircle, ArrowRight, Home } from "lucide-react";
-import Link from "next/link";
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Authentication Error • VES AI",
@@ -26,7 +26,7 @@ export default async function AuthErrorPage({
         <div className="relative mx-auto max-w-7xl px-6 py-[30vh]">
           <div className="mx-auto max-w-4xl text-center">
             <div className="mb-6 flex justify-center">
-              <div className="from-red-500/20 to-red-600/20 flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br">
+              <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-red-500/20 to-red-600/20">
                 <AlertCircle
                   size={48}
                   className="text-red-500 dark:text-red-400"
@@ -38,7 +38,7 @@ export default async function AuthErrorPage({
               Authentication Error
             </h1>
 
-            <p className="text-slate-600 dark:text-slate-400 mx-auto mb-8 max-w-2xl text-lg">
+            <p className="mx-auto mb-8 max-w-2xl text-lg text-slate-600 dark:text-slate-400">
               {errorMessage}
             </p>
 
@@ -57,7 +57,7 @@ export default async function AuthErrorPage({
 
               <Link
                 href="/"
-                className="border-border bg-background hover:bg-slate-50 dark:hover:bg-slate-900 flex items-center gap-2 rounded-lg border px-8 py-4 font-medium transition-all duration-200"
+                className="bg-background flex items-center gap-2 rounded-lg border border-slate-200 px-8 py-4 font-medium transition-all duration-200 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900"
               >
                 <Home className="text-foreground h-5 w-5" />
                 <span className="text-foreground font-semibold">

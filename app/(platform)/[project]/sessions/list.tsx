@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { getScoreColor } from "@/lib/score";
 import { Issue, Project, ProjectGroup, ProjectUser, Session } from "@/types";
+import { useEffect, useState, useTransition } from "react";
+import SectionNav from "../section-nav";
 import { searchSessions } from "./actions";
-import { Search, LoaderCircle } from "lucide-react";
 import useLiveSessions from "./live";
-import SessionLine from "./line";
 
-export function SessionList({
+export default function SessionList({
   initialSessions,
   project,
 }: {
@@ -54,50 +54,19 @@ export function SessionList({
   const displaySessions = searchResults || sessions;
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="relative w-full">
-        <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-600 dark:text-slate-400" />
-        <input
-          type="text"
-          placeholder="Search sessions..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="border-border bg-background focus:ring-accent-purple w-full rounded-lg border py-3 pr-4 pl-10 text-sm focus:ring focus:outline-none"
-          disabled={isPending}
-        />
-        {isPending && (
-          <div className="absolute top-1/2 right-3 -translate-y-1/2">
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-600 border-t-transparent dark:border-slate-400" />
-          </div>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-3">
-        {displaySessions.length === 0 ? (
-          <div className="p-8 text-center">
-            {searchQuery ? (
-              <p className="text-slate-600 dark:text-slate-400">
-                No matching sessions found
-              </p>
-            ) : (
-              <div className="flex flex-col items-center gap-3">
-                <LoaderCircle className="h-6 w-6 animate-spin text-slate-600 dark:text-slate-400" />
-                <p className="text-slate-600 dark:text-slate-400">
-                  Awaiting sessions
-                </p>
-              </div>
-            )}
-          </div>
-        ) : (
-          displaySessions.map((session) => (
-            <SessionLine
-              key={session.id}
-              projectSlug={project.slug}
-              session={session}
-            />
-          ))
-        )}
-      </div>
-    </div>
+    <SectionNav
+      name="Sessions"
+      search={{
+        placeholder: "Search sessions...",
+        value: searchQuery,
+        onChange: setSearchQuery,
+        pending: isPending,
+      }}
+      items={displaySessions.map((session) => ({
+        color: getScoreColor(session.score),
+        name: session.name,
+        link: `/${project.slug}/sessions/${session.id}`,
+      }))}
+    />
   );
 }

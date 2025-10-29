@@ -1,4 +1,4 @@
-import { Session, SessionDetectedIssue, Issue } from "@/types";
+import { Issue, Session, SessionDetectedIssue } from "@/types";
 import { Type } from "@google/genai";
 import z from "zod";
 
@@ -56,7 +56,12 @@ For valid sessions:
 - The user may toggle between different tabs in the same replay
 - The user's session will be rendered on a black background; if the user resizes their window, the rendered replay may change size in the frame
 - Occasionally session replays will resize weirdly; this is not a bug with the application, but rather a limitation of capturing session replays
-- The session replay construction is imperfect; some animations or interactions may be missing, some inputs may be masked, and there may be some general weirdness
+- The session replay construction is imperfect
+  - Some animations or interactions may be missing
+  - System dialogs (eg. print dialogs) may not show
+  - Iframes may not show (eg. embedded videos or maps)
+  - Some inputs may be masked
+  - There may be some general weirdness
 
 # Process
 

@@ -1,9 +1,9 @@
 "use client";
 
-import ProgressBar from "./progress-bar";
 import Logo from "@/app/(marketing)/logo";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import ProgressBar from "./progress-bar";
 
 export default function OnboardingLayout({
   children,
@@ -27,7 +27,7 @@ export default function OnboardingLayout({
     <div className="bg-background text-foreground min-h-screen">
       <div className="from-accent-purple/20 via-accent-pink/10 to-accent-orange/20 absolute inset-0 bg-gradient-to-br blur-3xl" />
 
-      <nav className="border-border/50 bg-background/50 relative z-10 border-b backdrop-blur-lg">
+      <nav className="bg-background/50 relative z-10 border-b border-slate-200 backdrop-blur-lg dark:border-slate-800/50">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <Link href="/">
             <Logo />

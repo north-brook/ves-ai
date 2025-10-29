@@ -5,8 +5,8 @@ export default function Icon({
   className?: string;
   size?: number;
 }) {
-  const height = size || 570;
-  const width = (height * 787) / 570; // Preserve aspect ratio
+  const width = size || 787;
+  const height = (width * 570) / 787; // Preserve aspect ratio
 
   return (
     <svg
