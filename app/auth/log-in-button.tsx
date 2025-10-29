@@ -1,13 +1,13 @@
 "use client";
 
-import { ArrowRight, LoaderCircle } from "lucide-react";
 import Google from "@/components/google";
-import { useMutation } from "@tanstack/react-query";
-import { googleAuth } from "./actions";
-import { AuthUser } from "@supabase/supabase-js";
-import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { AuthUser } from "@supabase/supabase-js";
+import { useMutation } from "@tanstack/react-query";
+import { ArrowRight, LoaderCircle } from "lucide-react";
+import Link from "next/link";
 import { toast } from "sonner";
+import { googleAuth } from "./actions";
 
 export default function LogInButton({
   variant = "primary",
@@ -81,7 +81,7 @@ export default function LogInButton({
         <div>
           <Link
             href="/home"
-            className="border-border bg-background hidden items-center gap-2 rounded-lg border px-6 py-2.5 font-medium transition-all duration-200 hover:bg-slate-50 md:flex dark:hover:bg-slate-900"
+            className="bg-background hidden items-center gap-2 rounded-lg border border-slate-200 px-6 py-2.5 font-medium transition-all duration-200 hover:bg-slate-50 md:flex dark:border-slate-800 dark:hover:bg-slate-900"
           >
             <span className="text-foreground font-semibold">Dashboard</span>
             <ArrowRight className="text-foreground hidden h-5 w-5 transition-transform group-hover:translate-x-1 md:block" />
@@ -94,7 +94,7 @@ export default function LogInButton({
       <form action={googleAuthMutation.mutate}>
         <button
           type="submit"
-          className="border-border bg-background hidden items-center gap-2 rounded-lg border px-6 py-2.5 font-medium transition-all duration-200 hover:bg-slate-50 md:flex dark:bg-slate-900"
+          className="bg-background hidden items-center gap-2 rounded-lg border border-slate-200 px-6 py-2.5 font-medium transition-all duration-200 hover:bg-slate-50 md:flex dark:border-slate-800 dark:bg-slate-900"
         >
           {googleAuthMutation.isIdle ? (
             <Google size={18} />

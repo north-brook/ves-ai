@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Project, ProjectGroup, ProjectUser } from "@/types";
-import { Search, LoaderCircle } from "lucide-react";
+import { getScoreColor } from "@/lib/score";
+import { Project, ProjectGroup, ProjectUser, Session } from "@/types";
 import Fuse from "fuse.js";
-import GroupLine from "./line";
+import { useMemo, useState } from "react";
+import SectionNav from "../section-nav";
 import useLiveGroups from "./live";
 
 export default function GroupList({
@@ -13,7 +13,7 @@ export default function GroupList({
 }: {
   initialGroups: (ProjectGroup & {
     users: ProjectUser[];
-    sessions: { id: string }[];
+    sessions: Session[];
   })[];
   project: Project;
 }) {
@@ -25,6 +25,8 @@ export default function GroupList({
     return new Fuse(groups, {
       keys: [
         { name: "name", weight: 2 },
+        { name: "external_id", weight: 1 },
+        { name: "group.name", weight: 1 },
         { name: "story", weight: 0.5 },
       ],
       threshold: 0.3,
@@ -43,44 +45,20 @@ export default function GroupList({
   }, [searchQuery, fuse, groups]);
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="relative w-full">
-        <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-600 dark:text-slate-400" />
-        <input
-          type="text"
-          placeholder="Search users..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="border-border bg-background focus:ring-accent-purple w-full rounded-lg border py-3 pr-4 pl-10 text-sm focus:ring focus:outline-none"
-        />
-      </div>
-
-      <div className="flex flex-col gap-3">
-        {displayGroups.length === 0 ? (
-          <div className="p-8 text-center">
-            {searchQuery ? (
-              <p className="text-slate-600 dark:text-slate-400">
-                No matching groups found
-              </p>
-            ) : (
-              <div className="flex flex-col items-center gap-3">
-                <LoaderCircle className="h-6 w-6 animate-spin text-slate-600 dark:text-slate-400" />
-                <p className="text-slate-600 dark:text-slate-400">
-                  Awaiting groups
-                </p>
-              </div>
-            )}
-          </div>
-        ) : (
-          displayGroups.map((group) => (
-            <GroupLine
-              key={group.id}
-              projectSlug={project.slug}
-              group={group}
-            />
-          ))
-        )}
-      </div>
-    </div>
+    <SectionNav
+      name="Groups"
+      search={{
+        placeholder: "Search groups...",
+        value: searchQuery,
+        onChange: setSearchQuery,
+        pending: false,
+      }}
+      items={displayGroups.map((group) => ({
+        color: getScoreColor(group.score),
+        name: group.name || "Unknown",
+        muted: !group.name,
+        link: `/${project.slug}/groups/${group.id}`,
+      }))}
+    />
   );
 }

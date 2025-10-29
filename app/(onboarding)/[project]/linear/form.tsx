@@ -1,11 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { ArrowRight, LoaderCircle, ExternalLink } from "lucide-react";
-import { useMutation } from "@tanstack/react-query";
-import { initiateLinearOAuth, saveLinearSettings } from "./actions";
-import { toast } from "sonner";
-import { useSearchParams } from "next/navigation";
 import {
   Select,
   SelectContent,
@@ -14,7 +8,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Destination, Project } from "@/types";
+import { useMutation } from "@tanstack/react-query";
+import { ArrowRight, ExternalLink, LoaderCircle } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { initiateLinearOAuth, saveLinearSettings } from "./actions";
 
 interface LinearFormProps {
   project: Project;
@@ -87,7 +87,7 @@ export function LinearForm({
         value={linearData?.organization?.id || ""}
       />
 
-      <div className="border-border rounded-lg border bg-slate-50/50 p-4 dark:bg-slate-900/50">
+      <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
         <div className="flex items-center gap-3">
           <div className="flex-1">
             <h3 className="font-medium">Connect Linear Account</h3>
@@ -101,7 +101,7 @@ export function LinearForm({
             <button
               type="button"
               onClick={() => initiateLinearOAuth(project.slug)}
-              className="border-border bg-background flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors hover:bg-slate-50 hover:dark:bg-slate-900"
+              className="bg-background flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium transition-colors hover:bg-slate-50 dark:border-slate-800 hover:dark:bg-slate-900"
             >
               Connect Linear
               {connectMutation.isIdle ? (
@@ -114,7 +114,7 @@ export function LinearForm({
             <button
               onClick={() => initiateLinearOAuth(project.slug)}
               type="submit"
-              className="border-border bg-background rounded-lg border px-4 py-2 text-sm font-medium transition-colors hover:bg-slate-50 hover:dark:bg-slate-900"
+              className="bg-background rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium transition-colors hover:bg-slate-50 dark:border-slate-800 hover:dark:bg-slate-900"
             >
               Reconnect
             </button>
@@ -130,7 +130,7 @@ export function LinearForm({
           Linear Workspace
         </label>
         <div
-          className={`border-border rounded-lg border bg-slate-50 px-4 py-3 dark:bg-slate-900 ${!isConnected ? "opacity-50" : ""}`}
+          className={`rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900 ${!isConnected ? "opacity-50" : ""}`}
         >
           {isConnected ? (
             <span className="text-foreground">{workspaceName}</span>
@@ -195,13 +195,13 @@ export function LinearForm({
             )}
           </div>
         </button>
+        <Link
+          href={`/${project.slug}/welcome`}
+          className="hover:text-foreground flex w-full items-center justify-center py-2 text-sm text-slate-600 transition-colors dark:text-slate-400"
+        >
+          Skip for now
+        </Link>
       </div>
-      <Link
-        href={`/${project.slug}/welcome`}
-        className="hover:text-foreground flex w-full items-center justify-center py-2 text-sm text-slate-600 transition-colors dark:text-slate-400"
-      >
-        Skip for now
-      </Link>
     </form>
   );
 }

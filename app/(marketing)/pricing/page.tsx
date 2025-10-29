@@ -1,9 +1,9 @@
-import { Check } from "lucide-react";
-import { Suspense } from "react";
 import LogInButton, { LoadingLogInButton } from "@/app/auth/log-in-button";
 import serverSupabase from "@/lib/supabase/server";
-import Link from "next/link";
+import { Check } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "Pricing • VES AI",
@@ -84,7 +84,7 @@ export default function PricingPage() {
                 className={`relative rounded-2xl p-8 ${
                   plan.popular
                     ? "from-accent-purple/10 to-accent-purple/5 border-accent-purple border-2 bg-gradient-to-b"
-                    : "border-border border bg-slate-50 dark:bg-slate-900"
+                    : "border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900"
                 }`}
               >
                 {plan.popular && (
@@ -111,7 +111,7 @@ export default function PricingPage() {
                     </div>
                   </div>
 
-                  <div className="border-border space-y-2 border-y py-4">
+                  <div className="space-y-2 border-y border-slate-200 py-4 dark:border-slate-800">
                     <p className="text-foreground text-sm">{plan.sessions}</p>
                     <p className="text-sm text-slate-600 dark:text-slate-400">
                       {plan.workers}
@@ -223,7 +223,7 @@ function LoadingPricingButton({
   switch (variant) {
     case "default":
       return (
-        <div className="border-border bg-background h-[50px] w-full rounded-lg border py-3 font-medium transition-all duration-200 hover:bg-slate-50 dark:hover:bg-slate-900" />
+        <div className="bg-background h-[50px] w-full rounded-lg border border-slate-200 py-3 font-medium transition-all duration-200 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900" />
       );
     case "popular":
       return (
@@ -233,7 +233,7 @@ function LoadingPricingButton({
       );
     case "enterprise":
       return (
-        <div className="border-border bg-background block h-[50px] w-full rounded-lg border py-3 text-center font-medium transition-all duration-200 hover:bg-slate-50 dark:hover:bg-slate-900" />
+        <div className="bg-background block h-[50px] w-full rounded-lg border border-slate-200 py-3 text-center font-medium transition-all duration-200 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900" />
       );
   }
 }
@@ -253,7 +253,7 @@ async function LoadedPricingButton({
       return (
         <Link
           href={authUser ? "/home" : "/login"}
-          className="border-border bg-background mt-[2px] flex flex-row items-center justify-center rounded-lg border py-3 font-medium transition-all duration-200 hover:bg-slate-50 dark:hover:bg-slate-900"
+          className="bg-background mt-[2px] flex flex-row items-center justify-center rounded-lg border border-slate-200 py-3 font-medium transition-all duration-200 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900"
         >
           Get Started
         </Link>
@@ -273,7 +273,7 @@ async function LoadedPricingButton({
       return (
         <Link
           href="mailto:team@ves.ai?subject=Enterprise"
-          className="border-border bg-background mt-[2px] block w-full rounded-lg border py-3 text-center font-medium transition-all duration-200 hover:bg-slate-50 dark:hover:bg-slate-900"
+          className="bg-background mt-[2px] block w-full rounded-lg border border-slate-200 py-3 text-center font-medium transition-all duration-200 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900"
         >
           Contact Sales
         </Link>

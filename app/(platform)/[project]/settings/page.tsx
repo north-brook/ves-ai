@@ -1,6 +1,6 @@
-import { Suspense } from "react";
 import serverSupabase from "@/lib/supabase/server";
 import type { Metadata } from "next";
+import WIP from "../wip";
 
 export const revalidate = 0;
 
@@ -30,7 +30,5 @@ export default async function ProjectSettingsPage({
 }: {
   params: Promise<{ project: string }>;
 }) {
-  const { project: projectSlug } = await params;
-
-  return <div className="mx-auto max-w-7xl px-6 py-12"></div>;
+  return <WIP />;
 }

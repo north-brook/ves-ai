@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ProjectGroup, ProjectUser } from "@/types";
 import clientSupabase from "@/lib/supabase/client";
+import { ProjectGroup, ProjectUser, Session } from "@/types";
 import { RealtimeChannel } from "@supabase/supabase-js";
+import { useEffect, useState } from "react";
 
 export default function useLiveGroups({
   projectId,
@@ -12,24 +12,22 @@ export default function useLiveGroups({
   projectId: string;
   initialGroups: (ProjectGroup & {
     users: ProjectUser[];
-    sessions: { id: string }[];
+    sessions: Session[];
   })[];
 }) {
-  const [groups, setGroups] = useState<
-    (ProjectGroup & {
-      users: ProjectUser[];
-      sessions: { id: string }[];
-    })[]
-  >(initialGroups);
+  const [groups, setGroups] =
+    useState<(ProjectGroup & { users: ProjectUser[]; sessions: Session[] })[]>(
+      initialGroups,
+    );
 
-  // Setup realtime subscription for sessions
+  // Setup realtime subscription for groups
   let channel: RealtimeChannel;
   useEffect(() => {
     console.log("🔌 Setting up realtime subscriptions for project:", projectId);
     const supabase = clientSupabase();
-    // Subscribe to changes in sessions table
+    // Subscribe to changes in project_users table
     // Using a simpler channel name and configuration
-    const channelName = `project-${projectId}-users`;
+    const channelName = `project-${projectId}-groups`;
     console.log("📡 Creating channel:", channelName);
 
     supabase.realtime.setAuth().then(() => {
@@ -41,7 +39,7 @@ export default function useLiveGroups({
             event: "*",
             schema: "public",
             table: "project_groups",
-            filter: `project_id=eq.${projectId}`,
+            filter: `project_id=eq.${projectId},status=eq.analyzed`,
           },
           async (payload) => {
             console.log(
@@ -53,26 +51,25 @@ export default function useLiveGroups({
               console.log("➕ New group inserted:", payload.new);
               const newGroup = payload.new as ProjectGroup;
 
-              // get user with group and sessions
+              // get group with users and sessions
               const { data: group } = await supabase
                 .from("project_groups")
-                .select("*, users:project_users(*), sessions(id)")
+                .select("*, users:project_users(*), sessions(*)")
                 .eq("id", newGroup.id)
                 .single();
 
               if (!group) return;
-
               setGroups((prev) => {
                 const updated = prev.some((g) => g.id === group.id)
                   ? prev.map((g) => (g.id === group.id ? group : g))
                   : [group, ...prev];
 
                 return updated.sort((a, b) => {
-                  const dateA = a.created_at
-                    ? new Date(a.created_at).getTime()
+                  const dateA = a.analyzed_at
+                    ? new Date(a.analyzed_at).getTime()
                     : 0;
-                  const dateB = b.created_at
-                    ? new Date(b.created_at).getTime()
+                  const dateB = b.analyzed_at
+                    ? new Date(b.analyzed_at).getTime()
                     : 0;
                   return dateB - dateA;
                 });
@@ -84,7 +81,7 @@ export default function useLiveGroups({
               // get user with group and sessions
               const { data: group } = await supabase
                 .from("project_groups")
-                .select("*, users:project_users(*), sessions(id)")
+                .select("*, users:project_users(*), sessions(*)")
                 .eq("id", updatedGroup.id)
                 .single();
 
@@ -95,13 +92,13 @@ export default function useLiveGroups({
                   ? prev.map((g) => (g.id === group.id ? group : g))
                   : [group, ...prev];
 
-                // Sort by created_at descending (most recent first)
+                // Sort by session_at descending (most recent first)
                 return updated.sort((a, b) => {
-                  const dateA = a.created_at
-                    ? new Date(a.created_at).getTime()
+                  const dateA = a.analyzed_at
+                    ? new Date(a.analyzed_at).getTime()
                     : 0;
-                  const dateB = b.created_at
-                    ? new Date(b.created_at).getTime()
+                  const dateB = b.analyzed_at
+                    ? new Date(b.analyzed_at).getTime()
                     : 0;
                   return dateB - dateA;
                 });

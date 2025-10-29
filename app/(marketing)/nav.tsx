@@ -1,12 +1,12 @@
-import Link from "next/link";
-import Logo from "./logo";
 import serverSupabase from "@/lib/supabase/server";
+import Link from "next/link";
 import { Suspense } from "react";
 import LogInButton, { LoadingLogInButton } from "../auth/log-in-button";
+import Logo from "./logo";
 
 export default async function MarketingNav() {
   return (
-    <nav className="border-border bg-background/80 sticky top-0 z-50 w-full border-b backdrop-blur-lg">
+    <nav className="bg-background/80 sticky top-0 z-50 w-full border-b border-slate-200 backdrop-blur-lg dark:border-slate-800">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
         <Link href="/">
           <Logo />
@@ -15,7 +15,7 @@ export default async function MarketingNav() {
         <div className="flex items-center gap-8">
           <Link
             href="/pricing"
-            className="text-slate-600 dark:text-slate-400 hover:text-foreground font-medium transition-colors"
+            className="hover:text-foreground font-medium text-slate-600 transition-colors dark:text-slate-400"
           >
             Pricing
           </Link>

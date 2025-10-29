@@ -1,16 +1,19 @@
 "use server";
 
 import serverSupabase from "@/lib/supabase/server";
-import { Issue } from "@/types";
-import { embed } from "ai";
+import { Issue, ProjectGroup, ProjectUser, Session } from "@/types";
 import { openai } from "@ai-sdk/openai";
+import { embed } from "ai";
 
 export async function searchIssues(
   projectId: string,
   query: string,
 ): Promise<
   (Issue & {
-    sessions: { id: string }[];
+    sessions: (Session & {
+      user: ProjectUser;
+      group: ProjectGroup | null;
+    })[];
   })[]
 > {
   const supabase = await serverSupabase();
@@ -48,7 +51,9 @@ export async function searchIssues(
       matchedIssues.map(async (m) => {
         const { data: issue } = await supabase
           .from("issues")
-          .select("*, sessions(id)")
+          .select(
+            "*, sessions(*, user:project_users(*), group:project_groups(*))",
+          )
           .eq("id", m.id)
           .single();
         return issue;

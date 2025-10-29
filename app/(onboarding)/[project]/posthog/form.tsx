@@ -1,10 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { ArrowRight, LoaderCircle, ExternalLink } from "lucide-react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { connectPostHog, fetchPostHogProjects } from "./actions";
-import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -13,6 +8,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Project, Source } from "@/types";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { ArrowRight, ExternalLink, LoaderCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { connectPostHog, fetchPostHogProjects } from "./actions";
 
 interface PostHogFormProps {
   project: Project;
@@ -75,7 +75,7 @@ export function PostHogForm({ project, source }: PostHogFormProps) {
     <form action={connectMutation.mutate} className="space-y-6">
       <input type="hidden" name="projectSlug" value={project.slug} />
 
-      <div className="border-border rounded-lg border bg-slate-50/50 p-4 dark:bg-slate-900/50">
+      <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
         <div className="flex items-center gap-3">
           <div className="flex-1">
             <h3 className="font-medium">Create a PostHog API Key</h3>
@@ -87,7 +87,7 @@ export function PostHogForm({ project, source }: PostHogFormProps) {
             href="https://app.posthog.com/settings/user-api-keys"
             target="_blank"
             rel="noopener noreferrer"
-            className="border-border bg-background flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors hover:bg-slate-50 dark:hover:bg-slate-900"
+            className="bg-background flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium transition-colors hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900"
           >
             Get API Key
             <ExternalLink className="h-4 w-4" />
@@ -106,7 +106,7 @@ export function PostHogForm({ project, source }: PostHogFormProps) {
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
           required
-          className="border-border focus:border-accent-purple w-full rounded-lg border bg-slate-50 px-4 py-3 font-mono text-sm transition-colors outline-none placeholder:text-slate-600 dark:bg-slate-900 dark:placeholder:text-slate-400"
+          className="focus:border-accent-purple w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-sm transition-colors outline-none placeholder:text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:placeholder:text-slate-400"
           placeholder="phx_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
         />
       </div>
@@ -137,7 +137,7 @@ export function PostHogForm({ project, source }: PostHogFormProps) {
             onChange={(e) => setCustomHost(e.target.value)}
             required
             placeholder={`https://posthog.${project.domain}`}
-            className="border-border focus:border-accent-purple mt-2 w-full rounded-lg border bg-slate-50 px-4 py-3 transition-colors outline-none placeholder:text-slate-600 dark:bg-slate-900 dark:placeholder:text-slate-400"
+            className="focus:border-accent-purple mt-2 w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 transition-colors outline-none placeholder:text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:placeholder:text-slate-400"
           />
         )}
       </div>

@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 export default function NotFound() {
   const params = useParams();
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center px-4">
+    <div className="flex h-full w-full flex-col items-center justify-center px-4">
       <div className="text-center">
         <h1 className="text-6xl font-bold text-gray-900 dark:text-gray-100">
           404
@@ -20,7 +20,7 @@ export default function NotFound() {
         <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
           <Link
             href={`/${params.project}`}
-            className="rounded-lg bg-black px-6 py-3 text-center text-white transition-colors duration-200 hover:bg-gray-800"
+            className="rounded-lg bg-slate-100 px-6 py-3 text-center text-slate-800 transition-all duration-200 dark:bg-slate-900 dark:text-slate-200"
           >
             Back to Project
           </Link>

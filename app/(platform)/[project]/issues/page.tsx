@@ -1,8 +1,6 @@
-import { Suspense } from "react";
 import serverSupabase from "@/lib/supabase/server";
-import type { Metadata } from "next";
-import IssueList from "./list";
-import { platformConfig } from "../queries";
+import { LoaderCircle } from "lucide-react";
+import { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 export const revalidate = 0;
@@ -13,6 +11,7 @@ export async function generateMetadata({
   params: Promise<{ project: string }>;
 }): Promise<Metadata> {
   const { project: projectSlug } = await params;
+
   const supabase = await serverSupabase();
 
   const { data: project } = await supabase
@@ -21,61 +20,50 @@ export async function generateMetadata({
     .eq("slug", projectSlug)
     .single();
 
-  const projectName = project?.name || "Project";
-
   return {
-    title: `Issues • ${projectName} • VES AI`,
+    title: `Issues • ${project?.name || "Project"} • VES AI`,
   };
 }
 
-export default async function ProjectIssuesPage({
+export default async function IssuesPage({
   params,
 }: {
   params: Promise<{ project: string }>;
 }) {
   const { project: projectSlug } = await params;
 
-  return (
-    <>
-      <Suspense fallback={<IssuesSkeleton />}>
-        <LoadedIssues projectSlug={projectSlug} />
-      </Suspense>
-    </>
-  );
-}
-
-async function LoadedIssues({ projectSlug }: { projectSlug: string }) {
   const supabase = await serverSupabase();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
 
-  const { project } = await platformConfig({ projectSlug });
+  if (!authUser) redirect("/");
 
+  const { data: project, error: projectError } = await supabase
+    .from("projects")
+    .select("*")
+    .eq("slug", projectSlug)
+    .single();
+
+  if (projectError) console.error(projectError);
   if (!project) redirect("/home");
 
-  const { data: issues } = await supabase
+  // get the most recent analyzed issue
+  const { data: issue } = await supabase
     .from("issues")
-    .select("*, sessions(id)")
+    .select("*")
     .eq("project_id", project.id)
-    .order("created_at", { ascending: false });
+    .eq("status", "analyzed")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (issue) redirect(`/${projectSlug}/issues/${issue.id}`);
 
   return (
-    <>
-      <IssueList initialIssues={issues || []} project={project} />
-    </>
-  );
-}
-
-function IssuesSkeleton() {
-  return (
-    <div className="w-full space-y-4">
-      {/* Search bar skeleton */}
-      <div className="h-10 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-700" />
-      
-      {/* Issue cards skeleton */}
-      <div className="space-y-3">
-        {[1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className="h-32 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-700" />
-        ))}
-      </div>
+    <div className="flex h-full flex-col items-center justify-center gap-3">
+      <LoaderCircle className="h-6 w-6 animate-spin text-slate-600 dark:text-slate-400" />
+      <p className="text-slate-600 dark:text-slate-400">Awaiting issues</p>
     </div>
   );
 }

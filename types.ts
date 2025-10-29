@@ -39,6 +39,12 @@ export type IssueConfidence = Enums<"issue_confidence">;
 export type IssueStatus = Enums<"issue_status">;
 export type PageStatus = Enums<"page_status">;
 
+export const WORKING_SESSION_STATUS: SessionStatus[] = [
+  "processing",
+  "processed",
+  "analyzing",
+];
+
 export type Database = MergeDeep<
   DatabaseGenerated,
   {

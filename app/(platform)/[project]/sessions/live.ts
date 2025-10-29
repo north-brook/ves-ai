@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Issue, ProjectGroup, ProjectUser, Session } from "@/types";
 import clientSupabase from "@/lib/supabase/client";
+import { Issue, ProjectGroup, ProjectUser, Session } from "@/types";
 import { RealtimeChannel } from "@supabase/supabase-js";
+import { useEffect, useState } from "react";
 
 export default function useLiveSessions({
   projectId,
@@ -43,7 +43,7 @@ export default function useLiveSessions({
             event: "*",
             schema: "public",
             table: "sessions",
-            filter: `project_id=eq.${projectId}`,
+            filter: `project_id=eq.${projectId},status=analyzed`,
           },
           async (payload) => {
             console.log(

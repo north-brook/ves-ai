@@ -1,7 +1,7 @@
 "use client";
 
-import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Check } from "lucide-react";
 
 interface ProgressBarProps {
   currentStep: number;
@@ -27,7 +27,7 @@ export default function ProgressBar({ currentStep }: ProgressBarProps) {
                     ? "border-accent-purple bg-accent-purple text-white"
                     : step.number === currentStep
                       ? "border-accent-purple bg-background text-accent-purple"
-                      : "border-border bg-background text-slate-600 dark:text-slate-400",
+                      : "bg-background border-slate-200 text-slate-600 dark:border-slate-800 dark:text-slate-400",
                 )}
               >
                 {step.number < currentStep ? (

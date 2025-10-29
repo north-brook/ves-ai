@@ -129,9 +129,32 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply outline-ring/50 border-slate-200 dark:border-slate-800;
   }
   body {
     @apply bg-background text-foreground;
+  }
+
+  /* Scrollbar styling */
+  *::-webkit-scrollbar {
+    @apply w-2;
+  }
+
+  *::-webkit-scrollbar-track {
+    @apply border-l border-slate-200 bg-slate-50 dark:border-slate-800;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-slate-300;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    *::-webkit-scrollbar-track {
+      @apply border-l border-slate-800 bg-slate-950;
+    }
+
+    *::-webkit-scrollbar-thumb {
+      @apply bg-slate-700;
+    }
   }
 }
