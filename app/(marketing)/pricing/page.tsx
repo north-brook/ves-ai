@@ -8,13 +8,13 @@ import { Suspense } from "react";
 export const metadata: Metadata = {
   title: "Pricing • VES AI",
   description:
-    "Simple, transparent pricing for AI-powered session analysis. No overages, no surprises. Start with 1 hour free.",
+    "Simple, transparent pricing for AI-powered session analysis. No overages, no surprises. Start with 100 monthly sessions free.",
 };
 
 const plans = [
   {
     name: "Starter",
-    workers: "10 concurrent workers",
+    workers: "5 concurrent workers",
     sessions: "100 monthly sessions",
     price: "$0",
     description: "Early-stage startups",
@@ -22,10 +22,10 @@ const plans = [
   },
   {
     name: "Growth",
-    workers: "50 concurrent workers",
+    workers: "20 concurrent workers",
     sessions: "1,000 monthly sessions",
     price: "$500",
-    description: "Growing product teams",
+    description: "Startups with PMF",
     popular: true,
   },
   {
@@ -33,7 +33,7 @@ const plans = [
     workers: "100 concurrent workers",
     sessions: "10,000 monthly sessions",
     price: "$2,000",
-    description: "Mid-market SaaS",
+    description: "Companies operating at scale",
     popular: false,
   },
   {
