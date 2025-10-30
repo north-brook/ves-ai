@@ -1,9 +1,9 @@
 import express from "express";
 import fs from "fs/promises";
 import { postCallback } from "./callback";
-import type { ErrorPayload, ProcessRequest, SuccessPayload } from "./types";
 import constructEvents from "./events";
 import constructVideo from "./replay";
+import type { ErrorPayload, ProcessRequest, SuccessPayload } from "./types";
 
 const app = express();
 app.use(express.json({ limit: "512kb" }));
@@ -45,24 +45,21 @@ app.post("/process", async (req, res) => {
       `  🗂️ Target: ${body.project_id}/${body.session_id}`,
   );
 
-  try {
-    await processRecordingAsync(body);
-    res.status(200).json({
-      success: true,
-      message: "Recording processed and callback sent",
-      external_id: body.external_id,
-    });
-  } catch (err: any) {
+  // Return 202 Accepted immediately to confirm receipt
+  // This allows the caller to detect dropped requests
+  res.status(202).json({
+    success: true,
+    message: "Recording accepted for processing",
+    external_id: body.external_id,
+  });
+
+  // Continue processing in background (keeps worker busy for autoscaling)
+  processRecordingAsync(body).catch((err) => {
     console.error(
       `❌ [ERROR] Failed to process recording ${body.external_id}:`,
       err,
     );
-    res.status(500).json({
-      success: false,
-      error: err.message || "Recording processing failed",
-      external_id: body.external_id,
-    });
-  }
+  });
 });
 
 async function processRecordingAsync(body: ProcessRequest) {
@@ -175,7 +172,7 @@ async function processRecordingAsync(body: ProcessRequest) {
   }
 }
 
-// Graceful shutdown (unchanged)
+// Graceful shutdown
 let isShuttingDown = false;
 async function gracefulShutdown(signal: string) {
   if (isShuttingDown) {

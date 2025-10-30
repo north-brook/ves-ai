@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { ProcessRequest } from "@/cloud/src/types";
 import adminSupabase from "@/lib/supabase/admin";
 import * as Sentry from "@sentry/nextjs";
-import type { ProcessRequest } from "@/cloud/src/types";
+import { NextRequest, NextResponse } from "next/server";
 
 export type ProcessJobRequest = {
   session_id: string;
@@ -102,15 +102,39 @@ export async function POST(request: NextRequest) {
       `   File path: ${cloudRequest.project_id}/${cloudRequest.session_id}.webm`,
     );
 
-    // Call cloud rendering service and verify it accepts the job
+    // Call cloud rendering service
     console.log(`🚀 [PROCESS] Triggering cloud service`);
-    fetch(`${process.env.CLOUD_URL}/process`, {
+    const cloudResponse = await fetch(`${process.env.CLOUD_URL}/process`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(cloudRequest),
-    }).catch(() => {});
+      // Add timeout to detect hung requests
+      signal: AbortSignal.timeout(10000), // 10s timeout for acceptance
+    });
+
+    if (!cloudResponse.ok) {
+      const errorText = await cloudResponse.text().catch(() => "No error details");
+      console.error(
+        `❌ [PROCESS] Cloud service rejected request:`,
+        cloudResponse.status,
+        errorText,
+      );
+
+      // Revert session status back to pending for retry
+      await supabase
+        .from("sessions")
+        .update({ status: "pending", processed_at: null })
+        .eq("id", session_id);
+
+      throw new Error(
+        `Cloud service error: ${cloudResponse.status} - ${errorText}`,
+      );
+    }
+
+    const cloudResult = await cloudResponse.json();
+    console.log(`✅ [PROCESS] Cloud service accepted job:`, cloudResult);
 
     return NextResponse.json({
       success: true,
