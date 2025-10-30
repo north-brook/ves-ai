@@ -65,23 +65,6 @@ export async function POST(request: NextRequest) {
       throw new Error("Session missing active_duration");
     }
 
-    // Update session status to processing
-    console.log(
-      `🔄 [PROCESS] Updating session ${session_id} to processing status`,
-    );
-    const { error: updateError } = await supabase
-      .from("sessions")
-      .update({ status: "processing", processed_at: new Date().toISOString() })
-      .eq("id", session_id);
-
-    if (updateError) {
-      console.error(
-        `❌ [PROCESS] Failed to update session status:`,
-        updateError,
-      );
-      throw updateError;
-    }
-
     // Prepare cloud service request
     const cloudRequest: ProcessRequest = {
       project_id: session.project_id,
@@ -92,54 +75,39 @@ export async function POST(request: NextRequest) {
       source_project: session.source.source_project!,
       external_id: session.external_id,
       active_duration: session.active_duration,
-      callback: `${process.env.NEXT_PUBLIC_URL}/jobs/process-replay/callback`,
+      accepted_callback: `${process.env.NEXT_PUBLIC_URL}/jobs/process-replay/accepted`,
+      finished_callback: `${process.env.NEXT_PUBLIC_URL}/jobs/process-replay/finished`,
     };
 
     console.log(`☁️ [PROCESS] Sending request to cloud service`);
-    console.log(`   Cloud URL: ${process.env.CLOUD_URL}/render`);
+    console.log(`   Cloud URL: ${process.env.CLOUD_URL}/process`);
     console.log(`   Recording: ${cloudRequest.external_id}`);
     console.log(
       `   File path: ${cloudRequest.project_id}/${cloudRequest.session_id}.webm`,
     );
 
-    // Call cloud rendering service
-    console.log(`🚀 [PROCESS] Triggering cloud service`);
-    const cloudResponse = await fetch(`${process.env.CLOUD_URL}/process`, {
+    // Call cloud rendering service with fire-and-forget pattern
+    // Session status will be updated to "processing" only when cloud service
+    // calls the accepted_callback endpoint, ensuring no stuck sessions
+    console.log(`🚀 [PROCESS] Triggering cloud service (fire-and-forget)`);
+    fetch(`${process.env.CLOUD_URL}/process`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(cloudRequest),
-      // Add timeout to detect hung requests
-      signal: AbortSignal.timeout(10000), // 10s timeout for acceptance
-    });
-
-    if (!cloudResponse.ok) {
-      const errorText = await cloudResponse.text().catch(() => "No error details");
+    }).catch((error) => {
       console.error(
-        `❌ [PROCESS] Cloud service rejected request:`,
-        cloudResponse.status,
-        errorText,
+        `⚠️ [PROCESS] Failed to reach cloud service for session ${session_id}:`,
+        error.message,
       );
-
-      // Revert session status back to pending for retry
-      await supabase
-        .from("sessions")
-        .update({ status: "pending", processed_at: null })
-        .eq("id", session_id);
-
-      throw new Error(
-        `Cloud service error: ${cloudResponse.status} - ${errorText}`,
-      );
-    }
-
-    const cloudResult = await cloudResponse.json();
-    console.log(`✅ [PROCESS] Cloud service accepted job:`, cloudResult);
+      console.error(`   Session will remain in "pending" status for retry`);
+    });
 
     return NextResponse.json({
       success: true,
       session_id,
-      message: "Processing started successfully",
+      message: "Cloud service request sent",
     });
   } catch (error: unknown) {
     const errorMessage =
