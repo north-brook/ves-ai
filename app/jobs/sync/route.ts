@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
 import adminSupabase from "@/lib/supabase/admin";
-import * as Sentry from "@sentry/nextjs";
-import { Database } from "@/types";
-import nextJobs from "./next-job";
 import { Json } from "@/schema";
+import { Database } from "@/types";
+import * as Sentry from "@sentry/nextjs";
+import { NextRequest, NextResponse } from "next/server";
+import next from "./next";
 
 type Source = Database["public"]["Tables"]["sources"]["Row"] & {
   projects: {
@@ -164,7 +164,7 @@ export async function GET(request: NextRequest) {
             `⚙️ [SYNC SESSIONS] Processing pending sessions for project ${projectName}...`,
           );
 
-          const processedCount = await nextJobs(projectId, 20);
+          const processedCount = await next(projectId, 20);
 
           totalProcessed = processedCount;
 

@@ -1,15 +1,17 @@
-import adminSupabase from "@/lib/supabase/admin";
-import * as Sentry from "@sentry/nextjs";
+"use server";
+
 import {
   getBillingPeriod,
   getWorkerLimit,
   hasRemainingSessionAllowance,
 } from "@/lib/limits";
-import { ProcessJobRequest } from "../process-replay/route";
+import adminSupabase from "@/lib/supabase/admin";
+import { start } from "workflow/api";
+import { run } from "../run";
 
-export default async function nextJobs(
+export default async function next(
   projectId: string,
-  maxJobs: number = 20,
+  maxJobs: number = 1,
 ): Promise<number> {
   const supabase = adminSupabase();
   let processedCount = 0;
@@ -84,42 +86,12 @@ export default async function nextJobs(
     }
 
     // Trigger processing
-    try {
-      console.log(
-        `🎯 [NEXT JOB] Triggering processing for session ${session.id} (recording: ${session.external_id})`,
-      );
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_URL}/jobs/process-replay`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.CRON_SECRET}`,
-          },
-          body: JSON.stringify({ session_id: session.id } as ProcessJobRequest),
-        },
-      );
+    console.log(
+      `🎯 [NEXT JOB] Starting run for session ${session.id} (recording: ${session.external_id})`,
+    );
+    await start(run, [session.id]);
 
-      if (response.ok) {
-        console.log(
-          `✅ [NEXT JOB] Successfully triggered processing for session ${session.id}`,
-        );
-        processedCount++;
-      } else {
-        console.error(
-          `⚠️ [NEXT JOB] Process trigger returned ${response.status} for session ${session.id}`,
-        );
-      }
-    } catch (error) {
-      console.error(
-        `❌ [NEXT JOB] Error triggering process for session ${session.id}:`,
-        error,
-      );
-      Sentry.captureException(error, {
-        tags: { job: "nextJob", step: "triggerProcess" },
-        extra: { sessionId: session.id, projectId },
-      });
-    }
+    processedCount++;
   }
 
   return processedCount;

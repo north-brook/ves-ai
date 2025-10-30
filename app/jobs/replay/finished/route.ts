@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { AnalyzeSessionJobRequest } from "@/app/jobs/analyze-session";
+import type { ErrorPayload, SuccessPayload } from "@/cloud/src/types";
 import adminSupabase from "@/lib/supabase/admin";
-import * as Sentry from "@sentry/nextjs";
-import type { SuccessPayload, ErrorPayload } from "@/cloud/src/types";
 import { Database } from "@/types";
-import { AnalyzeSessionJobRequest } from "@/app/jobs/analyze-session/route";
+import * as Sentry from "@sentry/nextjs";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
   try {

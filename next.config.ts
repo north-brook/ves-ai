@@ -1,6 +1,7 @@
 import { withSentryConfig } from "@sentry/nextjs";
-import type { NextConfig } from "next";
 import dotenvExpand from "dotenv-expand";
+import type { NextConfig } from "next";
+import { withWorkflow } from "workflow/next";
 
 dotenvExpand.expand({ parsed: { ...process.env } as Record<string, string> });
 
@@ -42,7 +43,7 @@ const nextConfig: NextConfig = {
   skipTrailingSlashRedirect: true,
 };
 
-export default withSentryConfig(nextConfig, {
+export default withSentryConfig(withWorkflow(nextConfig), {
   // For all available options, see:
   // https://www.npmjs.com/package/@sentry/webpack-plugin#options
 
