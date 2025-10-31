@@ -9,7 +9,7 @@ import adminSupabase from "@/lib/supabase/admin";
 import { start } from "workflow/api";
 import { run } from "../run";
 
-export default async function next(
+export default async function kickoff(
   projectId: string,
   maxJobs: number = 1,
 ): Promise<number> {
@@ -93,6 +93,10 @@ export default async function next(
 
     processedCount++;
   }
+
+  console.log(
+    `✅ [NEXT JOB] Processed ${processedCount} sessions for project ${projectId}`,
+  );
 
   return processedCount;
 }

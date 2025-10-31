@@ -3,7 +3,7 @@ import { Json } from "@/schema";
 import { Database } from "@/types";
 import * as Sentry from "@sentry/nextjs";
 import { NextRequest, NextResponse } from "next/server";
-import next from "./next";
+import next from "./kickoff";
 
 type Source = Database["public"]["Tables"]["sources"]["Row"] & {
   projects: {

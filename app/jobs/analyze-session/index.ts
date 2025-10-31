@@ -3,7 +3,7 @@ import {
   ANALYZE_SESSION_SYSTEM,
 } from "@/app/jobs/analyze-session/prompts";
 import adminSupabase from "@/lib/supabase/admin";
-import { SessionDetectedIssue } from "@/types";
+import { Session, SessionDetectedIssue } from "@/types";
 import { openai } from "@ai-sdk/openai";
 import {
   createPartFromUri,
@@ -15,7 +15,9 @@ import { FatalError } from "workflow";
 import { writeDebugFile } from "../debug/helper";
 import constructContext from "./context";
 
-export async function analyzeSession(sessionId: string) {
+export async function analyzeSession(
+  sessionId: string,
+): Promise<{ session: Session }> {
   "use step";
 
   console.log(
@@ -210,4 +212,6 @@ export async function analyzeSession(sessionId: string) {
   console.log(
     `✨ [ANALYZE SESSION] Successfully analyzed session ${sessionId}`,
   );
+
+  return { session: analyzedSession };
 }
