@@ -6,7 +6,7 @@ export type ProcessJobRequest = {
   session_id: string;
 };
 
-export async function replay(sessionId: string) {
+export async function processReplay(sessionId: string) {
   "use step";
 
   if (!sessionId) {

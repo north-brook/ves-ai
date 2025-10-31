@@ -1,9 +1,9 @@
-import { AnalyzeSessionJobRequest } from "@/app/jobs/analyze-session";
 import type { ErrorPayload, SuccessPayload } from "@/cloud/src/types";
 import adminSupabase from "@/lib/supabase/admin";
 import { Database } from "@/types";
 import * as Sentry from "@sentry/nextjs";
 import { NextRequest, NextResponse } from "next/server";
+import { resumeHook } from "workflow/api";
 
 export async function POST(request: NextRequest) {
   try {
@@ -83,16 +83,10 @@ export async function POST(request: NextRequest) {
       console.log(
         `🎯 [CALLBACK] Triggering analysis for session ${session.id}`,
       );
-      fetch(`${process.env.NEXT_PUBLIC_URL}/jobs/analyze-session`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.CRON_SECRET}`,
-        },
-        body: JSON.stringify({
-          session_id: session.id,
-        } as AnalyzeSessionJobRequest),
-      }).catch((_) => {});
+      await resumeHook(`session:${session.id}`, {
+        success: true,
+        message: "Session finished processing successfully",
+      });
 
       return NextResponse.json({
         success: true,

@@ -4,8 +4,8 @@ import { analyzeGroup } from "./analyze-group";
 import { analyzeIssue } from "./analyze-issue";
 import { analyzeSession } from "./analyze-session";
 import { analyzeUser } from "./analyze-user";
+import { processReplay } from "./process-replay";
 import { reconcileIssues } from "./reconcile-issues";
-import { replay } from "./replay";
 import next from "./sync/next";
 
 export async function run(sessionId: string) {
@@ -25,8 +25,10 @@ export async function run(sessionId: string) {
   }
 
   // process replay using the cloud service with a timeout
-  const replayHook = createHook<{ success: boolean }>();
-  await replay(sessionId);
+  const replayHook = createHook<{ success: boolean }>({
+    token: `session:${sessionId}`,
+  });
+  await processReplay(sessionId);
   Promise.race([
     replayHook,
     async () => {
