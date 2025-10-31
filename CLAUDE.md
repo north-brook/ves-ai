@@ -41,6 +41,7 @@ vercel env pull      # Pull environment variables from Vercel
 - **Integrations**: PostHog (analytics), Linear SDK (ticketing), Sentry (monitoring)
 - **Storage**: Google Cloud Storage for video processing
 - **Authentication**: Supabase Auth with Google OAuth
+- **Job Orchestration**: Vercel Workflow for durable, long-running jobs
 
 ### Project Structure
 
@@ -52,7 +53,7 @@ vercel env pull      # Pull environment variables from Vercel
   - `[project]/` - Project-specific pages with dynamic routing
   - `[project]/sessions/[session]/` - Individual session analysis views
 - `app/auth/` - Authentication routes and callbacks
-- `app/jobs/` - API endpoints for async processing (analyze, process, run)
+- `app/jobs/` - Vercel Workflow jobs and webhook endpoints
 
 **Cloud Service**
 
@@ -68,11 +69,51 @@ vercel env pull      # Pull environment variables from Vercel
 
 ### Data Flow
 
-1. **Session Ingestion**: PostHog webhooks → `/jobs/process` → Queue processing
-2. **Video Processing**: Session data → Cloud service → WebM video → GCS storage
-3. **AI Analysis**: Session events → Gemini/OpenAI → Observations & insights
+1. **Session Ingestion**: Cron → `/jobs/sync` → `kickoff()` → Vercel Workflow execution
+2. **Video Processing**: Session data → Cloud service → WebM video → GCS storage → Webhook callback
+3. **AI Analysis**: Session events + video → Gemini/OpenAI → Session story, issues, insights
 4. **Ticket Creation**: AI observations → Linear API → Actionable tickets
 5. **Real-time Updates**: Supabase real-time → UI updates
+
+### Vercel Workflow Pattern
+
+The codebase uses **Vercel Workflow** (v4.0.1-beta.6) for durable job orchestration. Workflows survive server restarts, provide step-level retries, and offer full observability.
+
+**Key Directives:**
+- `"use workflow"` - Marks the workflow entry point (root function)
+- `"use step"` - Marks individual steps that can retry independently
+
+**Main Workflow** (`app/jobs/run.ts`):
+
+The `run(sessionId)` function orchestrates the entire session analysis pipeline:
+
+1. **processReplay** - Triggers cloud service, waits for webhook callback via hook pattern
+   - Creates hook: `createHook({ token: 'session:${sessionId}' })`
+   - Cloud service calls `/jobs/process-replay/finished` which calls `resumeHook()`
+   - Protected by 6-hour timeout using `Promise.race()` with `sleep("6 hours")`
+
+2. **analyzeSession** - AI analyzes video and events (Gemini 2.5 Pro)
+   - Generates session story, detected issues, health score
+   - Creates embeddings for similarity matching
+
+3. **Parallel Processing** - Runs concurrently:
+   - **analyzeUser** → **analyzeGroup** (if user belongs to group)
+   - **reconcileIssues** → **analyzeIssue** (for each issue)
+   - Uses hash-based caching to skip redundant analysis
+
+4. **next** - Kicks off workflow for next pending session
+
+**Workflow APIs:**
+- `start(run, [sessionId])` - Initiates new workflow from `app/jobs/sync/kickoff.ts`
+- `createHook({ token })` - Creates resumable hook for async callbacks
+- `resumeHook(token, data)` - Resumes waiting workflow from webhooks
+- `sleep(duration)` - Pauses execution with timeout protection
+- `FatalError` - Throws non-retryable errors
+
+**Cron Trigger:**
+- Every 5 minutes: `/jobs/sync/route.ts` pulls new sessions from PostHog
+- Calls `kickoff(projectId)` to start workflows for pending sessions
+- Respects worker limits and usage limits per project plan
 
 ### Key Integrations
 
@@ -80,6 +121,7 @@ vercel env pull      # Pull environment variables from Vercel
 
 - Session replay data fetched via PostHog API
 - Requires API key with recording read access
+- Synced every 5 minutes via cron job
 
 **Linear Integration**
 
@@ -120,6 +162,9 @@ Key tables:
 - PostHog proxy configured to bypass ad blockers
 - Real-time features use Supabase subscriptions
 - Video processing is async via Cloud Run service
+- Vercel Workflow enabled via `withWorkflow()` wrapper in `next.config.ts`
+- All workflow jobs use `"use workflow"` and `"use step"` directives
+- Workflows are durable and survive server restarts
 
 ### Styling
 

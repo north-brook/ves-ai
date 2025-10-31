@@ -27,8 +27,7 @@ app.post("/process", async (req, res) => {
     "session_id",
     "external_id",
     "active_duration",
-    "accepted_callback",
-    "finished_callback",
+    "callback",
   ].filter(
     (k) =>
       !(k in body) || (body as any)[k] === undefined || (body as any)[k] === "",
@@ -45,52 +44,6 @@ app.post("/process", async (req, res) => {
       `  📹 Source: ${body.source_type} | Host: ${body.source_host}\n` +
       `  🗂️ Target: ${body.project_id}/${body.session_id}`,
   );
-
-  // Call accepted callback immediately to confirm receipt
-  let acceptedCallbackUrl = body.accepted_callback;
-  if (
-    acceptedCallbackUrl.includes("localhost") &&
-    process.env.DOCKERIZED === "true"
-  ) {
-    acceptedCallbackUrl = acceptedCallbackUrl.replace(
-      "localhost",
-      "host.docker.internal",
-    );
-    console.log(`🔄 [DOCKER] Rewriting accepted callback URL to: ${acceptedCallbackUrl}`);
-  }
-
-  try {
-    console.log(`📞 [ACCEPTED] Calling accepted callback: ${acceptedCallbackUrl}`);
-    const acceptedResponse = await fetch(acceptedCallbackUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        session_id: body.session_id,
-        external_id: body.external_id,
-      }),
-    });
-
-    if (!acceptedResponse.ok) {
-      const errorText = await acceptedResponse.text().catch(() => "Unknown error");
-      console.error(
-        `❌ [ACCEPTED] Callback failed with status ${acceptedResponse.status}: ${errorText}`,
-      );
-      return res.status(500).json({
-        success: false,
-        error: `Accepted callback failed: ${acceptedResponse.status}`,
-        external_id: body.external_id,
-      });
-    }
-
-    console.log(`✅ [ACCEPTED] Callback succeeded, starting processing`);
-  } catch (err: any) {
-    console.error(`❌ [ACCEPTED] Failed to call accepted callback:`, err.message);
-    return res.status(500).json({
-      success: false,
-      error: `Accepted callback error: ${err.message}`,
-      external_id: body.external_id,
-    });
-  }
 
   // Process synchronously and keep HTTP request open
   // This maintains request-based billing autoscaling (1 request = 1 session)
@@ -119,15 +72,15 @@ async function processRecordingAsync(body: ProcessRequest) {
   let errorPayload: ErrorPayload | null = null;
   const processStartTime = Date.now();
 
-  let finishedCallbackUrl = body.finished_callback;
-  if (finishedCallbackUrl.includes("localhost") && process.env.DOCKERIZED === "true") {
-    finishedCallbackUrl = finishedCallbackUrl.replace("localhost", "host.docker.internal");
-    console.log(`🔄 [DOCKER] Rewriting finished callback URL to: ${finishedCallbackUrl}`);
+  let callbackUrl = body.callback;
+  if (callbackUrl.includes("localhost") && process.env.DOCKERIZED === "true") {
+    callbackUrl = callbackUrl.replace("localhost", "host.docker.internal");
+    console.log(`🔄 [DOCKER] Rewriting callback URL to: ${callbackUrl}`);
   }
 
   activeRecordings.set(body.external_id, {
     body,
-    callbackUrl: finishedCallbackUrl,
+    callbackUrl,
     startTime: processStartTime,
   });
 
@@ -193,7 +146,7 @@ async function processRecordingAsync(body: ProcessRequest) {
       video_duration: Math.round(videoDuration),
       events_uri: eventsUri,
     };
-    await postCallback(finishedCallbackUrl, successPayload);
+    await postCallback(callbackUrl, successPayload);
 
     console.log(
       `✅ [COMPLETED] Recording ${body.external_id} processed successfully`,
@@ -213,7 +166,7 @@ async function processRecordingAsync(body: ProcessRequest) {
       error: message,
       external_id: body.external_id,
     };
-    await postCallback(finishedCallbackUrl, errorPayload);
+    await postCallback(callbackUrl, errorPayload);
   } finally {
     clearInterval(processHeartbeat);
     activeRecordings.delete(body.external_id);

@@ -9,12 +9,8 @@ import adminSupabase from "@/lib/supabase/admin";
 import { start } from "workflow/api";
 import { run } from "../run";
 
-export default async function kickoff(
-  projectId: string,
-  maxJobs: number = 1,
-): Promise<number> {
+export default async function kickoff(projectId: string): Promise<boolean> {
   const supabase = adminSupabase();
-  let processedCount = 0;
 
   // Get project data for limits
   const { data: projectData } = await supabase
@@ -27,76 +23,69 @@ export default async function kickoff(
     console.error(
       `❌ [NEXT JOB] Could not fetch project data for ${projectId}`,
     );
-    return 0;
+    return false;
   }
 
   const plan = projectData.plan;
+  const billingPeriod = getBillingPeriod(projectData);
+  const workerLimit = getWorkerLimit(plan);
 
-  // Get all pending sessions for this project (latest first)
+  // Check current worker count and usage limits
+  const [activeWorkersData, periodSessionsData] = await Promise.all([
+    supabase
+      .from("sessions")
+      .select("id")
+      .eq("project_id", projectId)
+      .in("status", ["processing", "analyzing"]),
+    supabase
+      .from("sessions")
+      .select("id")
+      .eq("project_id", projectId)
+      .eq("status", "analyzed")
+      .gte("analyzed_at", billingPeriod.start.toISOString())
+      .lte("analyzed_at", billingPeriod.end.toISOString()),
+  ]);
+
+  const activeWorkerCount = activeWorkersData.data?.length || 0;
+  const periodSessions = periodSessionsData.data || [];
+
+  // Early exit if at capacity
+  if (activeWorkerCount >= workerLimit) {
+    console.log(
+      `⚠️ [NEXT JOB] Project ${projectId} at worker limit (${activeWorkerCount}/${workerLimit})`,
+    );
+    return false;
+  }
+
+  // Check usage limit
+  if (!hasRemainingSessionAllowance(plan, periodSessions)) {
+    console.log(
+      `⚠️ [NEXT JOB] Project ${projectId} reached usage limit`,
+    );
+    return false;
+  }
+
+  // Get the next pending session (latest first)
   const { data: pendingSessions } = await supabase
     .from("sessions")
     .select("id, external_id, active_duration, session_at")
     .eq("project_id", projectId)
     .eq("status", "pending")
     .order("session_at", { ascending: false })
-    .limit(maxJobs);
+    .limit(1);
 
   if (!pendingSessions || pendingSessions.length === 0) {
     console.log(`📭 [NEXT JOB] No pending sessions for project ${projectId}`);
-    return 0;
+    return false;
   }
 
+  const session = pendingSessions[0];
+
+  // Trigger processing
   console.log(
-    `📋 [NEXT JOB] Found ${pendingSessions.length} pending sessions to process`,
+    `🎯 [NEXT JOB] Starting run for session ${session.id} (recording: ${session.external_id})`,
   );
+  await start(run, [session.id]);
 
-  for (const session of pendingSessions) {
-    // Check worker limits before processing
-    const { data: activeWorkers } = await supabase
-      .from("sessions")
-      .select("id")
-      .eq("project_id", projectId)
-      .in("status", ["processing", "analyzing"]);
-
-    const activeWorkerCount = activeWorkers?.length || 0;
-    const workerLimit = getWorkerLimit(plan);
-
-    if (activeWorkerCount >= workerLimit) {
-      console.log(
-        `⚠️ [NEXT JOB] Project ${projectId} at worker limit (${activeWorkerCount}/${workerLimit}), stopping session processing`,
-      );
-      break;
-    }
-
-    // Check usage limits
-    const billingPeriod = getBillingPeriod(projectData);
-    const { data: periodSessions } = await supabase
-      .from("sessions")
-      .select("id")
-      .eq("project_id", projectId)
-      .eq("status", "analyzed")
-      .gte("analyzed_at", billingPeriod.start.toISOString())
-      .lte("analyzed_at", billingPeriod.end.toISOString());
-
-    if (!hasRemainingSessionAllowance(plan, periodSessions || [])) {
-      console.log(
-        `⚠️ [NEXT JOB] Project ${projectId} reached usage limit, stopping session processing`,
-      );
-      break;
-    }
-
-    // Trigger processing
-    console.log(
-      `🎯 [NEXT JOB] Starting run for session ${session.id} (recording: ${session.external_id})`,
-    );
-    await start(run, [session.id]);
-
-    processedCount++;
-  }
-
-  console.log(
-    `✅ [NEXT JOB] Processed ${processedCount} sessions for project ${projectId}`,
-  );
-
-  return processedCount;
+  return true;
 }

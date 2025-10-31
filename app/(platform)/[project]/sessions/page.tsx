@@ -59,7 +59,7 @@ export default async function SessionsPage({
   if (session) redirect(`/${projectSlug}/sessions/${session.id}`);
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-3">
+    <div className="flex h-full w-full flex-col items-center justify-center gap-3">
       <LoaderCircle className="h-6 w-6 animate-spin text-slate-600 dark:text-slate-400" />
       <p className="text-slate-600 dark:text-slate-400">Awaiting sessions</p>
     </div>

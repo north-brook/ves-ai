@@ -15,34 +15,25 @@ export async function run(sessionId: string) {
     token: `session:${sessionId}`,
   });
   await processReplay(sessionId);
-  Promise.race([
-    replayHook,
-    async () => {
-      sleep("6 hours");
-      throw new FatalError("Session processing timed out");
-    },
-  ]);
+  const replayHookResponse = await Promise.race([replayHook, sleep("6 hours")]);
+  if (replayHookResponse && !replayHookResponse.success)
+    throw new FatalError("Session processing failed");
 
   // analyze the session
   const { session } = await analyzeSession(sessionId);
 
-  // in parallel, process the user and group + reconcile and analyze issues
-  await Promise.all([
-    async () => {
-      if (!session.project_user_id) return;
-      // analyze the user
-      await analyzeUser(session.project_user_id);
-      // analyze the group
-      if (session.project_group_id)
-        await analyzeGroup(session.project_group_id);
-    },
-    async () => {
-      // reconcile issues
-      const { issueIds } = await reconcileIssues(sessionId);
-      // analyze each issue in parallel
-      await Promise.all(issueIds.map((issueId) => analyzeIssue(issueId)));
-    },
-  ]);
+  // analyze the user
+  if (session.project_user_id) await analyzeUser(session.project_user_id);
 
+  // analyze the group
+  if (session.project_group_id) await analyzeGroup(session.project_group_id);
+
+  // reconcile issues
+  const { issueIds } = await reconcileIssues(sessionId);
+
+  // analyze each issue in parallel
+  await Promise.all(issueIds.map((issueId) => analyzeIssue(issueId)));
+
+  // kick off the next session
   await next(session.project_id);
 }

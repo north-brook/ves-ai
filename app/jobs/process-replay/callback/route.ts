@@ -83,10 +83,6 @@ export async function POST(request: NextRequest) {
       console.log(
         `🎯 [CALLBACK] Triggering analysis for session ${session.id}`,
       );
-      await resumeHook(`session:${session.id}`, {
-        success: true,
-        message: "Session finished processing successfully",
-      });
 
       return NextResponse.json({
         success: true,
@@ -110,21 +106,15 @@ export async function POST(request: NextRequest) {
 
         if (session && !findError) {
           // Update session to failed status
-          const { error: updateError } = await supabase
+          await supabase
             .from("sessions")
             .update({ status: "failed" })
             .eq("id", session.id);
 
-          if (updateError) {
-            console.error(
-              `❌ [CALLBACK] Failed to update session to failed status:`,
-              updateError,
-            );
-          } else {
-            console.log(
-              `⚠️ [CALLBACK] Updated session ${session.id} to failed status due to processing error`,
-            );
-          }
+          await resumeHook(`session:${session.id}`, {
+            success: false,
+            message: "Session processing failed",
+          });
         } else {
           console.error(
             `⚠️ [CALLBACK] Unable to find session for recording ${errorData.external_id}`,
