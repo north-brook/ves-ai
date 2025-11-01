@@ -67,6 +67,18 @@ export async function processReplay(sessionId: string) {
     `   File path: ${cloudRequest.project_id}/${cloudRequest.session_id}.webm`,
   );
 
+  // Update the session status to processing
+  const { error: updateError } = await supabase
+    .from("sessions")
+    .update({ status: "processing", processed_at: new Date().toISOString() })
+    .eq("id", sessionId);
+
+  if (updateError) {
+    console.error(`❌ [PROCESS] Failed to update session status:`, updateError);
+  }
+
+  console.log(`✅ [PROCESS] Updated session status to processing`);
+
   // Call cloud rendering service with fire-and-forget pattern
   // Wait up to 10 seconds for response - if no error by then, assume success
   const fetchPromise = fetch(`${process.env.CLOUD_URL}/process`, {
@@ -93,6 +105,13 @@ export async function processReplay(sessionId: string) {
         `⚠️ [PROCESS] Cloud service rejected request for session ${sessionId}:`,
         `HTTP ${response.status} - ${errorText.slice(0, 200)}`,
       );
+
+      // Revert the status back to pending
+      await supabase
+        .from("sessions")
+        .update({ status: "pending", processed_at: null })
+        .eq("id", sessionId);
+
       throw new Error(
         `Cloud service rejected request: HTTP ${response.status}`,
       );
@@ -115,24 +134,19 @@ export async function processReplay(sessionId: string) {
         error.message,
       );
       console.error(`   Session will remain in "pending" status for retry`);
+
+      // Revert the status back to pending
+      await supabase
+        .from("sessions")
+        .update({ status: "pending", processed_at: null })
+        .eq("id", sessionId);
+
       throw error;
     }
   }
 
   // Cleanup: suppress any delayed fetch errors to prevent unhandled rejections
   fetchPromise.catch(() => {});
-
-  // Update the session status to processing
-  const { error: updateError } = await supabase
-    .from("sessions")
-    .update({ status: "processing" })
-    .eq("id", sessionId);
-
-  if (updateError) {
-    console.error(`❌ [PROCESS] Failed to update session status:`, updateError);
-  }
-
-  console.log(`✅ [PROCESS] Updated session status to processing`);
 
   return {
     success: true,

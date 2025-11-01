@@ -59,9 +59,7 @@ export default async function kickoff(projectId: string): Promise<boolean> {
 
   // Check usage limit
   if (!hasRemainingSessionAllowance(plan, periodSessions)) {
-    console.log(
-      `⚠️ [NEXT JOB] Project ${projectId} reached usage limit`,
-    );
+    console.log(`⚠️ [NEXT JOB] Project ${projectId} reached usage limit`);
     return false;
   }
 

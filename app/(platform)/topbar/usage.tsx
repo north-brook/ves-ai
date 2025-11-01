@@ -89,13 +89,11 @@ export default function NavUsage({ projects }: { projects: Project[] }) {
       <div className="flex flex-row items-center gap-4">
         <div className="flex flex-row items-center gap-2 text-xs text-slate-400 italic dark:text-slate-600">
           {awaitingSessionsQuery.isSuccess ? (
-            `${awaitingSessionsQuery.data} awaiting analysis`
+            awaitingSessionsQuery.data
           ) : (
-            <>
-              <span className="h-3 w-5 shrink-0 animate-pulse rounded bg-slate-100 dark:bg-slate-900" />{" "}
-              awaiting analysis
-            </>
-          )}
+            <span className="h-3 w-5 shrink-0 animate-pulse rounded bg-slate-100 dark:bg-slate-900" />
+          )}{" "}
+          awaiting analysis
         </div>
         <div className="flex flex-row items-center gap-2">
           <div
