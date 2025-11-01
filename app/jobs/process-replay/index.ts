@@ -125,7 +125,7 @@ export async function processReplay(sessionId: string) {
   // Update the session status to processing
   const { error: updateError } = await supabase
     .from("sessions")
-    .update({ status: "processing" })
+    .update({ status: "processing", processed_at: new Date().toISOString() })
     .eq("id", sessionId);
 
   if (updateError) {

@@ -84,10 +84,14 @@ export async function POST(request: NextRequest) {
         `🎯 [CALLBACK] Triggering analysis for session ${session.id}`,
       );
 
-      return NextResponse.json({
+      await resumeHook(`session:${session.id}`, {
         success: true,
+        message: "Session processing completed successfully",
+      });
+
+      return NextResponse.json({
         session_id: session.id,
-        message: "Session updated successfully",
+        message: "Callback received",
       });
     } else {
       // Handle failed processing
@@ -137,8 +141,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json(
         {
-          success: false,
-          error: errorData.error,
+          message: "Callback received",
         },
         { status: 200 },
       ); // Return 200 to acknowledge receipt

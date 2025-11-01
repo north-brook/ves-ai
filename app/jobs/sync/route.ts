@@ -458,7 +458,7 @@ async function pullSessionsFromSource(
       const { data: existing } = await supabase
         .from("sessions")
         .select("id")
-        .eq("source_id", source.id)
+        .eq("project_id", source.project_id)
         .eq("external_id", recording.id)
         .single();
 
@@ -598,6 +598,15 @@ async function pullSessionsFromSource(
         }
 
         projectUserId = projectUser.id;
+
+        // check if session already exists
+        const { data: existingSession } = await supabase
+          .from("sessions")
+          .select("id")
+          .eq("project_id", source.project_id)
+          .eq("external_id", recording.id)
+          .single();
+        if (existingSession) continue;
 
         // upsert the session to avoid duplicates
         const { data: session, error: sessionUpsertError } = await supabase

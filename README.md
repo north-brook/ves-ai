@@ -87,10 +87,12 @@ VES AI uses **Vercel Workflow** for durable, long-running job orchestration. Wor
 ### Key Concepts
 
 **Workflow Directives:**
+
 - `"use workflow"` - Marks the entry point of a workflow (the root function)
 - `"use step"` - Marks individual steps that can be retried independently
 
 **Workflow APIs:**
+
 - `start(workflow, args)` - Initiates a new workflow instance
 - `createHook(config)` - Creates a hook that can be resumed by async callbacks
 - `resumeHook(token, data)` - Resumes a waiting workflow from webhooks
@@ -102,13 +104,13 @@ The core workflow is defined in `app/jobs/run.ts` and coordinates the entire ses
 
 ```typescript
 export async function run(sessionId: string) {
-  "use workflow";  // Durable workflow entry point
+  "use workflow"; // Durable workflow entry point
 
   // Step 1: Process replay with timeout protection
   const replayHook = createHook({ token: `session:${sessionId}` });
   await processReplay(sessionId);
   await Promise.race([
-    replayHook,  // Wait for cloud service webhook
+    replayHook, // Wait for cloud service webhook
     async () => {
       await sleep("6 hours");
       throw new Error("Session processing timed out");
@@ -180,6 +182,7 @@ Each step uses the `"use step"` directive, making it independently retryable:
 **Cron Job (Every 5 Minutes)**
 
 Configured in `vercel.json`:
+
 ```json
 {
   "crons": [
@@ -192,6 +195,7 @@ Configured in `vercel.json`:
 ```
 
 Flow:
+
 1. Cron triggers `/jobs/sync/route.ts`
 2. Pulls new sessions from PostHog for all projects
 3. Calls `kickoff(projectId)` to process pending sessions
@@ -200,6 +204,7 @@ Flow:
 **Webhook Callbacks**
 
 The cloud video processing service calls back to:
+
 - `/jobs/process-replay/accepted` - Updates status to "processing"
 - `/jobs/process-replay/finished` - Updates status and calls `resumeHook()` to continue workflow
 
@@ -216,6 +221,20 @@ The Vercel Workflow system provides:
 - **Parallel Execution** - Native support for concurrent step execution
 - **Error Handling** - `FatalError` class for non-retryable failures
 - **Hash-Based Caching** - Prevents redundant AI analysis of unchanged data
+
+### Workflow Observability
+
+#### Local
+
+- `bunx workflow inspect runs`
+- Use the `--web` flag to open the browser interface
+
+#### Production
+
+- Ensure you have a Vercel auth token from [https://vercel.com/account/settings/tokens](https://vercel.com/account/settings/tokens) set in your environment
+- `bunx workflow inspect runs --backend=vercel --env=production --project=vesai --team=steppable`
+- Use the `--web` flag to open the browser interface
+- Prefix the command with `WORKFLOW_LOCAL_UI=1` to use the local UI
 
 ## Available Scripts
 
