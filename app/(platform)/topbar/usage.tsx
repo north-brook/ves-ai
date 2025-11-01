@@ -87,13 +87,20 @@ export default function NavUsage({ projects }: { projects: Project[] }) {
   return (
     <>
       <div className="flex flex-row items-center gap-4">
-        <span className="text-xs text-slate-400 italic dark:text-slate-600">
-          {`${awaitingSessionsQuery.data} awaiting analysis`}
-        </span>
+        <div className="flex flex-row items-center gap-2 text-xs text-slate-400 italic dark:text-slate-600">
+          {awaitingSessionsQuery.isSuccess ? (
+            `${awaitingSessionsQuery.data} awaiting analysis`
+          ) : (
+            <>
+              <span className="h-3 w-5 shrink-0 animate-pulse rounded bg-slate-100 dark:bg-slate-900" />{" "}
+              awaiting analysis
+            </>
+          )}
+        </div>
         <div className="flex flex-row items-center gap-2">
-          <span
+          <div
             className={cn(
-              "hidden overflow-hidden text-xs whitespace-nowrap transition-all duration-300 md:block [nav[data-collapsed='true']_&]:w-0 [nav[data-collapsed='true']_&]:opacity-0",
+              "hidden flex-row items-center gap-2 overflow-hidden text-xs whitespace-nowrap transition-all duration-300 md:flex",
               usagePercentage >= 70
                 ? "text-orange-500"
                 : "text-slate-600 dark:text-slate-400",
@@ -104,10 +111,10 @@ export default function NavUsage({ projects }: { projects: Project[] }) {
                 {analyzedSessionsQuery.data}
               </span>
             ) : (
-              <span className="h-3 w-5 shrink-0 animate-pulse rounded bg-slate-100 dark:bg-slate-900" />
+              <div className="h-3 w-5 shrink-0 animate-pulse rounded bg-slate-100 dark:bg-slate-900" />
             )}{" "}
             / {monthlyLimitSessions}
-          </span>
+          </div>
           <svg
             className={cn(
               "h-4 w-4 flex-shrink-0 -rotate-90 transition-all duration-300 [nav[data-collapsed='true']_&]:ml-0",
