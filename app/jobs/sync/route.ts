@@ -571,7 +571,6 @@ async function pullSessionsFromSource(
                 properties: recording.person?.properties as Json,
                 project_group_id: projectGroupId,
                 status: "pending",
-                session_at: recording.end_time,
               },
               {
                 onConflict: "project_id,external_id",

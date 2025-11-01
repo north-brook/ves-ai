@@ -1,48 +1,57 @@
 "use client";
 
 import { getScoreColor } from "@/lib/score";
-import { Project, ProjectGroup, ProjectUser, Session } from "@/types";
+import clientSupabase from "@/lib/supabase/client";
+import { Project, ProjectUser } from "@/types";
+import { useQuery } from "@tanstack/react-query";
 import Fuse from "fuse.js";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import SectionNav from "../section-nav";
-import useLiveUsers from "./live";
 
 export default function UserList({
   initialUsers,
   project,
 }: {
-  initialUsers: (ProjectUser & {
-    group: ProjectGroup | null;
-    sessions: Session[];
-  })[];
+  initialUsers: Pick<ProjectUser, "id" | "name" | "session_at" | "score">[];
   project: Project;
 }) {
-  const users = useLiveUsers({ projectId: project.id, initialUsers });
+  const supabase = clientSupabase();
+  const usersQuery = useQuery({
+    queryKey: ["users", project.id],
+    queryFn: async () => {
+      const { data: users } = await supabase
+        .from("project_users")
+        .select("id, name, session_at, score")
+        .eq("project_id", project.id)
+        .eq("status", "analyzed")
+        .order("session_at", { ascending: false });
+      return users;
+    },
+    initialData: initialUsers,
+    enabled: !!project.id,
+    refetchInterval: 5_000,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
+  });
   const [searchQuery, setSearchQuery] = useState("");
 
   // Configure Fuse.js for fuzzy search
-  const fuse = useMemo(() => {
-    return new Fuse(users, {
-      keys: [
-        { name: "name", weight: 2 },
-        { name: "external_id", weight: 1 },
-        { name: "group.name", weight: 1 },
-        { name: "story", weight: 0.5 },
-      ],
-      threshold: 0.3,
-      includeScore: true,
-    });
-  }, [users]);
+  const fuse = new Fuse(usersQuery.data || [], {
+    keys: [
+      { name: "name", weight: 2 },
+      { name: "external_id", weight: 1 },
+      { name: "group.name", weight: 1 },
+      { name: "story", weight: 0.5 },
+    ],
+    threshold: 0.3,
+    includeScore: true,
+  });
 
   // Perform search
-  const displayUsers = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return users;
-    }
-
-    const results = fuse.search(searchQuery);
-    return results.map((result) => result.item);
-  }, [searchQuery, fuse, users]);
+  const displayUsers = !searchQuery.trim()
+    ? usersQuery.data || []
+    : fuse.search(searchQuery).map((result) => result.item);
 
   return (
     <SectionNav
@@ -58,6 +67,7 @@ export default function UserList({
         name: user.name || "Anonymous",
         muted: !user.name,
         link: `/${project.slug}/users/${user.id}`,
+        timestamp: user.session_at,
       }))}
     />
   );

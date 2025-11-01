@@ -41,7 +41,7 @@ export default async function GroupsPage({
 
   const { data: project, error: projectError } = await supabase
     .from("projects")
-    .select("*")
+    .select("id")
     .eq("slug", projectSlug)
     .single();
 
@@ -51,10 +51,10 @@ export default async function GroupsPage({
   // get the most recent analyzed issue
   const { data: group } = await supabase
     .from("project_groups")
-    .select("*")
+    .select("id")
     .eq("project_id", project.id)
     .eq("status", "analyzed")
-    .order("analyzed_at", { ascending: false })
+    .order("session_at", { ascending: false })
     .limit(1)
     .single();
 

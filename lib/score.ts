@@ -7,7 +7,9 @@ export function getScoreColor(score: number | null, opacity: number = 1) {
   return `hsl(${hue}, 70%, 50%, ${opacity} )`;
 }
 
-export function calculateIssueScore(issue: Issue): number {
+export function calculateIssueScore(
+  issue: Pick<Issue, "severity" | "confidence">,
+): number {
   let severityScore = 0;
   let confidenceScore = 0;
 
@@ -75,7 +77,10 @@ function rgbCss({ r, g, b }: RGB, opacity: number): string {
 }
 
 // Calculate issue score color: from slate-100 (light) / slate-900 (dark) to red-500
-export function getIssueScoreColor(issue: Issue, opacity: number = 1) {
+export function getIssueScoreColor(
+  issue: Pick<Issue, "severity" | "confidence">,
+  opacity: number = 1,
+) {
   const t = clamp01((calculateIssueScore(issue) || 0) / 100);
 
   const lightStart = hexToRgb("#f1f5f9"); // slate-100

@@ -1,32 +1,42 @@
 "use client";
 
 import { getScoreColor } from "@/lib/score";
-import { Issue, Project, ProjectGroup, ProjectUser, Session } from "@/types";
+import clientSupabase from "@/lib/supabase/client";
+import { Project, Session } from "@/types";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState, useTransition } from "react";
 import SectionNav from "../section-nav";
 import { searchSessions } from "./actions";
-import useLiveSessions from "./live";
 
 export default function SessionList({
   initialSessions,
   project,
 }: {
-  initialSessions: (Session & {
-    user: ProjectUser;
-    group: ProjectGroup | null;
-    issues: Issue[];
-  })[];
+  initialSessions: Pick<Session, "id" | "name" | "session_at" | "score">[];
   project: Project;
 }) {
-  const sessions = useLiveSessions({ projectId: project.id, initialSessions });
+  const supabase = clientSupabase();
+  const sessionsQuery = useQuery({
+    queryKey: ["sessions", project.id],
+    queryFn: async () => {
+      const { data: sessions } = await supabase
+        .from("sessions")
+        .select("id, name, session_at, score")
+        .eq("project_id", project.id)
+        .eq("status", "analyzed")
+        .order("session_at", { ascending: false });
+      return sessions;
+    },
+    initialData: initialSessions,
+    enabled: !!project.id,
+    refetchInterval: 5_000,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<
-    | (Session & {
-        user: ProjectUser;
-        group: ProjectGroup | null;
-        issues: Issue[];
-      })[]
-    | null
+    Pick<Session, "id" | "name" | "session_at" | "score">[] | null
   >(null);
   const [isPending, startTransition] = useTransition();
 
@@ -51,7 +61,7 @@ export default function SessionList({
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery, project.id]);
 
-  const displaySessions = searchResults || sessions;
+  const displaySessions = searchResults || sessionsQuery.data;
 
   return (
     <SectionNav
@@ -62,10 +72,11 @@ export default function SessionList({
         onChange: setSearchQuery,
         pending: isPending,
       }}
-      items={displaySessions.map((session) => ({
+      items={displaySessions?.map((session) => ({
         color: getScoreColor(session.score),
         name: session.name,
         link: `/${project.slug}/sessions/${session.id}`,
+        timestamp: session.session_at,
       }))}
     />
   );

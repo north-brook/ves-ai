@@ -1,48 +1,57 @@
 "use client";
 
 import { getScoreColor } from "@/lib/score";
-import { Project, ProjectGroup, ProjectUser, Session } from "@/types";
+import clientSupabase from "@/lib/supabase/client";
+import { Project, ProjectGroup } from "@/types";
+import { useQuery } from "@tanstack/react-query";
 import Fuse from "fuse.js";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import SectionNav from "../section-nav";
-import useLiveGroups from "./live";
 
 export default function GroupList({
   initialGroups,
   project,
 }: {
-  initialGroups: (ProjectGroup & {
-    users: ProjectUser[];
-    sessions: Session[];
-  })[];
+  initialGroups: Pick<ProjectGroup, "id" | "name" | "session_at" | "score">[];
   project: Project;
 }) {
-  const groups = useLiveGroups({ projectId: project.id, initialGroups });
+  const supabase = clientSupabase();
+  const groupsQuery = useQuery({
+    queryKey: ["groups", project.id],
+    queryFn: async () => {
+      const { data: groups } = await supabase
+        .from("project_groups")
+        .select("id, name, session_at, score")
+        .eq("project_id", project.id)
+        .eq("status", "analyzed")
+        .order("session_at", { ascending: false });
+      return groups;
+    },
+    initialData: initialGroups,
+    enabled: !!project.id,
+    refetchInterval: 5_000,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
+  });
   const [searchQuery, setSearchQuery] = useState("");
 
   // Configure Fuse.js for fuzzy search
-  const fuse = useMemo(() => {
-    return new Fuse(groups, {
-      keys: [
-        { name: "name", weight: 2 },
-        { name: "external_id", weight: 1 },
-        { name: "group.name", weight: 1 },
-        { name: "story", weight: 0.5 },
-      ],
-      threshold: 0.3,
-      includeScore: true,
-    });
-  }, [groups]);
+  const fuse = new Fuse(groupsQuery.data || [], {
+    keys: [
+      { name: "name", weight: 2 },
+      { name: "external_id", weight: 1 },
+      { name: "group.name", weight: 1 },
+      { name: "story", weight: 0.5 },
+    ],
+    threshold: 0.3,
+    includeScore: true,
+  });
 
   // Perform search
-  const displayGroups = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return groups;
-    }
-
-    const results = fuse.search(searchQuery);
-    return results.map((result) => result.item);
-  }, [searchQuery, fuse, groups]);
+  const displayGroups = !searchQuery.trim()
+    ? groupsQuery.data || []
+    : fuse.search(searchQuery).map((result) => result.item);
 
   return (
     <SectionNav
@@ -58,6 +67,7 @@ export default function GroupList({
         name: group.name || "Unknown",
         muted: !group.name,
         link: `/${project.slug}/groups/${group.id}`,
+        timestamp: group.session_at,
       }))}
     />
   );

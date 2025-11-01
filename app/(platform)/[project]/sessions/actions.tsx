@@ -1,20 +1,14 @@
 "use server";
 
 import serverSupabase from "@/lib/supabase/server";
-import { Issue, ProjectGroup, ProjectUser, Session } from "@/types";
-import { embed } from "ai";
+import { Session } from "@/types";
 import { openai } from "@ai-sdk/openai";
+import { embed } from "ai";
 
 export async function searchSessions(
   projectId: string,
   query: string,
-): Promise<
-  (Session & {
-    user: ProjectUser;
-    group: ProjectGroup | null;
-    issues: Issue[];
-  })[]
-> {
+): Promise<Pick<Session, "id" | "name" | "session_at" | "score">[]> {
   const supabase = await serverSupabase();
 
   // First, get the embedding for the search query
@@ -50,9 +44,7 @@ export async function searchSessions(
       matchedSessions.map(async (m) => {
         const { data: session } = await supabase
           .from("sessions")
-          .select(
-            "*, user:project_users(*), group:project_groups(*), issues(*)",
-          )
+          .select("id, name, session_at, score")
           .eq("id", m.id)
           .single();
         return session;
