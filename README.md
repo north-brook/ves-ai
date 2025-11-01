@@ -82,65 +82,140 @@ vesai/
 
 ## Workflow Architecture
 
-VES AI uses a sophisticated job orchestration system to process session data through multiple stages of analysis. The system operates on two schedules:
+VES AI uses **Vercel Workflow** for durable, long-running job orchestration. Workflows survive server restarts, provide step-level retries, and offer full observability of the session analysis pipeline.
 
-### Frequent Jobs (Every 5 Minutes)
+### Key Concepts
 
-The core session processing pipeline runs continuously to analyze new user sessions:
+**Workflow Directives:**
+- `"use workflow"` - Marks the entry point of a workflow (the root function)
+- `"use step"` - Marks individual steps that can be retried independently
 
-1. **sync-sessions** - Entry point that discovers new sessions from PostHog
-   - Fetches recordings from all configured PostHog sources
-   - Creates session records in the database
-   - Respects project worker limits to manage concurrent processing
-   - Triggers process-replay jobs for new sessions
+**Workflow APIs:**
+- `start(workflow, args)` - Initiates a new workflow instance
+- `createHook(config)` - Creates a hook that can be resumed by async callbacks
+- `resumeHook(token, data)` - Resumes a waiting workflow from webhooks
+- `sleep(duration)` - Pauses workflow execution for a specified duration
 
-2. **process-replay** - Converts raw session data to analyzable format
-   - Calls cloud service to fetch raw rrweb JSON from PostHog
-   - Constructs WebM video of the session using Playwright
-   - Uploads video and events to Google Cloud Storage
-   - Triggers analyze-session job upon completion
+### Main Workflow Orchestrator
 
-3. **analyze-session** - AI-powered session analysis
-   - Uses Gemini AI to analyze the session video
-   - Creates a comprehensive session story describing user behavior
-   - Identifies features used and issues (bugs, friction points)
-   - Reconciles features and issues with existing features and issues
-   - Triggers analyze-user and analyze-feature jobs upon completion
+The core workflow is defined in `app/jobs/run.ts` and coordinates the entire session analysis pipeline:
 
-4. **analyze-user** - Maintains user-level insights
-   - Aggregates all session stories for a specific user
-   - Uses AI to maintain an evolving user story
-   - Tracks user journey and behavior patterns over time
-   - Triggers analyze-group job if user belongs to a group
+```typescript
+export async function run(sessionId: string) {
+  "use workflow";  // Durable workflow entry point
 
-5. **analyze-group** - Organization-level analysis
-   - Aggregates all user stories within an organization/group
-   - Maintains a group story showing collective usage patterns
-   - Identifies organization-wide trends and issues
+  // Step 1: Process replay with timeout protection
+  const replayHook = createHook({ token: `session:${sessionId}` });
+  await processReplay(sessionId);
+  await Promise.race([
+    replayHook,  // Wait for cloud service webhook
+    async () => {
+      await sleep("6 hours");
+      throw new Error("Session processing timed out");
+    },
+  ]);
 
-6. **analyze-feature** - Feature-specific analysis
-   - Maintains a feature story based on all linked sessions
-   - Tracks feature adoption, usage patterns, and issues
-   - Provides feature health metrics and recommendations
+  // Step 2: Analyze the session with AI
+  const { session } = await analyzeSession(sessionId);
 
-### Weekly Jobs (Every 6 Hours)
+  // Step 3: Parallel processing of user/group + issues
+  await Promise.all([
+    async () => {
+      if (!session.project_user_id) return;
+      await analyzeUser(session.project_user_id);
+      if (session.project_group_id)
+        await analyzeGroup(session.project_group_id);
+    },
+    async () => {
+      const { issueIds } = await reconcileIssues(sessionId);
+      await Promise.all(issueIds.map((issueId) => analyzeIssue(issueId)));
+    },
+  ]);
 
-These jobs maintain higher-level abstractions and create actionable insights:
+  // Step 4: Kick off next pending session
+  await next(session.project_id);
+}
+```
 
-1. **analyze-project** - Weekly report generation
-   - Summarizes new sessions, features, and issues
-   - Writes a concise report of the overall product health
-   - Highlights
+### Workflow Steps
 
-### Job Coordination
+Each step uses the `"use step"` directive, making it independently retryable:
 
-The system uses several coordination mechanisms:
+1. **processReplay** - Converts session replay to video format
+   - Triggers cloud service (fire-and-forget)
+   - Cloud service calls back via `/jobs/process-replay/finished` webhook
+   - Uses `resumeHook()` to resume the waiting workflow
+   - Protected by 6-hour timeout
 
-- **Worker Limits** - Each project has concurrent worker limits based on their plan
-- **Job Chaining** - Jobs trigger subsequent jobs upon successful completion
-- **Dependency Management** - Jobs wait for required data before processing
-- **Error Handling** - Failed jobs are marked and don't block the pipeline
-- **Callback System** - Cloud service uses callbacks to report completion
+2. **analyzeSession** - AI-powered session analysis
+   - Uses Google Gemini 2.5 Pro to analyze video and events
+   - Generates: name, story, features used, detected issues, health score
+   - Creates embeddings for similarity matching
+
+3. **analyzeUser** - Maintains user-level insights
+   - Aggregates all sessions for a specific user
+   - Uses hash-based caching to skip redundant analysis
+   - Generates: user story, health score
+
+4. **analyzeGroup** - Organization-level analysis
+   - Aggregates all users within a group/organization
+   - Generates: group story, collective usage patterns
+
+5. **reconcileIssues** - Intelligent issue deduplication
+   - For each detected issue, finds similar issues via embedding search
+   - Uses OpenAI GPT-5 to decide: merge with existing or create new
+   - Returns issue IDs for further analysis
+
+6. **analyzeIssue** - Issue-level analysis
+   - Analyzes all sessions linked to an issue
+   - Generates: name, story, type, severity, priority, confidence
+   - Uses hash-based caching to prevent redundant analysis
+
+7. **next** - Chain processing
+   - Kicks off workflow for next pending session
+   - Maintains continuous processing throughput
+
+### Workflow Triggers
+
+**Cron Job (Every 5 Minutes)**
+
+Configured in `vercel.json`:
+```json
+{
+  "crons": [
+    {
+      "path": "/jobs/sync",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}
+```
+
+Flow:
+1. Cron triggers `/jobs/sync/route.ts`
+2. Pulls new sessions from PostHog for all projects
+3. Calls `kickoff(projectId)` to process pending sessions
+4. `kickoff()` calls `start(run, [sessionId])` to begin workflow
+
+**Webhook Callbacks**
+
+The cloud video processing service calls back to:
+- `/jobs/process-replay/accepted` - Updates status to "processing"
+- `/jobs/process-replay/finished` - Updates status and calls `resumeHook()` to continue workflow
+
+### Workflow Coordination
+
+The Vercel Workflow system provides:
+
+- **Durable Execution** - Workflows survive server restarts and infrastructure failures
+- **Step-Level Retries** - Each `"use step"` can retry independently on failure
+- **Worker Limits** - Projects have concurrent worker limits based on plan tier
+- **Hook Pattern** - Elegant async coordination (webhooks resume workflows)
+- **Timeout Management** - Built-in `sleep()` for timeout protection
+- **Observability** - Full logging and progress tracking for each workflow
+- **Parallel Execution** - Native support for concurrent step execution
+- **Error Handling** - `FatalError` class for non-retryable failures
+- **Hash-Based Caching** - Prevents redundant AI analysis of unchanged data
 
 ## Available Scripts
 

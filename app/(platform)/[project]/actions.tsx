@@ -24,7 +24,7 @@ export async function syncSessions(projectSlug: string) {
     );
 
     // Construct the job URL
-    const jobUrl = `${process.env.NEXT_PUBLIC_URL}/jobs/sync-sessions?project_id=${project.id}`;
+    const jobUrl = `${process.env.NEXT_PUBLIC_URL}/jobs/sync?project_id=${project.id}`;
 
     console.log(`🔗 [SERVER ACTION] Fetching: ${jobUrl}`);
 

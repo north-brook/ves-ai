@@ -1,6 +1,12 @@
 "use client";
 
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -10,6 +16,7 @@ export type SectionNavItem = {
   link: string;
   active: boolean;
   muted?: boolean;
+  timestamp?: string | null;
 };
 
 export default function SectionNav({
@@ -24,9 +31,11 @@ export default function SectionNav({
     onChange: (value: string) => void;
     pending: boolean;
   };
-  items: Omit<SectionNavItem, "active">[];
+  items?: Omit<SectionNavItem, "active">[];
 }) {
   const pathname = usePathname();
+
+  if (!items) return <SectionNavSkeleton />;
 
   return (
     <section className="sticky top-12 flex h-[calc(100vh-48px)] max-h-[calc(100vh-48px)] w-full max-w-[240px] flex-col items-stretch justify-start gap-2 overflow-y-auto border-r border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950">
@@ -51,7 +60,7 @@ export default function SectionNav({
       </div> */}
 
       <div className="flex w-full flex-col gap-0.5 px-1.5 pb-5">
-        {items.map((item) => (
+        {items?.map((item) => (
           <SectionNavItem
             key={item.link}
             {...item}
@@ -63,34 +72,54 @@ export default function SectionNav({
   );
 }
 
-function SectionNavItem({ link, name, color, active, muted }: SectionNavItem) {
+function SectionNavItem({
+  link,
+  name,
+  color,
+  active,
+  muted,
+  timestamp,
+}: SectionNavItem) {
   return (
-    <Link
-      href={link}
-      className={cn(
-        "flex items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium transition-all duration-300",
-        active
-          ? "bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200"
-          : "text-slate-600 hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-800",
-      )}
-      prefetch={false}
-    >
-      <span
-        className="h-1.5 w-1.5 shrink-0 rounded-full"
-        style={{ backgroundColor: color }}
-      />
-
-      {!!name && (
-        <span
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Link
+          href={link}
           className={cn(
-            "overflow-hidden text-sm text-ellipsis whitespace-nowrap",
-            muted && "italic",
+            "flex items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium transition-all duration-300",
+            active
+              ? "bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200"
+              : "text-slate-600 hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-800",
           )}
+          prefetch={false}
         >
-          {name}
-        </span>
-      )}
-    </Link>
+          <span
+            className="h-1.5 w-1.5 shrink-0 rounded-full"
+            style={{ backgroundColor: color }}
+          />
+
+          {!!name && (
+            <span
+              className={cn(
+                "overflow-hidden text-sm text-ellipsis whitespace-nowrap",
+                muted && "italic",
+              )}
+            >
+              {name}
+            </span>
+          )}
+        </Link>
+      </TooltipTrigger>
+      <TooltipContent side="right">
+        {timestamp && (
+          <span className="text-xs whitespace-nowrap text-slate-500 dark:text-slate-400">
+            {formatDistanceToNow(new Date(timestamp), {
+              addSuffix: true,
+            })}
+          </span>
+        )}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 

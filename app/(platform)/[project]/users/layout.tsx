@@ -33,10 +33,10 @@ async function LoadedUsers({ projectSlug }: { projectSlug: string }) {
 
   const { data: users } = await supabase
     .from("project_users")
-    .select("*, group:project_groups(*), sessions(*)")
+    .select("id, name, session_at, score")
     .eq("project_id", project.id)
     .eq("status", "analyzed")
-    .order("created_at", { ascending: false });
+    .order("session_at", { ascending: false });
 
   return (
     <>

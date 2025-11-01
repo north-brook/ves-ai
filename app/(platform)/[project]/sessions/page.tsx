@@ -39,7 +39,7 @@ export default async function SessionsPage({
 
   const { data: project, error: projectError } = await supabase
     .from("projects")
-    .select("*")
+    .select("id")
     .eq("slug", projectSlug)
     .single();
 
@@ -49,7 +49,7 @@ export default async function SessionsPage({
   // get the most recent analyzed session
   const { data: session } = await supabase
     .from("sessions")
-    .select("*")
+    .select("id")
     .eq("project_id", project.id)
     .eq("status", "analyzed")
     .order("created_at", { ascending: false })
@@ -59,7 +59,7 @@ export default async function SessionsPage({
   if (session) redirect(`/${projectSlug}/sessions/${session.id}`);
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-3">
+    <div className="flex h-full w-full flex-col items-center justify-center gap-3">
       <LoaderCircle className="h-6 w-6 animate-spin text-slate-600 dark:text-slate-400" />
       <p className="text-slate-600 dark:text-slate-400">Awaiting sessions</p>
     </div>

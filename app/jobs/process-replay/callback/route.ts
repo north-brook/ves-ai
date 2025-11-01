@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { ErrorPayload, SuccessPayload } from "@/cloud/src/types";
 import adminSupabase from "@/lib/supabase/admin";
-import * as Sentry from "@sentry/nextjs";
-import type { SuccessPayload, ErrorPayload } from "@/cloud/src/types";
 import { Database } from "@/types";
-import { AnalyzeSessionJobRequest } from "@/app/jobs/analyze-session/route";
+import * as Sentry from "@sentry/nextjs";
+import { NextRequest, NextResponse } from "next/server";
+import { resumeHook } from "workflow/api";
 
 export async function POST(request: NextRequest) {
   try {
@@ -83,16 +83,6 @@ export async function POST(request: NextRequest) {
       console.log(
         `🎯 [CALLBACK] Triggering analysis for session ${session.id}`,
       );
-      fetch(`${process.env.NEXT_PUBLIC_URL}/jobs/analyze-session`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.CRON_SECRET}`,
-        },
-        body: JSON.stringify({
-          session_id: session.id,
-        } as AnalyzeSessionJobRequest),
-      }).catch((_) => {});
 
       return NextResponse.json({
         success: true,
@@ -116,21 +106,15 @@ export async function POST(request: NextRequest) {
 
         if (session && !findError) {
           // Update session to failed status
-          const { error: updateError } = await supabase
+          await supabase
             .from("sessions")
             .update({ status: "failed" })
             .eq("id", session.id);
 
-          if (updateError) {
-            console.error(
-              `❌ [CALLBACK] Failed to update session to failed status:`,
-              updateError,
-            );
-          } else {
-            console.log(
-              `⚠️ [CALLBACK] Updated session ${session.id} to failed status due to processing error`,
-            );
-          }
+          await resumeHook(`session:${session.id}`, {
+            success: false,
+            message: "Session processing failed",
+          });
         } else {
           console.error(
             `⚠️ [CALLBACK] Unable to find session for recording ${errorData.external_id}`,

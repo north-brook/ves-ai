@@ -33,8 +33,9 @@ async function LoadedIssues({ projectSlug }: { projectSlug: string }) {
 
   const { data: issues } = await supabase
     .from("issues")
-    .select("*, sessions(*, user:project_users(*), group:project_groups(*))")
+    .select("id, name, created_at, severity, confidence")
     .eq("project_id", project.id)
+    .eq("status", "analyzed")
     .order("created_at", { ascending: false });
 
   return (

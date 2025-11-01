@@ -41,7 +41,7 @@ export default async function IssuesPage({
 
   const { data: project, error: projectError } = await supabase
     .from("projects")
-    .select("*")
+    .select("id")
     .eq("slug", projectSlug)
     .single();
 
@@ -51,7 +51,7 @@ export default async function IssuesPage({
   // get the most recent analyzed issue
   const { data: issue } = await supabase
     .from("issues")
-    .select("*")
+    .select("id")
     .eq("project_id", project.id)
     .eq("status", "analyzed")
     .order("created_at", { ascending: false })

@@ -4,20 +4,20 @@ type ProjectPlan = Database["public"]["Enums"]["project_plan"];
 type Project = Database["public"]["Tables"]["projects"]["Row"];
 type Session = Database["public"]["Tables"]["sessions"]["Row"];
 
-// Worker limits per plan
+// Concurrent worker limits per plan
 export const WORKER_LIMITS: Record<ProjectPlan, number> = {
   starter: 5,
-  growth: 10,
-  scale: 20,
+  growth: 20,
+  scale: 50,
   enterprise: 100,
 };
 
-// Monthly hour limits per plan (in seconds for easier calculation)
+// Monthly session limits per plan
 export const MONTHLY_SESSION_LIMITS: Record<ProjectPlan, number> = {
   starter: 100,
   growth: 1000,
   scale: 10000,
-  enterprise: 999999 * 60 * 60, // Effectively unlimited
+  enterprise: 1000000,
 };
 
 /**

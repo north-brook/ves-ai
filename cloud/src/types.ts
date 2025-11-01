@@ -7,8 +7,7 @@ export type ProcessRequest = {
   active_duration: number; // The active duration of the recording in seconds
   project_id: string; // The project ID to render
   session_id: string; // The session ID to render
-  accepted_callback: string; // URL to POST acceptance confirmation to
-  finished_callback: string; // URL to POST final result to
+  callback: string; // URL to POST final result to
 };
 
 export type SuccessPayload = {

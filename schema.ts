@@ -133,6 +133,7 @@ export type Database = {
           project_id: string
           properties: Json | null
           score: number | null
+          session_at: string | null
           status: Database["public"]["Enums"]["project_group_status"]
           story: string | null
         }
@@ -147,6 +148,7 @@ export type Database = {
           project_id: string
           properties?: Json | null
           score?: number | null
+          session_at?: string | null
           status: Database["public"]["Enums"]["project_group_status"]
           story?: string | null
         }
@@ -161,6 +163,7 @@ export type Database = {
           project_id?: string
           properties?: Json | null
           score?: number | null
+          session_at?: string | null
           status?: Database["public"]["Enums"]["project_group_status"]
           story?: string | null
         }
