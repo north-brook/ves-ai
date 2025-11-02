@@ -1,9 +1,9 @@
+import { writeDebugFile } from "@/lib/debug/helper";
 import adminSupabase from "@/lib/supabase/admin";
 import { google, GoogleGenerativeAIProviderOptions } from "@ai-sdk/google";
 import { generateObject } from "ai";
 import { createHash } from "crypto";
 import { FatalError } from "workflow";
-import { writeDebugFile } from "../debug/helper";
 import {
   ANALYZE_GROUP_PROMPT,
   ANALYZE_GROUP_SCHEMA,

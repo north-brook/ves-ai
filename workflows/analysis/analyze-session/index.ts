@@ -1,9 +1,7 @@
-import {
-  ANALYZE_SESSION_SCHEMA,
-  ANALYZE_SESSION_SYSTEM,
-} from "@/app/jobs/analyze-session/prompts";
+import { ReplaySuccess } from "@/cloud/src/types";
+import { writeDebugFile } from "@/lib/debug/helper";
 import adminSupabase from "@/lib/supabase/admin";
-import { Session, SessionDetectedIssue } from "@/types";
+import { Database, Session, SessionDetectedIssue } from "@/types";
 import { openai } from "@ai-sdk/openai";
 import {
   createPartFromUri,
@@ -12,18 +10,46 @@ import {
 } from "@google/genai";
 import { embed } from "ai";
 import { FatalError } from "workflow";
-import { writeDebugFile } from "../debug/helper";
 import constructContext from "./context";
+import { ANALYZE_SESSION_SCHEMA, ANALYZE_SESSION_SYSTEM } from "./prompts";
 
 export async function analyzeSession(
   sessionId: string,
-): Promise<{ session: Session }> {
+  replay: ReplaySuccess,
+): Promise<Session> {
   "use step";
 
   console.log(
     `🧠 [ANALYZE SESSION] Starting analysis for session ${sessionId}`,
   );
   const supabase = adminSupabase();
+
+  // Update session with video data (embed_url already saved during pull)
+  const updateData: Database["public"]["Tables"]["sessions"]["Update"] = {
+    status: "processed",
+    video_uri: replay.video_uri,
+    video_duration: replay.video_duration,
+    event_uri: replay.events_uri,
+  };
+
+  const { error: updateSessionError } = await supabase
+    .from("sessions")
+    .update(updateData)
+    .eq("id", sessionId);
+
+  console.log(`✨ [ANALYZE SESSION] Successfully updated session ${sessionId}`);
+  console.log(`   Status: processing → processed`);
+  console.log(`   Video: ${replay.video_uri}`);
+  console.log(`   Duration: ${replay.video_duration}s`);
+  console.log(`   Events: ${replay.events_uri}`);
+
+  if (updateSessionError) {
+    console.error(
+      `❌ [CALLBACK] Failed to update session:`,
+      updateSessionError,
+    );
+    throw updateSessionError;
+  }
 
   // Fetch session details
   const { data: session, error: sessionError } = await supabase
@@ -213,5 +239,5 @@ export async function analyzeSession(
     `✨ [ANALYZE SESSION] Successfully analyzed session ${sessionId}`,
   );
 
-  return { session: analyzedSession };
+  return analyzedSession;
 }

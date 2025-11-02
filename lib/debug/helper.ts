@@ -21,7 +21,7 @@ export async function writeDebugFile(
     // skip debug logs in production
     if (process.env.NODE_ENV !== "development") return;
 
-    const debugDir = path.join(process.cwd(), "app", "jobs", "debug");
+    const debugDir = path.join(process.cwd(), "lib", "debug");
 
     // Ensure debug directory exists
     await fs.mkdir(debugDir, { recursive: true });
@@ -92,7 +92,7 @@ export async function clearDebugFile(filename: string): Promise<void> {
     // skip debug logging in production
     if (process.env.NODE_ENV !== "development") return;
 
-    const debugDir = path.join(process.cwd(), "app", "jobs", "debug");
+    const debugDir = path.join(process.cwd(), "lib", "debug");
     const debugFile = path.join(debugDir, filename);
 
     // Create empty file to clear it

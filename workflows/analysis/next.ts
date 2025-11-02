@@ -1,5 +1,3 @@
-"use server";
-
 import {
   getBillingPeriod,
   getWorkerLimit,
@@ -7,9 +5,11 @@ import {
 } from "@/lib/limits";
 import adminSupabase from "@/lib/supabase/admin";
 import { start } from "workflow/api";
-import { run } from "../run";
+import { analysis } from ".";
 
-export default async function kickoff(projectId: string): Promise<boolean> {
+export async function next(projectId: string) {
+  "use step";
+
   const supabase = adminSupabase();
 
   // Get project data for limits
@@ -83,7 +83,7 @@ export default async function kickoff(projectId: string): Promise<boolean> {
   console.log(
     `🎯 [NEXT JOB] Starting run for session ${session.id} (recording: ${session.external_id})`,
   );
-  await start(run, [session.id]);
+  await start(analysis, [session.id]);
 
   return true;
 }

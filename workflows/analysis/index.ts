@@ -1,26 +1,29 @@
-import { createHook, FatalError, sleep } from "workflow";
+import { ReplayError, ReplaySuccess } from "@/cloud/src/types";
+import { createWebhook, FatalError } from "workflow";
 import { analyzeGroup } from "./analyze-group";
 import { analyzeIssue } from "./analyze-issue";
 import { analyzeSession } from "./analyze-session";
 import { analyzeUser } from "./analyze-user";
-import next from "./next";
+import { next } from "./next";
 import { processReplay } from "./process-replay";
+import { failProcessReplay } from "./process-replay/fail";
 import { reconcileIssues } from "./reconcile-issues";
 
-export async function run(sessionId: string) {
+export async function analysis(sessionId: string) {
   "use workflow";
 
-  // process replay using the cloud service with a timeout
-  const replayHook = createHook<{ success: boolean }>({
-    token: `session:${sessionId}`,
-  });
-  await processReplay(sessionId);
-  const replayHookResponse = await Promise.race([replayHook, sleep("6 hours")]);
-  if (replayHookResponse && !replayHookResponse.success)
+  // process replay using the cloud service
+  const webhook = createWebhook();
+  await processReplay(sessionId, webhook.url);
+  const request = await webhook;
+  const replay = (await request.json()) as ReplaySuccess | ReplayError;
+  if (!replay.success) {
+    await failProcessReplay(sessionId);
     throw new FatalError("Session processing failed");
+  }
 
   // analyze the session
-  const { session } = await analyzeSession(sessionId);
+  const session = await analyzeSession(sessionId, replay);
 
   // analyze the user
   if (session.project_user_id) await analyzeUser(session.project_user_id);
@@ -29,7 +32,7 @@ export async function run(sessionId: string) {
   if (session.project_group_id) await analyzeGroup(session.project_group_id);
 
   // reconcile issues
-  const { issueIds } = await reconcileIssues(sessionId);
+  const issueIds = await reconcileIssues(sessionId);
 
   // analyze each issue in parallel
   await Promise.all(issueIds.map((issueId) => analyzeIssue(issueId)));

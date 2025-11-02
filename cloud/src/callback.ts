@@ -1,8 +1,8 @@
-import type { ErrorPayload, SuccessPayload } from "./types";
+import type { ReplayError, ReplaySuccess } from "./types";
 
 export async function postCallback(
   url: string,
-  payload: SuccessPayload | ErrorPayload,
+  payload: ReplaySuccess | ReplayError,
 ): Promise<void> {
   console.log("📨 [CALLBACK] Sending result to callback URL...");
   console.log(`  🔗 URL: ${url}`);

@@ -3,7 +3,6 @@ import { Json } from "@/schema";
 import { Database } from "@/types";
 import * as Sentry from "@sentry/nextjs";
 import { NextRequest, NextResponse } from "next/server";
-import kickoff from "./kickoff";
 
 type Source = Database["public"]["Tables"]["sources"]["Row"] & {
   projects: {
@@ -165,14 +164,6 @@ export async function GET(request: NextRequest) {
               });
             }
           }
-
-          // Step 2: Trigger processing for any remaining pending sessions
-          console.log(
-            `⚙️ [SYNC SESSIONS] Triggering processing for pending sessions in project ${projectName}...`,
-          );
-
-          // Kickoff will handle one session at a time with proper limit checks
-          await kickoff(projectId);
 
           console.log(
             `✅ [SYNC SESSIONS] Triggered processing for project ${projectName}`,
@@ -646,10 +637,6 @@ async function pullSessionsFromSource(
         if (session?.id) {
           pageNewCount++;
           createdSessionIds.push(session.id);
-
-          // Immediately kickoff processing for this session
-          // kickoff() handles all limit checks internally
-          await kickoff(source.project_id);
         }
       }
     }
