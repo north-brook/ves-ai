@@ -1,4 +1,4 @@
-import type { ProcessRequest } from "@/cloud/src/types";
+import type { ProcessReplayRequest } from "@/cloud/src/types";
 import adminSupabase from "@/lib/supabase/admin";
 import { FatalError } from "workflow";
 
@@ -6,7 +6,7 @@ export type ProcessJobRequest = {
   session_id: string;
 };
 
-export async function processReplay(sessionId: string) {
+export async function processReplay(sessionId: string, webhookUrl: string) {
   "use step";
 
   if (!sessionId) {
@@ -48,7 +48,7 @@ export async function processReplay(sessionId: string) {
   }
 
   // Prepare cloud service request
-  const cloudRequest: ProcessRequest = {
+  const cloudRequest: ProcessReplayRequest = {
     project_id: session.project_id,
     session_id: session.id,
     source_type: "posthog",
@@ -57,7 +57,7 @@ export async function processReplay(sessionId: string) {
     source_project: session.source.source_project!,
     external_id: session.external_id,
     active_duration: session.active_duration,
-    callback: `${process.env.NEXT_PUBLIC_URL}/jobs/process-replay/callback`,
+    callback: webhookUrl,
   };
 
   console.log(`☁️ [PROCESS] Sending request to cloud service`);

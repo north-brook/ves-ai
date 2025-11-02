@@ -1,4 +1,4 @@
-export type ProcessRequest = {
+export type ProcessReplayRequest = {
   source_type: "posthog";
   source_host: string; // e.g. "https://us.posthog.com"
   source_key: string; // API key with required scopes
@@ -10,7 +10,7 @@ export type ProcessRequest = {
   callback: string; // URL to POST final result to
 };
 
-export type SuccessPayload = {
+export type ReplaySuccess = {
   success: true;
   external_id: string;
   video_uri: string;
@@ -18,7 +18,7 @@ export type SuccessPayload = {
   events_uri: string;
 };
 
-export type ErrorPayload = {
+export type ReplayError = {
   external_id: string;
   success: false;
   error: string;

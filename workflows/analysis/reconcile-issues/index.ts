@@ -1,18 +1,16 @@
+import { clearDebugFile, writeDebugFile } from "@/lib/debug/helper";
 import adminSupabase from "@/lib/supabase/admin";
 import { openai, OpenAIResponsesProviderOptions } from "@ai-sdk/openai";
 import * as Sentry from "@sentry/nextjs";
 import { embed, generateObject } from "ai";
 import { FatalError } from "workflow";
-import { clearDebugFile, writeDebugFile } from "../debug/helper";
 import {
   RECONCILE_ISSUE_PROMPT,
   RECONCILE_ISSUE_SCHEMA,
   RECONCILE_ISSUE_SYSTEM,
 } from "./prompts";
 
-export async function reconcileIssues(
-  sessionId: string,
-): Promise<{ issueIds: string[] }> {
+export async function reconcileIssues(sessionId: string): Promise<string[]> {
   "use step";
 
   const supabase = adminSupabase();
@@ -378,5 +376,5 @@ export async function reconcileIssues(
     `✅ [RECONCILE ISSUES] Reconciled ${issueIds.length} issues for session ${sessionId}`,
   );
 
-  return { issueIds };
+  return issueIds;
 }

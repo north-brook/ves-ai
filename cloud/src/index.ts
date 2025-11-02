@@ -3,20 +3,20 @@ import fs from "fs/promises";
 import { postCallback } from "./callback";
 import constructEvents from "./events";
 import constructVideo from "./replay";
-import type { ErrorPayload, ProcessRequest, SuccessPayload } from "./types";
+import type { ProcessReplayRequest, ReplayError, ReplaySuccess } from "./types";
 
 const app = express();
 app.use(express.json({ limit: "512kb" }));
 
 const activeRecordings = new Map<
   string,
-  { body: ProcessRequest; callbackUrl: string; startTime: number }
+  { body: ProcessReplayRequest; callbackUrl: string; startTime: number }
 >();
 
 app.get("/health", (_req, res) => res.status(200).send("ok"));
 
 app.post("/process", async (req, res) => {
-  const body = req.body as ProcessRequest;
+  const body = req.body as ProcessReplayRequest;
 
   const missing = [
     "source_type",
@@ -67,9 +67,9 @@ app.post("/process", async (req, res) => {
   }
 });
 
-async function processRecordingAsync(body: ProcessRequest) {
-  let successPayload: SuccessPayload | null = null;
-  let errorPayload: ErrorPayload | null = null;
+async function processRecordingAsync(body: ProcessReplayRequest) {
+  let ReplaySuccess: ReplaySuccess | null = null;
+  let ReplayError: ReplayError | null = null;
   const processStartTime = Date.now();
 
   let callbackUrl = body.callback;
@@ -139,14 +139,14 @@ async function processRecordingAsync(body: ProcessRequest) {
 
     clearInterval(processHeartbeat);
 
-    successPayload = {
+    ReplaySuccess = {
       success: true,
       external_id: body.external_id,
       video_uri: videoUri,
       video_duration: Math.round(videoDuration),
       events_uri: eventsUri,
     };
-    await postCallback(callbackUrl, successPayload);
+    await postCallback(callbackUrl, ReplaySuccess);
 
     console.log(
       `✅ [COMPLETED] Recording ${body.external_id} processed successfully`,
@@ -161,12 +161,12 @@ async function processRecordingAsync(body: ProcessRequest) {
         `  💥 Error: ${message}\n` +
         `  📚 Stack: ${err?.stack || "No stack trace"}`,
     );
-    errorPayload = {
+    ReplayError = {
       success: false,
       error: message,
       external_id: body.external_id,
     };
-    await postCallback(callbackUrl, errorPayload);
+    await postCallback(callbackUrl, ReplayError);
   } finally {
     clearInterval(processHeartbeat);
     activeRecordings.delete(body.external_id);
@@ -197,13 +197,13 @@ async function gracefulShutdown(signal: string) {
     console.log(
       `🔔 [SHUTDOWN] Sending error callback for recording ${externalId} (${elapsed}s)`,
     );
-    const errorPayload: ErrorPayload = {
+    const ReplayError: ReplayError = {
       success: false,
       error: `Service shutdown (${signal}) - recording interrupted after ${elapsed}s`,
       external_id: externalId,
     };
     promises.push(
-      postCallback(recording.callbackUrl, errorPayload)
+      postCallback(recording.callbackUrl, ReplayError)
         .then(() => {
           console.log(`✅ [SHUTDOWN] Callback sent for ${externalId}`);
           activeRecordings.delete(externalId);

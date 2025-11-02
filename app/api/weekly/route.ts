@@ -1,9 +1,9 @@
+import { writeDebugFile } from "@/lib/debug/helper";
 import adminSupabase from "@/lib/supabase/admin";
 import { google, GoogleGenerativeAIProviderOptions } from "@ai-sdk/google";
 import * as Sentry from "@sentry/nextjs";
 import { generateObject } from "ai";
 import { NextRequest, NextResponse } from "next/server";
-import { writeDebugFile } from "../debug/helper";
 import {
   ANALYZE_PROJECT_PROMPT,
   ANALYZE_PROJECT_SCHEMA,
