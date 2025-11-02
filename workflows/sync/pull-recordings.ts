@@ -3,6 +3,7 @@ import { FatalError } from "workflow";
 import { PostHogRecording, PostHogRecordingsResponse } from "./types";
 
 const ACTIVE_SECONDS_THRESHOLD = 5;
+const MAX_PAGES = process.env.NODE_ENV === "development" ? 1 : Infinity;
 
 export async function pullRecordings(
   sourceId: string,
@@ -38,7 +39,6 @@ export async function pullRecordings(
     // Use the latest session's end time as a filter
     // Subtract a small buffer (5 minutes) to catch any overlapping sessions
     const filterDate = new Date(latestSession.session_at);
-    filterDate.setMinutes(filterDate.getMinutes() - 5);
     sinceDate = filterDate.toISOString();
     console.log(
       `🕐 [PULL SESSIONS] Fetching recordings since ${sinceDate} (last session: ${latestSession.session_at})`,
@@ -58,7 +58,6 @@ export async function pullRecordings(
   let totalSkippedCount = 0;
   let offset = 0;
   let pageNumber = 1;
-  const DEBUG_MAX_PAGES = process.env.NODE_ENV === "development" ? 1 : Infinity;
 
   // Paginate through all recordings
   while (true) {
@@ -133,7 +132,7 @@ export async function pullRecordings(
     offset += 100;
     pageNumber++;
 
-    if (pageNumber > DEBUG_MAX_PAGES) {
+    if (pageNumber > MAX_PAGES) {
       console.log(
         `🔍 [SYNC SESSIONS] Reached max pages, stopping pagination for source ${source.id}`,
       );
@@ -149,19 +148,6 @@ export async function pullRecordings(
   console.log(
     `📊 [SYNC SESSIONS] Total summary: ${totalNewSessionCount} new, ${totalSkippedCount} skipped across ${pageNumber - 1} pages (filtered: domain=${source.project.domain}, active_seconds>=30)`,
   );
-
-  // Update source last_active_at
-  const { error: updateError } = await supabase
-    .from("sources")
-    .update({ last_active_at: new Date().toISOString() })
-    .eq("id", source.id);
-
-  if (updateError) {
-    console.error(
-      `⚠️ [SYNC SESSIONS] Failed to update source last_active_at:`,
-      updateError,
-    );
-  }
 
   return recordings;
 }

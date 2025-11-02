@@ -1,3 +1,4 @@
+import { finish } from "./finish";
 import { kickoff } from "./kickoff";
 import { processRecording } from "./process-recording";
 import { pullGroups } from "./pull-groups";
@@ -25,4 +26,7 @@ export async function sync(sourceId: string) {
     // kickoff analysis for session
     await kickoff(sessionId);
   }
+
+  // finish sync
+  await finish(sourceId);
 }

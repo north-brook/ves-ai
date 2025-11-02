@@ -29,7 +29,10 @@ export async function GET(request: NextRequest) {
 
     const supabase = adminSupabase();
 
-    const sourcesQuery = supabase.from("sources").select("id");
+    const sourcesQuery = supabase
+      .from("sources")
+      .select("id")
+      .not("last_active_at", "is", null);
     if (projectId) sourcesQuery.eq("project_id", projectId);
 
     const { data: sources } = await sourcesQuery;
