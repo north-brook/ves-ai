@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
+import { LoaderCircle } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -60,6 +61,23 @@ export default function SectionNav({
       </div> */}
 
       <div className="flex w-full flex-col gap-0.5 px-1.5 pb-5">
+        {!items?.length && (
+          <div
+            className={cn(
+              "flex items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium text-slate-600 transition-all duration-300 hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-800",
+            )}
+          >
+            <LoaderCircle className="h-4 w-4 animate-spin" />
+
+            <span
+              className={cn(
+                "overflow-hidden text-sm text-ellipsis whitespace-nowrap italic",
+              )}
+            >
+              Awaiting {name.toLowerCase()}
+            </span>
+          </div>
+        )}
         {items?.map((item) => (
           <SectionNavItem
             key={item.link}

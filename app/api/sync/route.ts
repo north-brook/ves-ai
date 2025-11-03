@@ -49,6 +49,8 @@ export async function GET(request: NextRequest) {
       `🎯 [SYNC SESSIONS] All sync workflows started at`,
       new Date().toISOString(),
     );
+
+    return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
     console.error("🚫 [SYNC SESSIONS] Error:", error);
     return NextResponse.json(

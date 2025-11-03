@@ -1,6 +1,6 @@
 import serverSupabase from "@/lib/supabase/server";
 import { Metadata } from "next";
-import WIP from "../wip";
+import { redirect } from "next/navigation";
 
 export const revalidate = 0;
 
@@ -30,5 +30,6 @@ export default async function ProjectOverviewPage({
 }: {
   params: Promise<{ project: string }>;
 }) {
-  return <WIP />;
+  const { project: projectSlug } = await params;
+  redirect(`/${projectSlug}/sessions`);
 }

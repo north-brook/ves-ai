@@ -6,9 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Building2,
   CreditCard,
-  FileText,
   Flag,
-  House,
   LucideIcon,
   Play,
   Settings,
@@ -32,19 +30,19 @@ export default function NavLinks({ projectSlug }: { projectSlug: string }) {
   const supabase = clientSupabase();
 
   const NAV_ITEMS: Omit<NavLink, "active">[][] = [
-    [
-      {
-        href: `/${projectSlug}`,
-        label: "Overview",
-        icon: House,
-        exact: true,
-      },
-      {
-        href: `/${projectSlug}/reports`,
-        label: "Reports",
-        icon: FileText,
-      },
-    ],
+    // [
+    //   {
+    //     href: `/${projectSlug}`,
+    //     label: "Overview",
+    //     icon: House,
+    //     exact: true,
+    //   },
+    //   {
+    //     href: `/${projectSlug}/reports`,
+    //     label: "Reports",
+    //     icon: FileText,
+    //   },
+    // ],
     [
       {
         href: `/${projectSlug}/sessions`,
@@ -59,7 +57,7 @@ export default function NavLinks({ projectSlug }: { projectSlug: string }) {
           if (!project) return null;
           const { count } = await supabase
             .from("sessions")
-            .select("id", { count: "exact" })
+            .select("id", { count: "exact", head: true })
             .eq("project_id", project.id)
             .eq("status", "analyzed");
           return count || null;
@@ -78,7 +76,7 @@ export default function NavLinks({ projectSlug }: { projectSlug: string }) {
           if (!project) return null;
           const { count } = await supabase
             .from("issues")
-            .select("id", { count: "exact" })
+            .select("id", { count: "exact", head: true })
             .eq("project_id", project.id);
           return count || null;
         },
@@ -96,7 +94,7 @@ export default function NavLinks({ projectSlug }: { projectSlug: string }) {
           if (!project) return null;
           const { count } = await supabase
             .from("project_users")
-            .select("id", { count: "exact" })
+            .select("id", { count: "exact", head: true })
             .eq("project_id", project.id)
             .eq("status", "analyzed");
           return count || null;
@@ -115,7 +113,7 @@ export default function NavLinks({ projectSlug }: { projectSlug: string }) {
           if (!project) return null;
           const { count } = await supabase
             .from("project_groups")
-            .select("id", { count: "exact" })
+            .select("id", { count: "exact", head: true })
             .eq("project_id", project.id)
             .eq("status", "analyzed");
           return count || null;
@@ -129,7 +127,7 @@ export default function NavLinks({ projectSlug }: { projectSlug: string }) {
   ];
 
   return (
-    <div className="flex w-full flex-col items-stretch gap-4 px-1.5 py-2">
+    <div className="flex w-full flex-col items-stretch gap-4 px-1.5 py-3">
       {NAV_ITEMS.map((section, i) => (
         <Fragment key={`nav-section-${i}`}>
           {i > 0 && (

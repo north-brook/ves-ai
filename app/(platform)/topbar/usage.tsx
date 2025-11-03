@@ -19,7 +19,7 @@ export default function NavUsage({ projects }: { projects: Project[] }) {
     queryFn: async () => {
       const { count: analyzedSessionsCount } = await supabase
         .from("sessions")
-        .select("id", { count: "exact" })
+        .select("id", { count: "exact", head: true })
         .eq("project_id", currentProject?.id!)
         .eq("status", "analyzed");
 
@@ -49,7 +49,7 @@ export default function NavUsage({ projects }: { projects: Project[] }) {
     queryFn: async () => {
       const { count: awaitingSessionsCount } = await supabase
         .from("sessions")
-        .select("id", { count: "exact" })
+        .select("id", { count: "exact", head: true })
         .eq("project_id", currentProject?.id!)
         .eq("status", "pending");
 
@@ -67,7 +67,7 @@ export default function NavUsage({ projects }: { projects: Project[] }) {
     queryFn: async () => {
       const { count: workingCount } = await supabase
         .from("sessions")
-        .select("id", { count: "exact" })
+        .select("id", { count: "exact", head: true })
         .eq("project_id", currentProject?.id!)
         .in("status", WORKING_SESSION_STATUS)
         .limit(1)
@@ -93,12 +93,12 @@ export default function NavUsage({ projects }: { projects: Project[] }) {
           ) : (
             <span className="h-3 w-5 shrink-0 animate-pulse rounded bg-slate-100 dark:bg-slate-900" />
           )}{" "}
-          awaiting analysis
+          sessions awaiting analysis
         </div>
         <div className="flex flex-row items-center gap-2">
           <div
             className={cn(
-              "hidden flex-row items-center gap-2 overflow-hidden text-xs whitespace-nowrap transition-all duration-300 md:flex",
+              "hidden flex-row items-center gap-1 overflow-hidden text-xs whitespace-nowrap transition-all duration-300 md:flex",
               usagePercentage >= 70
                 ? "text-orange-500"
                 : "text-slate-600 dark:text-slate-400",
@@ -110,7 +110,7 @@ export default function NavUsage({ projects }: { projects: Project[] }) {
               </span>
             ) : (
               <div className="h-3 w-5 shrink-0 animate-pulse rounded bg-slate-100 dark:bg-slate-900" />
-            )}{" "}
+            )}
             / {monthlyLimitSessions}
           </div>
           <svg

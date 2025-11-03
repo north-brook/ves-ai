@@ -1,4 +1,5 @@
 import LogInButton, { LoadingLogInButton } from "@/app/auth/log-in-button";
+import { PLANS } from "@/config/pricing";
 import serverSupabase from "@/lib/supabase/server";
 import { Check } from "lucide-react";
 import type { Metadata } from "next";
@@ -10,41 +11,6 @@ export const metadata: Metadata = {
   description:
     "Simple, transparent pricing for AI-powered session analysis. No overages, no surprises. Start with 100 monthly sessions free.",
 };
-
-const plans = [
-  {
-    name: "Starter",
-    workers: "5 concurrent workers",
-    sessions: "100 monthly sessions",
-    price: "$0",
-    description: "Early-stage startups",
-    popular: false,
-  },
-  {
-    name: "Growth",
-    workers: "20 concurrent workers",
-    sessions: "1,000 monthly sessions",
-    price: "$500",
-    description: "Startups with PMF",
-    popular: true,
-  },
-  {
-    name: "Scale",
-    workers: "100 concurrent workers",
-    sessions: "10,000 monthly sessions",
-    price: "$2,000",
-    description: "Companies operating at scale",
-    popular: false,
-  },
-  {
-    name: "Enterprise",
-    workers: "Unlimited workers",
-    sessions: "Unlimited",
-    price: "Custom",
-    description: "Large orgs with special needs",
-    popular: false,
-  },
-];
 
 const features = [
   "Full AI session analysis",
@@ -68,7 +34,7 @@ export default function PricingPage() {
 
             <p className="mx-auto max-w-2xl text-xl text-slate-600 dark:text-slate-400">
               Get started for free with 100 monthly sessions, then pick the plan
-              that matches how many sessions you want VES to watch each month.
+              that matches how many sessions you want VES to analyze each month.
             </p>
           </div>
         </div>
@@ -78,9 +44,9 @@ export default function PricingPage() {
       <section className="px-6 py-16">
         <div className="mx-auto max-w-7xl">
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {plans.map((plan) => (
+            {PLANS.map((plan) => (
               <div
-                key={plan.name}
+                key={plan.id}
                 className={`relative rounded-2xl p-8 ${
                   plan.popular
                     ? "from-accent-purple/10 to-accent-purple/5 border-accent-purple border-2 bg-gradient-to-b"
@@ -102,8 +68,8 @@ export default function PricingPage() {
 
                   <div className="space-y-1">
                     <div className="text-3xl font-bold">
-                      {plan.price}
-                      {plan.price !== "Custom" && (
+                      {plan.cost}
+                      {plan.id !== "enterprise" && (
                         <span className="text-lg font-normal text-slate-600 dark:text-slate-400">
                           /mo
                         </span>

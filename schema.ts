@@ -246,6 +246,7 @@ export type Database = {
       projects: {
         Row: {
           created_at: string
+          customer_id: string | null
           domain: string
           id: string
           image: string
@@ -253,9 +254,11 @@ export type Database = {
           plan: Database["public"]["Enums"]["project_plan"]
           slug: string
           subscribed_at: string | null
+          subscription_id: string | null
         }
         Insert: {
           created_at?: string
+          customer_id?: string | null
           domain: string
           id?: string
           image: string
@@ -263,9 +266,11 @@ export type Database = {
           plan: Database["public"]["Enums"]["project_plan"]
           slug: string
           subscribed_at?: string | null
+          subscription_id?: string | null
         }
         Update: {
           created_at?: string
+          customer_id?: string | null
           domain?: string
           id?: string
           image?: string
@@ -273,6 +278,7 @@ export type Database = {
           plan?: Database["public"]["Enums"]["project_plan"]
           slug?: string
           subscribed_at?: string | null
+          subscription_id?: string | null
         }
         Relationships: []
       }
