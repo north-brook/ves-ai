@@ -1,4 +1,4 @@
-import Icon from "@/components/icon";
+import Icon from "@/components/icons/ves";
 import serverSupabase from "@/lib/supabase/server";
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";

@@ -1,6 +1,6 @@
 "use client";
 
-import Google from "@/components/google";
+import Google from "@/components/icons/google";
 import { cn } from "@/lib/utils";
 import { AuthUser } from "@supabase/supabase-js";
 import { useMutation } from "@tanstack/react-query";

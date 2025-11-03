@@ -1,7 +1,7 @@
 import serverSupabase from "@/lib/supabase/server";
-import { LoaderCircle } from "lucide-react";
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
+import Empty from "./empty";
 
 export const revalidate = 0;
 
@@ -60,10 +60,5 @@ export default async function IssuesPage({
 
   if (issue) redirect(`/${projectSlug}/issues/${issue.id}`);
 
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-3">
-      <LoaderCircle className="h-6 w-6 animate-spin text-slate-600 dark:text-slate-400" />
-      <p className="text-slate-600 dark:text-slate-400">Awaiting issues</p>
-    </div>
-  );
+  return <Empty projectId={project.id} projectSlug={projectSlug} />;
 }

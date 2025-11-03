@@ -1,12 +1,11 @@
+import Linear from "@/components/icons/linear";
+import { linear } from "@/lib/linear";
+import serverSupabase from "@/lib/supabase/server";
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { StepLayout } from "../../step-layout";
 import { LinearForm, LinearFormSkeleton } from "./form";
-import serverSupabase from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
-import Linear from "@/components/linear";
-import { LinearClient } from "@linear/sdk";
-import type { Metadata } from "next";
-import { linear } from "@/lib/linear";
 
 export async function generateMetadata({
   params,

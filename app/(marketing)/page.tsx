@@ -1,6 +1,6 @@
 import LogInButton, { LoadingLogInButton } from "@/app/auth/log-in-button";
-import Linear from "@/components/linear";
-import PostHog from "@/components/posthog";
+import Linear from "@/components/icons/linear";
+import PostHog from "@/components/icons/posthog";
 import serverSupabase from "@/lib/supabase/server";
 import {
   Activity,

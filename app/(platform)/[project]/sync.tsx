@@ -1,8 +1,8 @@
 "use client";
 
-import { syncSessions } from "./actions";
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
+import { syncSessions } from "./actions";
 
 export default function SyncSessions() {
   const params = useParams();
@@ -23,11 +23,12 @@ export default function SyncSessions() {
       }
       return result;
     },
-    refetchOnMount: true,
+    refetchOnMount: false,
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,
     refetchInterval: false,
     refetchIntervalInBackground: false,
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
   return null;

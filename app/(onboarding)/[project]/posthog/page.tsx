@@ -1,10 +1,10 @@
+import PostHog from "@/components/icons/posthog";
+import serverSupabase from "@/lib/supabase/server";
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { StepLayout } from "../../step-layout";
 import { PostHogForm, PostHogFormSkeleton } from "./form";
-import serverSupabase from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
-import PostHog from "@/components/posthog";
-import type { Metadata } from "next";
 
 export async function generateMetadata({
   params,
@@ -13,7 +13,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { project: projectSlug } = await params;
   const supabase = await serverSupabase();
-  
+
   const { data: project } = await supabase
     .from("projects")
     .select("name")
@@ -21,7 +21,7 @@ export async function generateMetadata({
     .single();
 
   const projectName = project?.name || "Project";
-  
+
   return {
     title: `Connect PostHog • ${projectName} • VES AI`,
     description: `Set up PostHog integration for ${projectName} to analyze session replays with AI.`,
