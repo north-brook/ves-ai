@@ -1,17 +1,17 @@
 # VES AI
 
-AI-powered session analysis that watches every user session and automatically creates actionable tickets in Linear.
+AI-powered session analysis that watches every user session and identifies bugs, UX issues, and product opportunities.
 
 ## Overview
 
-VES AI connects to your PostHog instance to analyze session replays using AI, automatically identifying bugs, UX issues, and product opportunities. It then creates prioritized, well-documented tickets directly in Linear - no manual review needed.
+VES AI connects to your PostHog instance to analyze session replays using AI, automatically identifying bugs, UX issues, and product opportunities. Issues can be exported as prioritized, well-documented tickets to Linear.
 
 ## Features
 
 - **Automated Session Analysis** - AI watches every PostHog session replay
 - **Bug Detection** - Catches errors, broken flows, and technical issues
 - **UX Insights** - Identifies friction points and user confusion
-- **Linear Integration** - Creates detailed tickets with context and replay links
+- **Linear Integration** - Export issues as detailed tickets with context and replay links
 - **Video Processing** - Converts session replays to shareable video format
 - **Real-time Dashboard** - View analysis results and metrics
 
@@ -72,7 +72,10 @@ vesai/
 │   ├── (marketing)/       # Landing pages
 │   ├── (onboarding)/      # User onboarding flow
 │   ├── (platform)/        # Main application
-│   └── jobs/              # API endpoints for async processing
+│   └── api/               # API endpoints
+├── workflows/             # Vercel Workflow definitions
+│   ├── analysis/          # Session analysis workflow
+│   └── sync/              # PostHog sync workflow
 ├── cloud/                 # Cloud Run service for video processing
 ├── components/            # Shared React components
 ├── lib/                   # Utilities and configurations
@@ -82,7 +85,30 @@ vesai/
 
 ## Workflow Architecture
 
-VES AI uses **Vercel Workflow** for durable, long-running job orchestration. Workflows survive server restarts, provide step-level retries, and offer full observability of the session analysis pipeline.
+VES AI uses [**Vercel Workflow**](https://useworkflow.dev) for durable, long-running job orchestration. Workflows survive server restarts, provide step-level retries, and offer full observability of the session analysis pipeline.
+
+### Data Flow
+
+The system operates using two separate, coordinated workflows:
+
+1. **Sync Workflow** (`/workflows/sync/`)
+   - Triggered by cron every 30 minutes OR when user visits the platform
+   - Pulls new session recordings from PostHog
+   - Creates session, user, and group records in database
+   - Kicks off analysis workflows for each new session
+
+2. **Analysis Workflow** (`/workflows/analysis/`)
+   - Processes individual session (one workflow per session)
+   - Converts replay to video format via cloud service
+   - AI analyzes video and events to generate insights
+   - Creates and updates issues
+   - Chains to next pending session
+
+**Flow Overview:**
+
+```
+Cron/User Visit → /api/sync → sync workflow → analysis workflow (per session)
+```
 
 ### Key Concepts
 
@@ -94,65 +120,42 @@ VES AI uses **Vercel Workflow** for durable, long-running job orchestration. Wor
 **Workflow APIs:**
 
 - `start(workflow, args)` - Initiates a new workflow instance
-- `createHook(config)` - Creates a hook that can be resumed by async callbacks
-- `resumeHook(token, data)` - Resumes a waiting workflow from webhooks
+- `createWebhook()` - Creates a webhook URL for async callbacks (returns promise that resolves with Request)
 - `sleep(duration)` - Pauses workflow execution for a specified duration
+- `FatalError` - Throws non-retryable errors that stop workflow execution
 
-### Main Workflow Orchestrator
+### Sync Workflow
 
-The core workflow is defined in `app/jobs/run.ts` and coordinates the entire session analysis pipeline:
+The sync workflow pulls new session recordings from PostHog. See [`/workflows/sync/index.ts`](/workflows/sync/index.ts)
 
-```typescript
-export async function run(sessionId: string) {
-  "use workflow"; // Durable workflow entry point
+**Steps:**
 
-  // Step 1: Process replay with timeout protection
-  const replayHook = createHook({ token: `session:${sessionId}` });
-  await processReplay(sessionId);
-  await Promise.race([
-    replayHook, // Wait for cloud service webhook
-    async () => {
-      await sleep("6 hours");
-      throw new Error("Session processing timed out");
-    },
-  ]);
+1. **pullGroups** - Fetches organization/group data from PostHog and creates/updates group records
+2. **pullRecordings** - Pulls new session recordings since last sync (paginated)
+3. **processRecording** - Creates/updates session, user, and group database records
+4. **kickoff** - Initiates analysis workflow for the session via `start(analysis, [sessionId])`
+5. **finish** - Updates source's `last_synced_at` timestamp
 
-  // Step 2: Analyze the session with AI
-  const { session } = await analyzeSession(sessionId);
+### Analysis Workflow
 
-  // Step 3: Parallel processing of user/group + issues
-  await Promise.all([
-    async () => {
-      if (!session.project_user_id) return;
-      await analyzeUser(session.project_user_id);
-      if (session.project_group_id)
-        await analyzeGroup(session.project_group_id);
-    },
-    async () => {
-      const { issueIds } = await reconcileIssues(sessionId);
-      await Promise.all(issueIds.map((issueId) => analyzeIssue(issueId)));
-    },
-  ]);
+The analysis workflow processes individual sessions (one workflow per session). See [`/workflows/analysis/index.ts`](/workflows/analysis/index.ts)
 
-  // Step 4: Kick off next pending session
-  await next(session.project_id);
-}
-```
-
-### Workflow Steps
+### Analysis Workflow Steps
 
 Each step uses the `"use step"` directive, making it independently retryable:
 
 1. **processReplay** - Converts session replay to video format
-   - Triggers cloud service (fire-and-forget)
-   - Cloud service calls back via `/jobs/process-replay/finished` webhook
-   - Uses `resumeHook()` to resume the waiting workflow
-   - Protected by 6-hour timeout
+   - Creates webhook URL via `createWebhook()`
+   - Triggers cloud service with webhook URL (fire-and-forget HTTP request)
+   - Waits for cloud service to POST video data back to webhook
+   - **Status progression**: `pending` → `processing` → `processed`
 
 2. **analyzeSession** - AI-powered session analysis
-   - Uses Google Gemini 2.5 Pro to analyze video and events
+   - Uses **Google Gemini 2.5 Pro** (via Vertex AI) with extended thinking budget (32,768 tokens)
+   - Analyzes video frames and event data to generate session insights
    - Generates: name, story, features used, detected issues, health score
    - Creates embeddings for similarity matching
+   - **Status**: `processed` → `analyzing` → `analyzed`
 
 3. **analyzeUser** - Maintains user-level insights
    - Aggregates all sessions for a specific user
@@ -165,48 +168,48 @@ Each step uses the `"use step"` directive, making it independently retryable:
 
 5. **reconcileIssues** - Intelligent issue deduplication
    - For each detected issue, finds similar issues via embedding search
-   - Uses OpenAI GPT-5 to decide: merge with existing or create new
+   - Uses **Google Gemini 2.5 Pro** with extended thinking budget to decide: merge with existing or create new
    - Returns issue IDs for further analysis
 
-6. **analyzeIssue** - Issue-level analysis
+6. **analyzeIssue** - Issue-level analysis (runs in parallel for all issues)
    - Analyzes all sessions linked to an issue
    - Generates: name, story, type, severity, priority, confidence
    - Uses hash-based caching to prevent redundant analysis
 
 7. **next** - Chain processing
-   - Kicks off workflow for next pending session
+   - Kicks off analysis workflow for next pending session
    - Maintains continuous processing throughput
 
 ### Workflow Triggers
 
-**Cron Job (Every 5 Minutes)**
+**Sync Workflow Triggers**
 
-Configured in `vercel.json`:
+The sync workflow is triggered in two ways:
 
-```json
-{
-  "crons": [
-    {
-      "path": "/jobs/sync",
-      "schedule": "*/5 * * * *"
-    }
-  ]
-}
-```
+1. **Cron Job (Every 30 Minutes)** - Configured in `vercel.json`:
 
-Flow:
+   ```json
+   {
+     "crons": [
+       {
+         "path": "/api/sync",
+         "schedule": "*/30 * * * *"
+       }
+     ]
+   }
+   ```
 
-1. Cron triggers `/jobs/sync/route.ts`
-2. Pulls new sessions from PostHog for all projects
-3. Calls `kickoff(projectId)` to process pending sessions
-4. `kickoff()` calls `start(run, [sessionId])` to begin workflow
+2. **User Visit** - When a user visits the platform, sync is triggered for their project
+
+**Flow:**
+
+1. Trigger hits [`/app/api/sync/route.ts`](/app/api/sync/route.ts)
+2. Calls `kickoff()` for each project to start sync workflow
+3. Sync workflow pulls recordings from PostHog and kicks off analysis workflows
 
 **Webhook Callbacks**
 
-The cloud video processing service calls back to:
-
-- `/jobs/process-replay/accepted` - Updates status to "processing"
-- `/jobs/process-replay/finished` - Updates status and calls `resumeHook()` to continue workflow
+The cloud video processing service receives a webhook URL from the analysis workflow and POSTs video data back to it when processing is complete. The webhook promise resolves with the video data, allowing the workflow to continue.
 
 ### Workflow Coordination
 

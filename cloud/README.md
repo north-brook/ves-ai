@@ -95,7 +95,12 @@ Send a POST request to `/process` with:
 The service will:
 
 1. Process the recording asynchronously
-2. POST the result to your callback URL when complete
+2. POST the video data (URL, duration, etc.) to the provided webhook URL when complete
+3. The webhook resolves the promise in the analysis workflow, allowing it to continue
+
+**Webhook Integration:**
+
+The `callback` URL in the request is a webhook URL created by the analysis workflow using `createWebhook()`. When processing finishes, the service POSTs the result to this URL, which automatically resumes the waiting workflow.
 
 ## Architecture
 
