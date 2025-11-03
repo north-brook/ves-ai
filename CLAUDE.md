@@ -53,7 +53,12 @@ vercel env pull      # Pull environment variables from Vercel
   - `[project]/` - Project-specific pages with dynamic routing
   - `[project]/sessions/[session]/` - Individual session analysis views
 - `app/auth/` - Authentication routes and callbacks
-- `app/jobs/` - Vercel Workflow jobs and webhook endpoints
+- `app/api/` - API endpoints
+
+**Workflows Directory**
+
+- `workflows/sync/` - Sync workflow (pulls recordings from PostHog)
+- `workflows/analysis/` - Analysis workflow (processes individual sessions)
 
 **Cloud Service**
 
@@ -69,50 +74,52 @@ vercel env pull      # Pull environment variables from Vercel
 
 ### Data Flow
 
-1. **Session Ingestion**: Cron → `/jobs/sync` → `kickoff()` → Vercel Workflow execution
-2. **Video Processing**: Session data → Cloud service → WebM video → GCS storage → Webhook callback
-3. **AI Analysis**: Session events + video → Gemini/OpenAI → Session story, issues, insights
-4. **Ticket Creation**: AI observations → Linear API → Actionable tickets
-5. **Real-time Updates**: Supabase real-time → UI updates
+The system uses two separate workflows:
+
+1. **Sync Workflow** (`workflows/sync/`): Cron (every 30 min) or user visit → `/api/sync` → `sync()` → pulls recordings → kicks off analysis workflows
+2. **Analysis Workflow** (`workflows/analysis/`): `analysis(sessionId)` → processes individual session
+   - **Video Processing**: Cloud service → WebM video → GCS storage → Webhook callback
+   - **AI Analysis**: Session events + video → Gemini/OpenAI → Session story, issues, insights
+3. **Real-time Updates**: Supabase real-time → UI updates
 
 ### Vercel Workflow Pattern
 
-The codebase uses **Vercel Workflow** (v4.0.1-beta.6) for durable job orchestration. Workflows survive server restarts, provide step-level retries, and offer full observability.
+The codebase uses [**Vercel Workflow**](https://useworkflow.dev) for durable job orchestration. Workflows survive server restarts, provide step-level retries, and offer full observability.
 
 **Key Directives:**
 - `"use workflow"` - Marks the workflow entry point (root function)
 - `"use step"` - Marks individual steps that can retry independently
 
-**Main Workflow** (`app/jobs/run.ts`):
+**Two Workflows:**
 
-The `run(sessionId)` function orchestrates the entire session analysis pipeline:
+1. **Sync Workflow** (`workflows/sync/index.ts`) - Pulls recordings from PostHog
+   - **pullGroups** - Fetches group data from PostHog
+   - **pullRecordings** - Pulls new session recordings (paginated)
+   - **processRecording** - Creates session/user/group records
+   - **kickoff** - Starts analysis workflow for each session
+   - **finish** - Updates sync timestamp
 
-1. **processReplay** - Triggers cloud service, waits for webhook callback via hook pattern
-   - Creates hook: `createHook({ token: 'session:${sessionId}' })`
-   - Cloud service calls `/jobs/process-replay/finished` which calls `resumeHook()`
-   - Protected by 6-hour timeout using `Promise.race()` with `sleep("6 hours")`
-
-2. **analyzeSession** - AI analyzes video and events (Gemini 2.5 Pro)
-   - Generates session story, detected issues, health score
-   - Creates embeddings for similarity matching
-
-3. **Parallel Processing** - Runs concurrently:
-   - **analyzeUser** → **analyzeGroup** (if user belongs to group)
-   - **reconcileIssues** → **analyzeIssue** (for each issue)
-   - Uses hash-based caching to skip redundant analysis
-
-4. **next** - Kicks off workflow for next pending session
+2. **Analysis Workflow** (`workflows/analysis/index.ts`) - Processes individual sessions
+   - **processReplay** - Triggers cloud service, waits for webhook callback
+     - Uses `createWebhook()` to get webhook URL
+     - Cloud service POSTs video data to webhook URL
+     - Webhook promise resolves with video data
+   - **analyzeSession** - AI analyzes video and events (Gemini 2.5 Pro with extended thinking)
+   - **analyzeUser** / **analyzeGroup** - Aggregate user/group insights (sequential)
+   - **reconcileIssues** - Deduplicates issues using Gemini 2.5 Pro with extended thinking
+   - **analyzeIssue** - Analyzes each issue (runs in parallel)
+   - **next** - Kicks off workflow for next pending session
 
 **Workflow APIs:**
-- `start(run, [sessionId])` - Initiates new workflow from `app/jobs/sync/kickoff.ts`
-- `createHook({ token })` - Creates resumable hook for async callbacks
-- `resumeHook(token, data)` - Resumes waiting workflow from webhooks
+- `start(workflow, args)` - Initiates new workflow
+- `createWebhook()` - Creates webhook URL for async callbacks (returns promise that resolves with Request)
 - `sleep(duration)` - Pauses execution with timeout protection
 - `FatalError` - Throws non-retryable errors
 
-**Cron Trigger:**
-- Every 5 minutes: `/jobs/sync/route.ts` pulls new sessions from PostHog
-- Calls `kickoff(projectId)` to start workflows for pending sessions
+**Sync Triggers:**
+- Cron job every 30 minutes OR user visiting platform
+- Triggers `/api/sync` which pulls new sessions from PostHog
+- Calls `kickoff(projectId)` to start sync workflows
 - Respects worker limits and usage limits per project plan
 
 ### Key Integrations
@@ -121,13 +128,13 @@ The `run(sessionId)` function orchestrates the entire session analysis pipeline:
 
 - Session replay data fetched via PostHog API
 - Requires API key with recording read access
-- Synced every 5 minutes via cron job
+- Synced every 30 minutes via cron job
 
 **Linear Integration**
 
 - OAuth flow in `/app/(onboarding)/[project]/linear/`
-- Creates tickets with AI-generated descriptions
-- Links back to session replays
+- Users can manually create tickets from issues
+- Tickets include AI-generated descriptions and links to session replays
 
 **Google Cloud Storage**
 

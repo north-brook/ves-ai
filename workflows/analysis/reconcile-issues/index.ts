@@ -1,6 +1,7 @@
 import { clearDebugFile, writeDebugFile } from "@/lib/debug/helper";
 import adminSupabase from "@/lib/supabase/admin";
-import { openai, OpenAIResponsesProviderOptions } from "@ai-sdk/openai";
+import { google, GoogleGenerativeAIProviderOptions } from "@ai-sdk/google";
+import { openai } from "@ai-sdk/openai";
 import * as Sentry from "@sentry/nextjs";
 import { embed, generateObject } from "ai";
 import { FatalError } from "workflow";
@@ -124,18 +125,19 @@ export async function reconcileIssues(sessionId: string): Promise<string[]> {
         relatedIssues,
       });
 
-      // Generate reconciliation decision using generateObject
+      // Generate reconciliation decision using Gemini
       const { object: issueResponse } = await generateObject({
-        model: openai.responses("gpt-5"),
+        model: google("gemini-2.5-pro"),
         providerOptions: {
-          openai: {
-            reasoningEffort: "high",
-            strictJsonSchema: true,
-          } satisfies OpenAIResponsesProviderOptions,
+          google: {
+            thinkingConfig: {
+              thinkingBudget: 32768,
+            },
+          } satisfies GoogleGenerativeAIProviderOptions,
         },
         system: RECONCILE_ISSUE_SYSTEM,
-        prompt: issuePrompt,
         schema: RECONCILE_ISSUE_SCHEMA,
+        prompt: issuePrompt,
       });
 
       // Process the response based on the decision
