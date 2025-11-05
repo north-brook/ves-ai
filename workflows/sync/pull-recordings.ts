@@ -44,12 +44,12 @@ export async function pullRecordings(
       `🕐 [PULL SESSIONS] Fetching recordings since ${sinceDate} (last session: ${latestSession.session_at})`,
     );
   } else {
-    // If no sessions exist, get recordings from the last 30 days
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    sinceDate = thirtyDaysAgo.toISOString();
+    // If no sessions exist, get recordings from the last 7 days
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    sinceDate = sevenDaysAgo.toISOString();
     console.log(
-      `🕐 [PULL SESSIONS] No existing sessions, fetching recordings from last 30 days (since ${sinceDate})`,
+      `🕐 [PULL SESSIONS] No existing sessions, fetching recordings from last 7 days (since ${sinceDate})`,
     );
   }
 

@@ -15,7 +15,7 @@ export default function Empty({
     <Loader
       stages={[
         {
-          label: "Syncing sessions from last 30 days",
+          label: "Syncing sessions from last 7 days",
           checkFn: async () => {
             // check if there are any sessions
             const { count } = await supabase
