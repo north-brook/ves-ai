@@ -4,6 +4,7 @@ import { getScoreColor } from "@/lib/score";
 import clientSupabase from "@/lib/supabase/client";
 import { Project, Session } from "@/types";
 import { useQuery } from "@tanstack/react-query";
+import { formatDistanceToNow } from "date-fns";
 import { useEffect, useState, useTransition } from "react";
 import SectionNav from "../section-nav";
 import { searchSessions } from "./actions";
@@ -66,6 +67,7 @@ export default function SessionList({
   return (
     <SectionNav
       name="Sessions"
+      loading={!displaySessions?.length ? "Awaiting sessions..." : undefined}
       search={{
         placeholder: "Search sessions...",
         value: searchQuery,
@@ -76,7 +78,11 @@ export default function SessionList({
         color: getScoreColor(session.score),
         name: session.name,
         link: `/${project.slug}/sessions/${session.id}`,
-        timestamp: session.session_at,
+        tooltip: session.session_at
+          ? formatDistanceToNow(new Date(session.session_at), {
+              addSuffix: true,
+            })
+          : null,
       }))}
     />
   );

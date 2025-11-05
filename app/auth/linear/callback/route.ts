@@ -7,19 +7,39 @@ import { LinearClient } from "@linear/sdk";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const state = searchParams.get("state"); // This is the project slug
+  const state = searchParams.get("state"); // Format: "projectSlug" or "projectSlug|next=..."
   const error = searchParams.get("error");
+
+  // Parse state to extract project slug and optional next param
+  let projectSlug: string;
+  let nextUrl: string | null = null;
+
+  if (state) {
+    const parts = state.split("|");
+    projectSlug = parts[0];
+
+    // Check if there's a next parameter
+    if (parts[1]?.startsWith("next=")) {
+      nextUrl = decodeURIComponent(parts[1].substring(5));
+    }
+  } else {
+    projectSlug = state || "";
+  }
+
+  // Default redirect URL
+  const defaultRedirect = `${origin}/${projectSlug}/linear`;
+  const redirectUrl = nextUrl || defaultRedirect;
 
   if (error) {
     console.error("Linear OAuth error:", error);
     return NextResponse.redirect(
-      `${origin}/${state}/linear?error=${encodeURIComponent(error)}`,
+      `${redirectUrl}?error=${encodeURIComponent(error)}`,
     );
   }
 
   if (!code || !state) {
     return NextResponse.redirect(
-      `${origin}/${state}/linear?error=${encodeURIComponent("Missing authorization code")}`,
+      `${redirectUrl}?error=${encodeURIComponent("Missing authorization code")}`,
     );
   }
 
@@ -75,7 +95,7 @@ export async function GET(request: Request) {
     const { data: project } = await supabase
       .from("projects")
       .select("*")
-      .eq("slug", state)
+      .eq("slug", projectSlug)
       .single();
 
     if (!project) {
@@ -112,17 +132,17 @@ export async function GET(request: Request) {
     }
 
     revalidatePath("/", "layout");
-    // Redirect back to Linear page with success flag to show team/project selection
-    return NextResponse.redirect(`${origin}/${state}/linear?success=true`);
+    // Redirect to next URL or Linear page with success flag
+    return NextResponse.redirect(`${origin}${redirectUrl}?success=true`);
   } catch (err) {
     console.error("Linear OAuth callback error:", err);
     Sentry.captureException(err, {
       tags: { action: "linearOAuthCallback" },
-      extra: { projectSlug: state },
+      extra: { projectSlug },
     });
 
     return NextResponse.redirect(
-      `${origin}/${state}/linear?error=${encodeURIComponent("Failed to connect Linear")}`,
+      `${origin}${redirectUrl}?error=${encodeURIComponent("Failed to connect Linear")}`,
     );
   }
 }

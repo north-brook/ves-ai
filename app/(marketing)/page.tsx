@@ -70,7 +70,7 @@ export default async function LandingPage() {
                 />
               </h3>
               <p className="text-slate-600 dark:text-slate-400">
-                We instantly start watching every session replay.
+                Instantly start watching every session replay.
               </p>
             </div>
 
@@ -82,8 +82,8 @@ export default async function LandingPage() {
                 2. AI Review
               </h3>
               <p className="text-slate-600 dark:text-slate-400">
-                Every session is analyzed for bugs, friction points, and
-                opportunities.
+                VES analyzes every session, writes stories, and identifies
+                issues
               </p>
             </div>
 
@@ -99,7 +99,8 @@ export default async function LandingPage() {
                 />
               </h3>
               <p className="text-slate-600 dark:text-slate-400">
-                Clear, prioritized tickets appear in your backlog automatically.
+                Export tickets in one click and enhance existing ones with
+                useful context
               </p>
             </div>
           </div>

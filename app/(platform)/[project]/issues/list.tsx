@@ -4,6 +4,7 @@ import { getIssueScoreColor } from "@/lib/score";
 import clientSupabase from "@/lib/supabase/client";
 import { Issue, Project } from "@/types";
 import { useQuery } from "@tanstack/react-query";
+import { formatDistanceToNow } from "date-fns";
 import { useEffect, useState, useTransition } from "react";
 import SectionNav from "../section-nav";
 import { searchIssues } from "./actions";
@@ -70,6 +71,7 @@ export default function IssueList({
   return (
     <SectionNav
       name="Issues"
+      loading={!displayIssues?.length ? "Awaiting issues..." : undefined}
       search={{
         placeholder: "Search issues...",
         value: searchQuery,
@@ -81,7 +83,11 @@ export default function IssueList({
           color: getIssueScoreColor(issue),
           name: issue.name,
           link: `/${project.slug}/issues/${issue.id}`,
-          timestamp: issue.created_at,
+          tooltip: issue.created_at
+            ? formatDistanceToNow(new Date(issue.created_at), {
+                addSuffix: true,
+              })
+            : null,
         })) || []
       }
     />
