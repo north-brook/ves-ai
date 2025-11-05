@@ -92,12 +92,18 @@ The codebase uses [**Vercel Workflow**](https://useworkflow.dev) for durable job
 
 **Two Workflows:**
 
-1. **Sync Workflow** (`workflows/sync/index.ts`) - Pulls recordings from PostHog
+1. **Sync Workflow** (`workflows/sync/index.ts`) - Pulls recordings from PostHog using incremental pagination
+   - **since** - Queries database for last sync timestamp (returns ISO date string)
    - **pullGroups** - Fetches group data from PostHog
-   - **pullRecordings** - Pulls new session recordings (paginated)
-   - **processRecording** - Creates session/user/group records
-   - **kickoff** - Starts analysis workflow for each session
+   - **pullRecordings** - Pulls ONE page of recordings (100 per page) at given offset
+     - Returns `{ recordings, hasNext, nextOffset }`
+     - Called in loop by workflow until all pages fetched
+     - Prevents payload size errors by processing incrementally
+   - **processRecording** - Creates session/user/group records (per recording)
+   - **kickoff** - Starts analysis workflow for each session (per recording)
    - **finish** - Updates sync timestamp
+
+   **Pagination pattern**: Workflow orchestrates page-by-page fetching. Each `pullRecordings()` call fetches one page, workflow loops until `hasNext=false` or `MAX_PAGES` reached. This keeps step payloads small and enables mid-pagination resumption.
 
 2. **Analysis Workflow** (`workflows/analysis/index.ts`) - Processes individual sessions
    - **processReplay** - Triggers cloud service, waits for webhook callback

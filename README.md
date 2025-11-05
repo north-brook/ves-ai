@@ -126,15 +126,59 @@ Cron/User Visit → /api/sync → sync workflow → analysis workflow (per sessi
 
 ### Sync Workflow
 
-The sync workflow pulls new session recordings from PostHog. See [`/workflows/sync/index.ts`](/workflows/sync/index.ts)
+The sync workflow pulls new session recordings from PostHog using an incremental pagination pattern. See [`/workflows/sync/index.ts`](/workflows/sync/index.ts)
 
 **Steps:**
 
-1. **pullGroups** - Fetches organization/group data from PostHog and creates/updates group records
-2. **pullRecordings** - Pulls new session recordings since last sync (paginated)
-3. **processRecording** - Creates/updates session, user, and group database records
-4. **kickoff** - Initiates analysis workflow for the session via `start(analysis, [sessionId])`
-5. **finish** - Updates source's `last_synced_at` timestamp
+1. **since** - Queries database for last sync timestamp, returns ISO date string (7 days ago for first sync)
+2. **pullGroups** - Fetches organization/group data from PostHog and creates/updates group records
+3. **pullRecordings** (paginated) - Pulls ONE page of recordings (100 per page) with given offset
+   - Returns `{ recordings, hasNext, nextOffset }`
+   - Called repeatedly in workflow loop until all pages fetched
+   - Prevents payload size errors by processing incrementally
+4. **processRecording** - Creates/updates session, user, and group database records (called per recording)
+5. **kickoff** - Initiates analysis workflow for the session via `start(analysis, [sessionId])` (called per recording)
+6. **finish** - Updates source's `last_synced_at` timestamp
+
+**Pagination Flow:**
+
+The workflow orchestrates pagination at the workflow level (not within steps):
+
+```typescript
+// Get since date and groups in parallel
+const [sinceDate, { groupNames, groupProperties }] = await Promise.all([
+  since(sourceId),
+  pullGroups(sourceId),
+]);
+
+// Paginate through recordings
+let hasNext = true;
+let offset = 0;
+let pageCount = 0;
+
+while (hasNext && pageCount < MAX_PAGES) {
+  // Pull one page
+  const { recordings, hasNext: hasNextPage, nextOffset } =
+    await pullRecordings(sourceId, sinceDate, offset);
+
+  // Process this page's recordings
+  for (const recording of recordings) {
+    const sessionId = await processRecording({...});
+    await kickoff(sessionId);
+  }
+
+  // Move to next page
+  hasNext = hasNextPage;
+  offset = nextOffset;
+  pageCount++;
+}
+```
+
+This approach:
+- Keeps step payloads small (max 100 recordings per step)
+- Enables workflow resumption mid-pagination on failure
+- Provides better observability (see which page failed)
+- Processes recordings incrementally (better for rate limits)
 
 ### Analysis Workflow
 
