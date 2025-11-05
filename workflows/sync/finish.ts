@@ -5,16 +5,21 @@ export async function finish(sourceId: string) {
 
   const supabase = adminSupabase();
 
-  // update source last_active_at
+  // update source last_active_at and status to synced
   const { error: updateError } = await supabase
     .from("sources")
-    .update({ last_active_at: new Date().toISOString() })
+    .update({ last_active_at: new Date().toISOString(), status: "synced" })
     .eq("id", sourceId);
 
   if (updateError) {
     console.error(
-      `⚠️ [SYNC SESSIONS] Failed to update source last_active_at:`,
+      `⚠️ [FINISH] Failed to update source last_active_at and status to synced:`,
       updateError,
     );
   }
+
+  console.log(
+    `🕐 [FINISH] Source ${sourceId} finished syncing at`,
+    new Date().toISOString(),
+  );
 }
