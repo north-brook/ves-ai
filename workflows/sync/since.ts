@@ -8,14 +8,22 @@ export async function since(sourceId: string): Promise<string> {
 
   const supabase = adminSupabase();
 
-  // get source
-  const { data: source } = await supabase
+  // get source and update status to syncing
+  const { data: source, error: updateError } = await supabase
     .from("sources")
-    .update({ last_active_at: new Date().toISOString() })
-    .select("id")
+    .update({ last_active_at: new Date().toISOString(), status: "syncing" })
     .eq("id", sourceId)
+    .select("id")
     .single();
-  if (!source) throw new FatalError("Source not found");
+  if (updateError) {
+    console.error(
+      `⚠️ [SINCE] Failed to update source last_active_at and status to syncing and get source:`,
+      updateError,
+    );
+    throw new FatalError(
+      "Failed to update source last_active_at and status to syncing and get source",
+    );
+  }
 
   const { data: latestSession } = await supabase
     .from("sessions")

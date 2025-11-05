@@ -29,10 +29,13 @@ export async function GET(request: NextRequest) {
 
     const supabase = adminSupabase();
 
-    const sourcesQuery = supabase
-      .from("sources")
-      .select("id")
-      .not("last_active_at", "is", null);
+    const sourcesQuery = supabase.from("sources").select("id");
+
+    // if a project id is provided (action), only get sources that are not syncing
+    if (projectId) sourcesQuery.neq("status", "syncing");
+    // if no project id is provided (cron job), only get sources that are synced
+    else sourcesQuery.eq("status", "synced");
+
     if (projectId) sourcesQuery.eq("project_id", projectId);
 
     const { data: sources } = await sourcesQuery;

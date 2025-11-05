@@ -489,6 +489,7 @@ export type Database = {
           source_host: string | null
           source_key: string | null
           source_project: string | null
+          status: Database["public"]["Enums"]["source_status"]
           type: Database["public"]["Enums"]["source_type"]
         }
         Insert: {
@@ -499,6 +500,7 @@ export type Database = {
           source_host?: string | null
           source_key?: string | null
           source_project?: string | null
+          status?: Database["public"]["Enums"]["source_status"]
           type: Database["public"]["Enums"]["source_type"]
         }
         Update: {
@@ -509,6 +511,7 @@ export type Database = {
           source_host?: string | null
           source_key?: string | null
           source_project?: string | null
+          status?: Database["public"]["Enums"]["source_status"]
           type?: Database["public"]["Enums"]["source_type"]
         }
         Relationships: [
@@ -608,6 +611,7 @@ export type Database = {
         | "analyzing"
         | "analyzed"
         | "failed"
+      source_status: "pending" | "syncing" | "synced"
       source_type: "posthog"
     }
     CompositeTypes: {
@@ -763,6 +767,7 @@ export const Constants = {
         "analyzed",
         "failed",
       ],
+      source_status: ["pending", "syncing", "synced"],
       source_type: ["posthog"],
     },
   },
