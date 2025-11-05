@@ -6,32 +6,36 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { formatDistanceToNow } from "date-fns";
-import { LoaderCircle } from "lucide-react";
+import { LoaderCircle, LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { createElement } from "react";
 
 export type SectionNavItem = {
-  color: string;
   name: string | null;
   link: string;
+  exact?: boolean;
   active: boolean;
+  icon?: LucideIcon;
+  color?: string;
   muted?: boolean;
-  timestamp?: string | null;
+  tooltip?: string | null;
 };
 
 export default function SectionNav({
   name,
   search,
   items,
+  loading,
 }: {
   name: string;
-  search: {
+  search?: {
     placeholder: string;
     value: string;
     onChange: (value: string) => void;
     pending: boolean;
   };
+  loading?: string;
   items?: Omit<SectionNavItem, "active">[];
 }) {
   const pathname = usePathname();
@@ -61,7 +65,7 @@ export default function SectionNav({
       </div> */}
 
       <div className="flex w-full flex-col gap-0.5 px-1.5 pb-5">
-        {!items?.length && (
+        {!!loading && (
           <div
             className={cn(
               "flex items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium text-slate-600 transition-all duration-300 hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-800",
@@ -74,7 +78,7 @@ export default function SectionNav({
                 "overflow-hidden text-sm text-ellipsis whitespace-nowrap italic",
               )}
             >
-              Awaiting {name.toLowerCase()}
+              {loading}
             </span>
           </div>
         )}
@@ -82,7 +86,9 @@ export default function SectionNav({
           <SectionNavItem
             key={item.link}
             {...item}
-            active={pathname.includes(item.link)}
+            active={
+              item.exact ? pathname === item.link : pathname.includes(item.link)
+            }
           />
         ))}
       </div>
@@ -96,46 +102,58 @@ function SectionNavItem({
   color,
   active,
   muted,
-  timestamp,
+  tooltip,
+  icon,
 }: SectionNavItem) {
+  const Item = (
+    <Link
+      href={link}
+      className={cn(
+        "flex items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium transition-all duration-300",
+        active
+          ? "bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200"
+          : "text-slate-600 hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-800",
+      )}
+      prefetch={false}
+    >
+      {!!color && (
+        <span
+          className="h-1.5 w-1.5 shrink-0 rounded-full"
+          style={{ backgroundColor: color }}
+        />
+      )}
+      {!!icon &&
+        createElement(icon, {
+          size: 16,
+          className: cn(
+            active
+              ? "text-slate-800 dark:text-slate-200"
+              : "text-slate-500 dark:text-slate-500",
+          ),
+        })}
+
+      {!!name && (
+        <span
+          className={cn(
+            "overflow-hidden text-sm text-ellipsis whitespace-nowrap",
+            muted && "italic",
+          )}
+        >
+          {name}
+        </span>
+      )}
+    </Link>
+  );
+
+  if (!tooltip) return Item;
+
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <Link
-          href={link}
-          className={cn(
-            "flex items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium transition-all duration-300",
-            active
-              ? "bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200"
-              : "text-slate-600 hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-800",
-          )}
-          prefetch={false}
-        >
-          <span
-            className="h-1.5 w-1.5 shrink-0 rounded-full"
-            style={{ backgroundColor: color }}
-          />
-
-          {!!name && (
-            <span
-              className={cn(
-                "overflow-hidden text-sm text-ellipsis whitespace-nowrap",
-                muted && "italic",
-              )}
-            >
-              {name}
-            </span>
-          )}
-        </Link>
-      </TooltipTrigger>
+      <TooltipTrigger asChild>{Item}</TooltipTrigger>
       <TooltipContent side="right">
-        {timestamp && (
-          <span className="text-xs whitespace-nowrap text-slate-500 dark:text-slate-400">
-            {formatDistanceToNow(new Date(timestamp), {
-              addSuffix: true,
-            })}
-          </span>
-        )}
+        <span className="text-xs whitespace-nowrap text-slate-500 dark:text-slate-400">
+          {tooltip}
+        </span>
       </TooltipContent>
     </Tooltip>
   );

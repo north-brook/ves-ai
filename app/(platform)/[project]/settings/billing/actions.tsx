@@ -80,7 +80,7 @@ export async function checkout({
       },
     ],
     success_url: `${process.env.NEXT_PUBLIC_URL}/api/stripe/callback?session_id={CHECKOUT_SESSION_ID}&projectId=${projectId}`,
-    cancel_url: `${process.env.NEXT_PUBLIC_URL}/${project.slug}/billing`,
+    cancel_url: `${process.env.NEXT_PUBLIC_URL}/${project.slug}/settings/billing`,
     client_reference_id: projectId,
     subscription_data: {
       metadata: {
@@ -117,7 +117,7 @@ export async function updatePaymentMethod({
   // Create Billing Portal Session (restricted to payment method updates)
   const session = await stripe.billingPortal.sessions.create({
     customer: project.customer_id,
-    return_url: `${process.env.NEXT_PUBLIC_URL}/${project.slug}/billing`,
+    return_url: `${process.env.NEXT_PUBLIC_URL}/${project.slug}/settings/billing`,
     flow_data: {
       type: "payment_method_update",
     },
@@ -164,7 +164,7 @@ export async function upgrade({
   // Use billing portal with subscription update flow
   const session = await stripe.billingPortal.sessions.create({
     customer: project.customer_id,
-    return_url: `${process.env.NEXT_PUBLIC_URL}/${project.slug}/billing`,
+    return_url: `${process.env.NEXT_PUBLIC_URL}/${project.slug}/settings/billing`,
     flow_data: {
       type: "subscription_update_confirm",
       subscription_update_confirm: {
@@ -180,7 +180,7 @@ export async function upgrade({
       after_completion: {
         type: "redirect",
         redirect: {
-          return_url: `${process.env.NEXT_PUBLIC_URL}/${project.slug}/billing`,
+          return_url: `${process.env.NEXT_PUBLIC_URL}/${project.slug}/settings/billing`,
         },
       },
     },
@@ -228,7 +228,7 @@ export async function downgrade({
   // Use billing portal with subscription update flow
   const session = await stripe.billingPortal.sessions.create({
     customer: project.customer_id,
-    return_url: `${process.env.NEXT_PUBLIC_URL}/${project.slug}/billing`,
+    return_url: `${process.env.NEXT_PUBLIC_URL}/${project.slug}/settings/billing`,
     flow_data: {
       type: "subscription_update_confirm",
       subscription_update_confirm: {
@@ -244,7 +244,7 @@ export async function downgrade({
       after_completion: {
         type: "redirect",
         redirect: {
-          return_url: `${process.env.NEXT_PUBLIC_URL}/${project.slug}/billing`,
+          return_url: `${process.env.NEXT_PUBLIC_URL}/${project.slug}/settings/billing`,
         },
       },
     },
@@ -275,7 +275,7 @@ export async function cancel({
   // Use billing portal with subscription cancel flow
   const session = await stripe.billingPortal.sessions.create({
     customer: project.customer_id,
-    return_url: `${process.env.NEXT_PUBLIC_URL}/${project.slug}/billing`,
+    return_url: `${process.env.NEXT_PUBLIC_URL}/${project.slug}/settings/billing`,
     flow_data: {
       type: "subscription_cancel",
       subscription_cancel: {
@@ -284,7 +284,7 @@ export async function cancel({
       after_completion: {
         type: "redirect",
         redirect: {
-          return_url: `${process.env.NEXT_PUBLIC_URL}/${project.slug}/billing`,
+          return_url: `${process.env.NEXT_PUBLIC_URL}/${project.slug}/settings/billing`,
         },
       },
     },

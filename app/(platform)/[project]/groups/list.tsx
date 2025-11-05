@@ -4,6 +4,7 @@ import { getScoreColor } from "@/lib/score";
 import clientSupabase from "@/lib/supabase/client";
 import { Project, ProjectGroup } from "@/types";
 import { useQuery } from "@tanstack/react-query";
+import { formatDistanceToNow } from "date-fns";
 import Fuse from "fuse.js";
 import { useState } from "react";
 import SectionNav from "../section-nav";
@@ -56,6 +57,7 @@ export default function GroupList({
   return (
     <SectionNav
       name="Groups"
+      loading={!displayGroups.length ? "Awaiting groups..." : undefined}
       search={{
         placeholder: "Search groups...",
         value: searchQuery,
@@ -67,7 +69,11 @@ export default function GroupList({
         name: group.name || "Unknown",
         muted: !group.name,
         link: `/${project.slug}/groups/${group.id}`,
-        timestamp: group.session_at,
+        tooltip: group.session_at
+          ? formatDistanceToNow(new Date(group.session_at), {
+              addSuffix: true,
+            })
+          : null,
       }))}
     />
   );

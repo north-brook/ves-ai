@@ -149,7 +149,7 @@ export default function NavUsage({ projects }: { projects: Project[] }) {
           {currentProject?.plan}
         </div>
         <Link
-          href={`/${params.project}/billing`}
+          href={`/${params.project}/settings/billing`}
           className="bg-background relative flex items-center justify-center gap-2 rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-all duration-300 hover:bg-slate-100 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-900"
         >
           Upgrade

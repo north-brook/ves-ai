@@ -1,9 +1,9 @@
 import { Database } from "@/schema";
-import { createClient } from "@supabase/supabase-js";
-import { NextRequest, NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
-import Stripe from "stripe";
 import * as Sentry from "@sentry/nextjs";
+import { createClient } from "@supabase/supabase-js";
+import { revalidatePath } from "next/cache";
+import { NextRequest, NextResponse } from "next/server";
+import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-10-29.clover",
@@ -16,7 +16,10 @@ const supabase = createClient<Database>(
 );
 
 // Map Stripe price IDs to plan names
-const PRICE_TO_PLAN: Record<string, "starter" | "growth" | "scale" | "enterprise"> = {
+const PRICE_TO_PLAN: Record<
+  string,
+  "starter" | "growth" | "scale" | "enterprise"
+> = {
   [process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID!]: "starter",
   [process.env.NEXT_PUBLIC_STRIPE_GROWTH_PRICE_ID!]: "growth",
   [process.env.NEXT_PUBLIC_STRIPE_SCALE_PRICE_ID!]: "scale",
@@ -67,7 +70,10 @@ export async function GET(request: NextRequest) {
       console.error("[Billing Callback] No subscription in session");
       // Still redirect to billing page even if no subscription
       return NextResponse.redirect(
-        new URL(`/${project.slug}/billing`, process.env.NEXT_PUBLIC_URL!),
+        new URL(
+          `/${project.slug}/settings/billing`,
+          process.env.NEXT_PUBLIC_URL!,
+        ),
       );
     }
 
@@ -76,7 +82,10 @@ export async function GET(request: NextRequest) {
     const plan = priceId ? PRICE_TO_PLAN[priceId] : null;
 
     // Update project if webhook hasn't already
-    if (project.subscription_id !== subscriptionId || (plan && project.plan !== plan)) {
+    if (
+      project.subscription_id !== subscriptionId ||
+      (plan && project.plan !== plan)
+    ) {
       const updateData: {
         subscription_id: string;
         plan?: "starter" | "growth" | "scale" | "enterprise";
@@ -85,7 +94,13 @@ export async function GET(request: NextRequest) {
         subscription_id: subscriptionId,
       };
 
-      if (plan && (plan === "starter" || plan === "growth" || plan === "scale" || plan === "enterprise")) {
+      if (
+        plan &&
+        (plan === "starter" ||
+          plan === "growth" ||
+          plan === "scale" ||
+          plan === "enterprise")
+      ) {
         updateData.plan = plan;
       }
 
@@ -113,11 +128,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Revalidate billing page to show new plan
-    revalidatePath(`/${project.slug}/billing`, "page");
+    revalidatePath(`/${project.slug}/settings/billing`, "page");
 
     // Redirect to billing page
     return NextResponse.redirect(
-      new URL(`/${project.slug}/billing`, process.env.NEXT_PUBLIC_URL!),
+      new URL(
+        `/${project.slug}/settings/billing`,
+        process.env.NEXT_PUBLIC_URL!,
+      ),
     );
   } catch (error) {
     console.error("[Billing Callback] Error:", error);
@@ -133,9 +151,7 @@ export async function GET(request: NextRequest) {
       .eq("id", projectId)
       .single();
 
-    const redirectUrl = project
-      ? `/${project.slug}/billing`
-      : "/";
+    const redirectUrl = project ? `/${project.slug}/settings/billing` : "/";
 
     return NextResponse.redirect(
       new URL(redirectUrl, process.env.NEXT_PUBLIC_URL!),

@@ -5,7 +5,6 @@ import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import {
   Building2,
-  CreditCard,
   Flag,
   LucideIcon,
   Play,
@@ -120,10 +119,7 @@ export default function NavLinks({ projectSlug }: { projectSlug: string }) {
         },
       },
     ],
-    [
-      { href: `/${projectSlug}/billing`, label: "Billing", icon: CreditCard },
-      { href: `/${projectSlug}/settings`, label: "Settings", icon: Settings },
-    ],
+    [{ href: `/${projectSlug}/settings`, label: "Settings", icon: Settings }],
   ];
 
   return (

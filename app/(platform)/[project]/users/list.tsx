@@ -4,6 +4,7 @@ import { getScoreColor } from "@/lib/score";
 import clientSupabase from "@/lib/supabase/client";
 import { Project, ProjectUser } from "@/types";
 import { useQuery } from "@tanstack/react-query";
+import { formatDistanceToNow } from "date-fns";
 import Fuse from "fuse.js";
 import { useState } from "react";
 import SectionNav from "../section-nav";
@@ -56,6 +57,7 @@ export default function UserList({
   return (
     <SectionNav
       name="Users"
+      loading={!displayUsers?.length ? "Awaiting users..." : undefined}
       search={{
         placeholder: "Search users...",
         value: searchQuery,
@@ -67,7 +69,11 @@ export default function UserList({
         name: user.name || "Anonymous",
         muted: !user.name,
         link: `/${project.slug}/users/${user.id}`,
-        timestamp: user.session_at,
+        tooltip: user.session_at
+          ? formatDistanceToNow(new Date(user.session_at), {
+              addSuffix: true,
+            })
+          : null,
       }))}
     />
   );
