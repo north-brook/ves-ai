@@ -106,6 +106,8 @@ export const ANALYZE_SESSION_SCHEMA = {
             description:
               "A product feature the user engaged with during their session. Use title case format (e.g., 'Product Catalog', 'Shopping Cart', 'User Dashboard'). Focus on identifying the specific product capabilities and functionalities the user interacted with. Examples: 'Product Creator', 'Lesson Planner', 'Checkout Flow', 'Search Filters', 'User Profile', 'Analytics Dashboard', 'Email Composer', 'Payment Processing', 'Inventory Management', 'Content Editor', 'Navigation Menu', 'Settings Panel'. Choose features that represent the actual product modules and tools the user utilized.",
           },
+          description:
+            "List of 1-5 product features the user engaged with during their session.",
         },
         name: {
           type: Type.STRING,
