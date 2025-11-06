@@ -34,16 +34,13 @@ export default async function SessionsPage({
   const {
     data: { user: authUser },
   } = await supabase.auth.getUser();
-
   if (!authUser) redirect("/");
 
-  const { data: project, error: projectError } = await supabase
+  const { data: project } = await supabase
     .from("projects")
     .select("id")
     .eq("slug", projectSlug)
     .single();
-
-  if (projectError) console.error(projectError);
   if (!project) redirect("/home");
 
   // get the most recent analyzed session

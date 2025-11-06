@@ -1,6 +1,5 @@
 import Icon from "@/components/icons/ves";
 import serverSupabase from "@/lib/supabase/server";
-import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import NavProfile from "./profile";
@@ -18,18 +17,9 @@ export default async function TopBar() {
           <Icon size={20} />
         </Link>
 
-        <ChevronRight
-          size={20}
-          className="shrink-0 text-slate-300 dark:text-slate-700"
-        />
-
         <Suspense fallback={<ProjectSkeleton />}>
           <LoadedProject />
         </Suspense>
-
-        <div className="bg-accent-orange/10 text-accent-orange mx-2 rounded px-1.5 py-0.5 [font-size:10px] font-medium">
-          BETA
-        </div>
       </div>
 
       <div className="flex flex-row items-center gap-4">

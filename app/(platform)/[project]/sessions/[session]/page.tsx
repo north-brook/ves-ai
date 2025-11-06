@@ -61,23 +61,19 @@ async function LoadedSession({
 
   if (!authUser) redirect("/");
 
-  const { data: project, error: projectError } = await supabase
+  const { data: project } = await supabase
     .from("projects")
     .select("*")
     .eq("slug", projectSlug)
     .single();
-
-  if (projectError) console.error(projectError);
   if (!project) redirect("/home");
 
-  const { data: role, error: roleError } = await supabase
+  const { data: role } = await supabase
     .from("roles")
     .select("*")
     .eq("project_id", project.id)
     .eq("user_id", authUser.id)
     .single();
-
-  if (roleError) console.error(roleError);
   if (!role) redirect("/home");
 
   const { data: session, error: sessionError } = await supabase

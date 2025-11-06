@@ -1,4 +1,4 @@
-import LogInButton, { LoadingLogInButton } from "@/app/auth/log-in-button";
+import StartButton, { LoadingStartButton } from "@/app/auth/start-button";
 import Linear from "@/components/icons/linear";
 import PostHog from "@/components/icons/posthog";
 import serverSupabase from "@/lib/supabase/server";
@@ -43,8 +43,8 @@ export default async function LandingPage() {
               <Linear size={20} className="mx-1 inline-block align-baseline" />.
             </p>
 
-            <Suspense fallback={<LoadingLogInButton />}>
-              <LoadedLogInButton />
+            <Suspense fallback={<LoadingStartButton />}>
+              <LoadedStartButton />
             </Suspense>
           </div>
         </div>
@@ -205,8 +205,8 @@ export default async function LandingPage() {
             Get Started
           </h2>
 
-          <Suspense fallback={<LoadingLogInButton />}>
-            <LoadedLogInButton />
+          <Suspense fallback={<LoadingStartButton />}>
+            <LoadedStartButton />
           </Suspense>
         </div>
       </section>
@@ -214,10 +214,10 @@ export default async function LandingPage() {
   );
 }
 
-async function LoadedLogInButton() {
+async function LoadedStartButton() {
   const supabase = await serverSupabase();
   const {
     data: { user: authUser },
   } = await supabase.auth.getUser();
-  return <LogInButton authUser={authUser} />;
+  return <StartButton authUser={authUser} />;
 }
