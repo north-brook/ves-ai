@@ -1,4 +1,4 @@
-import LogInButton, { LoadingLogInButton } from "@/app/auth/log-in-button";
+import StartButton, { LoadingStartButton } from "@/app/auth/start-button";
 import { PLANS } from "@/config/pricing";
 import serverSupabase from "@/lib/supabase/server";
 import { Check } from "lucide-react";
@@ -172,8 +172,8 @@ export default function PricingPage() {
           <h2 className="font-display mb-6 text-center text-3xl font-bold">
             Start in 2 minutes
           </h2>
-          <Suspense fallback={<LoadingLogInButton />}>
-            <LoadedLogInButton />
+          <Suspense fallback={<LoadingStartButton />}>
+            <LoadedStartButton />
           </Suspense>
         </div>
       </section>
@@ -247,10 +247,10 @@ async function LoadedPricingButton({
   }
 }
 
-async function LoadedLogInButton() {
+async function LoadedStartButton() {
   const supabase = await serverSupabase();
   const {
     data: { user: authUser },
   } = await supabase.auth.getUser();
-  return <LogInButton authUser={authUser} />;
+  return <StartButton authUser={authUser} />;
 }

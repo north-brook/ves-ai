@@ -1,7 +1,7 @@
+import StartButton, { LoadingStartButton } from "@/app/auth/start-button";
 import serverSupabase from "@/lib/supabase/server";
 import Link from "next/link";
 import { Suspense } from "react";
-import LogInButton, { LoadingLogInButton } from "../auth/log-in-button";
 import Logo from "./logo";
 
 export default async function MarketingNav() {
@@ -20,8 +20,8 @@ export default async function MarketingNav() {
             Pricing
           </Link>
 
-          <Suspense fallback={<LoadingLogInButton variant="secondary" />}>
-            <LoadedLogInButton variant="secondary" />
+          <Suspense fallback={<LoadingStartButton variant="secondary" />}>
+            <LoadedStartButton variant="secondary" />
           </Suspense>
         </div>
       </div>
@@ -29,7 +29,7 @@ export default async function MarketingNav() {
   );
 }
 
-async function LoadedLogInButton({
+async function LoadedStartButton({
   variant,
 }: {
   variant: "primary" | "secondary";
@@ -38,5 +38,5 @@ async function LoadedLogInButton({
   const {
     data: { user: authUser },
   } = await supabase.auth.getUser();
-  return <LogInButton authUser={authUser} variant={variant} />;
+  return <StartButton authUser={authUser} variant={variant} />;
 }

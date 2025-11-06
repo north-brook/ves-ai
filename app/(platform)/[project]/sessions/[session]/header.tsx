@@ -10,6 +10,8 @@ import {
   User,
   Video,
 } from "lucide-react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
 
 export default function SessionHeader({
   session,
@@ -19,6 +21,7 @@ export default function SessionHeader({
     group: ProjectGroup | null;
   };
 }) {
+  const params = useParams();
   const formatDuration = (seconds: number | null) => {
     if (!seconds) return "N/A";
     const hours = Math.floor(seconds / 3600);
@@ -73,16 +76,22 @@ export default function SessionHeader({
               <span>{formatDuration(session.video_duration)}</span>
             </div>
             {session.user && (
-              <div className="flex items-center gap-1">
+              <Link
+                href={`/${params.project}/users/${session.user.id}`}
+                className="flex items-center gap-1"
+              >
                 <User className="h-4 w-4" />
                 <span>{session.user.name}</span>
-              </div>
+              </Link>
             )}
             {session.group && (
-              <div className="flex items-center gap-1">
+              <Link
+                href={`/${params.project}/groups/${session.group.id}`}
+                className="flex items-center gap-1"
+              >
                 <Building2 className="h-4 w-4" />
                 <span>{session.group.name}</span>
-              </div>
+              </Link>
             )}
           </div>
 
@@ -91,7 +100,7 @@ export default function SessionHeader({
               {session.features.map((feature, index) => (
                 <span
                   key={index}
-                  className="from-accent-purple/10 to-accent-pink/10 text-foreground rounded-full bg-gradient-to-r px-3 py-1 text-sm font-medium"
+                  className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-800 dark:bg-slate-900 dark:text-slate-200"
                 >
                   {feature}
                 </span>

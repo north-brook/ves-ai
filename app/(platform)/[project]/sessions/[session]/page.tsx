@@ -1,7 +1,7 @@
 import serverSupabase from "@/lib/supabase/server";
 import { format } from "date-fns";
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import SessionContent from "./content";
 import SessionHeader from "./header";
@@ -61,34 +61,29 @@ async function LoadedSession({
 
   if (!authUser) redirect("/");
 
-  const { data: project, error: projectError } = await supabase
+  const { data: project } = await supabase
     .from("projects")
     .select("*")
     .eq("slug", projectSlug)
     .single();
-
-  if (projectError) console.error(projectError);
   if (!project) redirect("/home");
 
-  const { data: role, error: roleError } = await supabase
+  const { data: role } = await supabase
     .from("roles")
     .select("*")
     .eq("project_id", project.id)
     .eq("user_id", authUser.id)
     .single();
-
-  if (roleError) console.error(roleError);
   if (!role) redirect("/home");
 
-  const { data: session, error: sessionError } = await supabase
+  const { data: session } = await supabase
     .from("sessions")
     .select("*, user:project_users(*), group:project_groups(*), issues(*)")
     .eq("id", sessionId)
     .eq("project_id", project.id)
     .single();
 
-  if (sessionError) console.error(sessionError);
-  if (!session) redirect(`/${projectSlug}/sessions`);
+  if (!session) notFound();
 
   return (
     <main className="flex-1 p-4">
