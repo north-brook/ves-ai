@@ -182,13 +182,12 @@ function buildReplayHtml(
         
         try {
           // Create Replayer instance using rrweb directly
-          // Use rrweb's built-in skipInactive feature to match PostHog behavior
+          // We manually control speed based on segments (PostHog approach)
           const replayer = new rrweb.Replayer(__events, {
             root: document.getElementById('replayer'),
-            skipInactive: true,  // Use rrweb's optimized skip feature
+            skipInactive: false,  // Manually control speed via segments
             speed: ${opts.speed},
             maxSpeed: 360,
-            inactivePeriodThreshold: 5000,  // 5 seconds - matches PostHog
             mouseTail: ${opts.mouseTail ? JSON.stringify(opts.mouseTail) : "false"},
             triggerFocus: true,
             pauseAnimation: true,
@@ -217,7 +216,40 @@ function buildReplayHtml(
           console.log('Initial getCurrentTime:', replayer.getCurrentTime());
           console.log('First event timestamp:', __events[0]?.timestamp);
           console.log('Last event timestamp:', __events[__events.length - 1]?.timestamp);
-          
+
+          // Segment tracking state (PostHog approach)
+          let currentSegmentIndex = -1;
+          let lastSegmentIndex = -1;
+          let isSkippingInactivity = false;
+          const baseSpeed = ${opts.speed};
+          const skipOverlay = document.getElementById('skip-overlay');
+
+          // Helper: Find segment for given timestamp
+          function getCurrentSegment(timestamp) {
+            if (!segments || segments.length === 0) return null;
+
+            for (let i = 0; i < segments.length; i++) {
+              const seg = segments[i];
+              if (timestamp >= seg.startTime && timestamp <= seg.endTime) {
+                return { segment: seg, index: i };
+              }
+            }
+            return null;
+          }
+
+          // Helper: Calculate playback speed (PostHog approach)
+          function calculatePlaybackSpeed(segment, currentTime, isSkipping) {
+            if (!isSkipping || !segment) {
+              return baseSpeed;
+            }
+
+            // Dynamic speed based on remaining time in inactive segment
+            const remainingSeconds = (segment.endTime - currentTime) / 1000;
+            return Math.max(50, remainingSeconds);
+          }
+
+          console.log('🎮 [SKIP CONTROL] Manual speed control initialized with', segments.length, 'segments');
+
           // Set up event listeners
           replayer.on('finish', () => {
             isFinished = true;
@@ -256,11 +288,7 @@ function buildReplayHtml(
             });
           });
 
-          // rrweb's built-in skipInactive feature handles all speed adjustments automatically
-          // Segments are still logged above for analytics purposes
-          console.log('🎮 [SKIP CONTROL] Using rrweb built-in skipInactive with', segments.length, 'segments for reference');
-
-          // Track progress
+          // Track progress with segment-based speed control
           function updateProgress() {
             if (!isFinished && replayer) {
               try {
@@ -269,18 +297,55 @@ function buildReplayHtml(
                 const percent = Math.round(progress * 100);
                 const elapsed = (Date.now() - window.__startTime) / 1000;
                 const timeSinceLastProgress = Date.now() - window.__lastProgressTime;
-                
+
+                // Segment-based speed control (PostHog approach)
+                const segmentResult = getCurrentSegment(currentTime);
+                if (segmentResult) {
+                  currentSegmentIndex = segmentResult.index;
+                  const segment = segmentResult.segment;
+
+                  // Detect segment change
+                  if (currentSegmentIndex !== lastSegmentIndex) {
+                    lastSegmentIndex = currentSegmentIndex;
+
+                    // Update skipping state based on segment activity
+                    const wasSkipping = isSkippingInactivity;
+                    isSkippingInactivity = !segment.isActive;
+
+                    // Calculate and set new speed
+                    const newSpeed = calculatePlaybackSpeed(segment, currentTime, isSkippingInactivity);
+                    replayer.setConfig({ speed: newSpeed });
+
+                    // Update overlay visibility
+                    if (skipOverlay) {
+                      if (isSkippingInactivity) {
+                        skipOverlay.classList.add('active');
+                      } else {
+                        skipOverlay.classList.remove('active');
+                      }
+                    }
+
+                    // Log segment transition
+                    const action = isSkippingInactivity ? 'SKIPPING' : 'PLAYING';
+                    console.log('🎮 [SEGMENT CHANGE]', action, 'segment', currentSegmentIndex, 'at speed', newSpeed.toFixed(1) + 'x');
+                  } else if (isSkippingInactivity) {
+                    // Recalculate speed within inactive segment for dynamic adjustment
+                    const newSpeed = calculatePlaybackSpeed(segment, currentTime, isSkippingInactivity);
+                    replayer.setConfig({ speed: newSpeed });
+                  }
+                }
+
                 // Log at intervals
                 if (timeSinceLastProgress > 2000 || percent === 100) {
                   console.log('Progress:', percent + '%', 'at', elapsed.toFixed(1) + 's');
                   window.__lastProgressTime = Date.now();
-                  
+
                   // Notify host
                   try {
                     window.onReplayProgressUpdate && window.onReplayProgressUpdate({ payload: progress });
                   } catch(e) {}
                 }
-                
+
                 // Continue tracking
                 if (!isFinished) {
                   animationFrameId = requestAnimationFrame(updateProgress);
