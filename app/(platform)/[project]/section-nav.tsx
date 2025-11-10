@@ -66,7 +66,7 @@ export default function SectionNav({
         )}
       </div> */}
 
-      <div className="flex w-full flex-1 flex-col gap-0.5 overflow-y-auto px-1.5 pt-2.5 pb-5">
+      <div className="flex w-full flex-1 flex-col gap-0.5 overflow-y-auto px-1.5 py-2.5">
         {items?.map((item) => (
           <SectionNavItem
             key={item.link}
