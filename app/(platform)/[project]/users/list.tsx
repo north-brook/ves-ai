@@ -12,9 +12,11 @@ import SectionNav from "../section-nav";
 export default function UserList({
   initialUsers,
   project,
+  initialAwaitingUsers,
 }: {
   initialUsers: Pick<ProjectUser, "id" | "name" | "session_at" | "score">[];
   project: Project;
+  initialAwaitingUsers: number;
 }) {
   const supabase = clientSupabase();
   const usersQuery = useQuery({
@@ -29,6 +31,23 @@ export default function UserList({
       return users;
     },
     initialData: initialUsers,
+    enabled: !!project.id,
+    refetchInterval: 5_000,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
+  });
+  const awaitingUsersQuery = useQuery({
+    queryKey: ["awaiting-users", project.id],
+    queryFn: async () => {
+      const { count: awaitingUsers } = await supabase
+        .from("project_users")
+        .select("id", { count: "exact", head: true })
+        .eq("project_id", project.id)
+        .neq("status", "analyzed");
+      return awaitingUsers || 0;
+    },
+    initialData: initialAwaitingUsers,
     enabled: !!project.id,
     refetchInterval: 5_000,
     refetchOnMount: true,
@@ -58,6 +77,11 @@ export default function UserList({
     <SectionNav
       name="Users"
       loading={!displayUsers?.length ? "Awaiting users..." : undefined}
+      awaiting={
+        awaitingUsersQuery.data
+          ? `${awaitingUsersQuery.data} awaiting analysis`
+          : undefined
+      }
       search={{
         placeholder: "Search users...",
         value: searchQuery,

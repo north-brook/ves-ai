@@ -2,7 +2,7 @@
 
 import { ProjectGroup, ProjectUser, Session } from "@/types";
 import { formatDistanceToNow } from "date-fns";
-import { Calendar, Play, Users } from "lucide-react";
+import { Calendar, Hourglass, Play, Users } from "lucide-react";
 
 export default function GroupHeader({
   group,
@@ -12,6 +12,10 @@ export default function GroupHeader({
     sessions: Session[];
   };
 }) {
+  const awaitingSessions = group.sessions.filter(
+    (session) => session.status !== "analyzed",
+  ).length;
+
   return (
     <div className="mb-8 border-b border-slate-200 pb-6 dark:border-slate-800">
       <div className="flex items-start justify-between">
@@ -44,6 +48,15 @@ export default function GroupHeader({
                 {group.sessions.length !== 1 ? "s" : ""}
               </span>
             </div>
+            {awaitingSessions > 0 && (
+              <div className="flex items-center gap-1">
+                <Hourglass className="h-4 w-4" />
+                <span>
+                  {awaitingSessions} session
+                  {awaitingSessions !== 1 ? "s" : ""} awaiting analysis
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>

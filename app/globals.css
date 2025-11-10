@@ -137,7 +137,7 @@
 
   /* Scrollbar styling */
   *::-webkit-scrollbar {
-    @apply w-2;
+    @apply h-2 w-2;
   }
 
   *::-webkit-scrollbar-track {

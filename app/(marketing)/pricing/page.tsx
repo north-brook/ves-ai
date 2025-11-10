@@ -194,7 +194,7 @@ function LoadingPricingButton({
     case "popular":
       return (
         <div className="group from-accent-purple via-accent-pink to-accent-orange relative h-[50px] w-full rounded-lg bg-gradient-to-r p-[2px] font-semibold transition-all duration-200">
-          <div className="bg-background group-hover:bg-background/90 flex items-center justify-center rounded-[6px] py-3 transition-all" />
+          <div className="bg-background group-hover:bg-background/90 flex items-center justify-center rounded-[10px] py-3 transition-all" />
         </div>
       );
     case "enterprise":
@@ -230,7 +230,7 @@ async function LoadedPricingButton({
           href={authUser ? "/home" : "/login"}
           className="group from-accent-purple via-accent-pink to-accent-orange relative w-full rounded-lg bg-gradient-to-r p-[2px] font-semibold transition-all duration-200"
         >
-          <div className="bg-background group-hover:bg-background/90 flex items-center justify-center rounded-[6px] py-3 transition-all">
+          <div className="bg-background group-hover:bg-background/90 flex items-center justify-center rounded-[10px] py-3 transition-all">
             <span className="text-foreground font-semibold">Get Started</span>
           </div>
         </Link>
