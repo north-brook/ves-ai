@@ -25,7 +25,7 @@ export default function SessionHeader({
   const params = useParams();
 
   return (
-    <div className="mb-8 border-b border-slate-200 pb-6 dark:border-slate-800">
+    <div className="mb-6 border-b border-slate-200 pb-6 dark:border-slate-800">
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <h1 className="font-display text-3xl font-bold">
