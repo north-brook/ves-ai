@@ -3,10 +3,10 @@ import { format } from "date-fns";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import GroupHeader from "./header";
 import GroupHealth from "./health";
 import GroupStory from "./story";
-import GroupSessions from "./sessions";
-import GroupHeader from "./header";
+import GroupUsers from "./users";
 
 export const revalidate = 0;
 
@@ -69,7 +69,7 @@ export default async function GroupDetailPage({
   if (!role) redirect("/home");
 
   return (
-    <main className="flex-1 p-4">
+    <main className="w-full flex-1 p-4">
       <Suspense fallback={<HeaderSkeleton />}>
         <LoadedHeader groupId={groupId} projectId={project.id} />
       </Suspense>
@@ -80,8 +80,8 @@ export default async function GroupDetailPage({
         <Suspense fallback={<StorySkeleton />}>
           <LoadedStory groupId={groupId} projectId={project.id} />
         </Suspense>
-        <Suspense fallback={<SessionsSkeleton />}>
-          <LoadedSessions groupId={groupId} projectId={project.id} />
+        <Suspense fallback={<GroupUsersSkeleton />}>
+          <LoadedGroupUsers groupId={groupId} projectId={project.id} />
         </Suspense>
       </div>
     </main>
@@ -148,7 +148,7 @@ async function LoadedStory({
   return <GroupStory story={data.story} />;
 }
 
-async function LoadedSessions({
+async function LoadedGroupUsers({
   groupId,
   projectId,
 }: {
@@ -156,14 +156,13 @@ async function LoadedSessions({
   projectId: string;
 }) {
   const supabase = await serverSupabase();
-  const { data: sessions } = await supabase
-    .from("sessions")
-    .select("*, user:project_users(*)")
-    .eq("group_id", groupId)
-    .eq("project_id", projectId)
-    .order("session_at", { ascending: false });
+  const { data: users } = await supabase
+    .from("project_users")
+    .select("*, sessions(*)")
+    .eq("project_group_id", groupId)
+    .eq("project_id", projectId);
 
-  return <GroupSessions sessions={sessions || []} />;
+  return <GroupUsers users={users || []} />;
 }
 
 function HeaderSkeleton() {
@@ -210,7 +209,7 @@ function StorySkeleton() {
   );
 }
 
-function SessionsSkeleton() {
+function GroupUsersSkeleton() {
   return (
     <div className="flex flex-col gap-4">
       {[1, 2, 3].map((i) => (

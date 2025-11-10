@@ -38,9 +38,19 @@ async function LoadedGroups({ projectSlug }: { projectSlug: string }) {
     .eq("status", "analyzed")
     .order("session_at", { ascending: false });
 
+  const { count: awaitingGroups } = await supabase
+    .from("project_groups")
+    .select("id", { count: "exact", head: true })
+    .eq("project_id", project.id)
+    .neq("status", "analyzed");
+
   return (
     <>
-      <GroupsList initialGroups={groups || []} project={project} />
+      <GroupsList
+        initialGroups={groups || []}
+        project={project}
+        initialAwaitingGroups={awaitingGroups || 0}
+      />
     </>
   );
 }

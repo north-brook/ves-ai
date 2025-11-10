@@ -47,76 +47,76 @@ export default function NavLinks({ projectSlug }: { projectSlug: string }) {
         href: `/${projectSlug}/sessions`,
         label: "Sessions",
         icon: Play,
-        countFn: async () => {
-          const { data: project } = await supabase
-            .from("projects")
-            .select("*")
-            .eq("slug", projectSlug)
-            .single();
-          if (!project) return null;
-          const { count } = await supabase
-            .from("sessions")
-            .select("id", { count: "exact", head: true })
-            .eq("project_id", project.id)
-            .eq("status", "analyzed");
-          return count || null;
-        },
+        // countFn: async () => {
+        //   const { data: project } = await supabase
+        //     .from("projects")
+        //     .select("*")
+        //     .eq("slug", projectSlug)
+        //     .single();
+        //   if (!project) return null;
+        //   const { count } = await supabase
+        //     .from("sessions")
+        //     .select("id", { count: "exact", head: true })
+        //     .eq("project_id", project.id)
+        //     .eq("status", "analyzed");
+        //   return count || null;
+        // },
       },
       {
         href: `/${projectSlug}/issues`,
         label: "Issues",
         icon: Flag,
-        countFn: async () => {
-          const { data: project } = await supabase
-            .from("projects")
-            .select("*")
-            .eq("slug", projectSlug)
-            .single();
-          if (!project) return null;
-          const { count } = await supabase
-            .from("issues")
-            .select("id", { count: "exact", head: true })
-            .eq("project_id", project.id);
-          return count || null;
-        },
+        // countFn: async () => {
+        //   const { data: project } = await supabase
+        //     .from("projects")
+        //     .select("*")
+        //     .eq("slug", projectSlug)
+        //     .single();
+        //   if (!project) return null;
+        //   const { count } = await supabase
+        //     .from("issues")
+        //     .select("id", { count: "exact", head: true })
+        //     .eq("project_id", project.id);
+        //   return count || null;
+        // },
       },
       {
         href: `/${projectSlug}/users`,
         label: "Users",
         icon: Users,
-        countFn: async () => {
-          const { data: project } = await supabase
-            .from("projects")
-            .select("*")
-            .eq("slug", projectSlug)
-            .single();
-          if (!project) return null;
-          const { count } = await supabase
-            .from("project_users")
-            .select("id", { count: "exact", head: true })
-            .eq("project_id", project.id)
-            .eq("status", "analyzed");
-          return count || null;
-        },
+        // countFn: async () => {
+        //   const { data: project } = await supabase
+        //     .from("projects")
+        //     .select("*")
+        //     .eq("slug", projectSlug)
+        //     .single();
+        //   if (!project) return null;
+        //   const { count } = await supabase
+        //     .from("project_users")
+        //     .select("id", { count: "exact", head: true })
+        //     .eq("project_id", project.id)
+        //     .eq("status", "analyzed");
+        //   return count || null;
+        // },
       },
       {
         href: `/${projectSlug}/groups`,
         label: "Groups",
         icon: Building2,
-        countFn: async () => {
-          const { data: project } = await supabase
-            .from("projects")
-            .select("*")
-            .eq("slug", projectSlug)
-            .single();
-          if (!project) return null;
-          const { count } = await supabase
-            .from("project_groups")
-            .select("id", { count: "exact", head: true })
-            .eq("project_id", project.id)
-            .eq("status", "analyzed");
-          return count || null;
-        },
+        // countFn: async () => {
+        //   const { data: project } = await supabase
+        //     .from("projects")
+        //     .select("*")
+        //     .eq("slug", projectSlug)
+        //     .single();
+        //   if (!project) return null;
+        //   const { count } = await supabase
+        //     .from("project_groups")
+        //     .select("id", { count: "exact", head: true })
+        //     .eq("project_id", project.id)
+        //     .eq("status", "analyzed");
+        //   return count || null;
+        // },
       },
     ],
     [{ href: `/${projectSlug}/settings`, label: "Settings", icon: Settings }],

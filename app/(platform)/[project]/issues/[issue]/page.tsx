@@ -3,9 +3,9 @@ import { format } from "date-fns";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import IssueStory from "./story";
-import IssueSessions from "./sessions";
 import IssueHeader from "./header";
+import IssueSessions from "./sessions";
+import IssueStory from "./story";
 
 export const revalidate = 0;
 
@@ -132,14 +132,15 @@ async function LoadedSessions({
   projectId: string;
 }) {
   const supabase = await serverSupabase();
-  const { data: sessions } = await supabase
-    .from("sessions")
-    .select("*, user:project_users!inner(*), group:project_groups(*)")
-    .contains("issue_ids", [issueId])
-    .eq("project_id", projectId)
-    .order("session_at", { ascending: false });
+  const { data: sessionIssues } = await supabase
+    .from("session_issues")
+    .select("session:sessions(*,user:project_users(*),group:project_groups(*))")
+    .eq("issue_id", issueId)
+    .eq("project_id", projectId);
 
-  return <IssueSessions sessions={sessions || []} />;
+  const sessions = sessionIssues?.map((si) => si.session) || [];
+
+  return <IssueSessions sessions={sessions} />;
 }
 
 function HeaderSkeleton() {

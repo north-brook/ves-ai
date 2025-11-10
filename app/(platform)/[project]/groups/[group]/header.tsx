@@ -12,9 +12,6 @@ export default function GroupHeader({
     sessions: Session[];
   };
 }) {
-  const analyzedSessions = group.sessions.filter(
-    (session) => session.status === "analyzed",
-  ).length;
   const awaitingSessions = group.sessions.filter(
     (session) => session.status !== "analyzed",
   ).length;
@@ -47,8 +44,8 @@ export default function GroupHeader({
             <div className="flex items-center gap-1">
               <Play className="h-4 w-4" />
               <span>
-                {analyzedSessions} session
-                {analyzedSessions !== 1 ? "s" : ""}
+                {group.sessions.length} session
+                {group.sessions.length !== 1 ? "s" : ""}
               </span>
             </div>
             {awaitingSessions > 0 && (

@@ -12,9 +12,11 @@ import { searchSessions } from "./actions";
 export default function SessionList({
   initialSessions,
   project,
+  initialAwaitingSessions,
 }: {
   initialSessions: Pick<Session, "id" | "name" | "session_at" | "score">[];
   project: Project;
+  initialAwaitingSessions: number;
 }) {
   const supabase = clientSupabase();
   const sessionsQuery = useQuery({
@@ -29,6 +31,23 @@ export default function SessionList({
       return sessions;
     },
     initialData: initialSessions,
+    enabled: !!project.id,
+    refetchInterval: 5_000,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
+  });
+  const awaitingSessionsQuery = useQuery({
+    queryKey: ["awaiting-sessions", project.id],
+    queryFn: async () => {
+      const { count: awaitingSessions } = await supabase
+        .from("sessions")
+        .select("id", { count: "exact", head: true })
+        .eq("project_id", project.id)
+        .neq("status", "analyzed");
+      return awaitingSessions || 0;
+    },
+    initialData: initialAwaitingSessions,
     enabled: !!project.id,
     refetchInterval: 5_000,
     refetchOnMount: true,
@@ -68,6 +87,11 @@ export default function SessionList({
     <SectionNav
       name="Sessions"
       loading={!displaySessions?.length ? "Awaiting sessions..." : undefined}
+      awaiting={
+        awaitingSessionsQuery.data
+          ? `${awaitingSessionsQuery.data} awaiting analysis`
+          : undefined
+      }
       search={{
         placeholder: "Search sessions...",
         value: searchQuery,

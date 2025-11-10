@@ -6,7 +6,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { LoaderCircle, LucideIcon } from "lucide-react";
+import { Hourglass, LoaderCircle, LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createElement } from "react";
@@ -27,6 +27,7 @@ export default function SectionNav({
   search,
   items,
   loading,
+  awaiting,
 }: {
   name: string;
   search?: {
@@ -36,6 +37,7 @@ export default function SectionNav({
     pending: boolean;
   };
   loading?: string;
+  awaiting?: string;
   items?: Omit<SectionNavItem, "active">[];
 }) {
   const pathname = usePathname();
@@ -43,7 +45,7 @@ export default function SectionNav({
   if (!items) return <SectionNavSkeleton />;
 
   return (
-    <section className="sticky top-12 flex h-[calc(100vh-48px)] max-h-[calc(100vh-48px)] w-full max-w-[240px] flex-col items-stretch justify-start gap-2 overflow-y-auto border-r border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950">
+    <section className="sticky top-12 flex h-[calc(100vh-48px)] max-h-[calc(100vh-48px)] w-full max-w-[240px] flex-col items-stretch justify-start overflow-y-auto border-r border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950">
       <h1 className="sticky top-0 border-b border-slate-200 bg-slate-50 px-4 py-2 font-semibold text-slate-800 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200">
         {name}
       </h1>
@@ -64,11 +66,22 @@ export default function SectionNav({
         )}
       </div> */}
 
-      <div className="flex w-full flex-col gap-0.5 px-1.5 pb-5">
+      <div className="flex w-full flex-1 flex-col gap-0.5 overflow-y-auto px-1.5 pt-2.5 pb-5">
+        {items?.map((item) => (
+          <SectionNavItem
+            key={item.link}
+            {...item}
+            active={
+              item.exact ? pathname === item.link : pathname.includes(item.link)
+            }
+          />
+        ))}
+      </div>
+      <div className="flex w-full flex-col gap-0.5 border-t border-slate-200 bg-slate-50 px-2.5 py-2.5 dark:border-slate-800 dark:bg-slate-950">
         {!!loading && (
           <div
             className={cn(
-              "flex items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium text-slate-600 transition-all duration-300 hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-800",
+              "flex items-center gap-1 rounded-md text-sm text-slate-400 duration-300 dark:text-slate-600",
             )}
           >
             <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -82,15 +95,23 @@ export default function SectionNav({
             </span>
           </div>
         )}
-        {items?.map((item) => (
-          <SectionNavItem
-            key={item.link}
-            {...item}
-            active={
-              item.exact ? pathname === item.link : pathname.includes(item.link)
-            }
-          />
-        ))}
+        {!!awaiting && (
+          <div
+            className={cn(
+              "flex items-center gap-1 rounded-md text-sm text-slate-400 dark:text-slate-600",
+            )}
+          >
+            <Hourglass className="h-4 w-4" />
+
+            <span
+              className={cn(
+                "overflow-hidden text-sm text-ellipsis whitespace-nowrap italic",
+              )}
+            >
+              {awaiting}
+            </span>
+          </div>
+        )}
       </div>
     </section>
   );

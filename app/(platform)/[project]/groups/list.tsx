@@ -12,9 +12,11 @@ import SectionNav from "../section-nav";
 export default function GroupList({
   initialGroups,
   project,
+  initialAwaitingGroups,
 }: {
   initialGroups: Pick<ProjectGroup, "id" | "name" | "session_at" | "score">[];
   project: Project;
+  initialAwaitingGroups: number;
 }) {
   const supabase = clientSupabase();
   const groupsQuery = useQuery({
@@ -29,6 +31,23 @@ export default function GroupList({
       return groups;
     },
     initialData: initialGroups,
+    enabled: !!project.id,
+    refetchInterval: 5_000,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
+  });
+  const awaitingGroupsQuery = useQuery({
+    queryKey: ["awaiting-groups", project.id],
+    queryFn: async () => {
+      const { count: awaitingGroups } = await supabase
+        .from("project_groups")
+        .select("id", { count: "exact", head: true })
+        .eq("project_id", project.id)
+        .neq("status", "analyzed");
+      return awaitingGroups || 0;
+    },
+    initialData: initialAwaitingGroups,
     enabled: !!project.id,
     refetchInterval: 5_000,
     refetchOnMount: true,
@@ -58,6 +77,11 @@ export default function GroupList({
     <SectionNav
       name="Groups"
       loading={!displayGroups.length ? "Awaiting groups..." : undefined}
+      awaiting={
+        awaitingGroupsQuery.data
+          ? `${awaitingGroupsQuery.data} awaiting analysis`
+          : undefined
+      }
       search={{
         placeholder: "Search groups...",
         value: searchQuery,

@@ -15,9 +15,6 @@ export default function UserHeader({
   };
 }) {
   const params = useParams();
-  const analyzedSessions = user.sessions.filter(
-    (session) => session.status === "analyzed",
-  ).length;
   const awaitingSessions = user.sessions.filter(
     (session) => session.status !== "analyzed",
   ).length;
@@ -42,8 +39,8 @@ export default function UserHeader({
             <div className="flex items-center gap-1">
               <Play className="h-4 w-4" />
               <span>
-                {analyzedSessions} session
-                {analyzedSessions !== 1 ? "s" : ""}
+                {user.sessions.length} session
+                {user.sessions.length !== 1 ? "s" : ""}
               </span>
             </div>
             {awaitingSessions > 0 && (
@@ -58,7 +55,7 @@ export default function UserHeader({
             {user.group && (
               <Link
                 href={`/${params.project}/groups/${user.group.id}`}
-                className="flex items-center gap-1"
+                className="hover:decoration-accent-purple flex items-center gap-1 underline decoration-slate-200 underline-offset-4 duration-300 dark:decoration-slate-800"
               >
                 <Building2 className="h-4 w-4" />
                 <span>{user.group.name}</span>

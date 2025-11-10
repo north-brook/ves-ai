@@ -3,10 +3,10 @@ import { format } from "date-fns";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import UserHealth from "./health";
-import UserStory from "./story";
-import UserSessions from "./sessions";
 import UserHeader from "./header";
+import UserHealth from "./health";
+import UserSessions from "./sessions";
+import UserStory from "./story";
 
 export const revalidate = 0;
 
@@ -159,7 +159,7 @@ async function LoadedSessions({
   const { data: sessions } = await supabase
     .from("sessions")
     .select("*")
-    .eq("user_id", userId)
+    .eq("project_user_id", userId)
     .eq("project_id", projectId)
     .order("session_at", { ascending: false });
 

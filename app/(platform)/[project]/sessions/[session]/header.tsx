@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDuration } from "@/lib/time";
 import { ProjectGroup, ProjectUser, Session } from "@/types";
 import { format, formatDistanceToNow } from "date-fns";
 import {
@@ -22,20 +23,6 @@ export default function SessionHeader({
   };
 }) {
   const params = useParams();
-  const formatDuration = (seconds: number | null) => {
-    if (!seconds) return "N/A";
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const remainingSeconds = seconds % 60;
-
-    if (hours > 0) {
-      return `${hours}h ${minutes}m ${remainingSeconds}s`;
-    }
-    if (minutes > 0) {
-      return `${minutes}m ${remainingSeconds}s`;
-    }
-    return `${remainingSeconds}s`;
-  };
 
   return (
     <div className="mb-8 border-b border-slate-200 pb-6 dark:border-slate-800">
@@ -78,10 +65,14 @@ export default function SessionHeader({
             {session.user && (
               <Link
                 href={`/${params.project}/users/${session.user.id}`}
-                className="flex items-center gap-1"
+                className="hover:decoration-accent-purple flex items-center gap-1 underline decoration-slate-200 underline-offset-4 duration-300 dark:decoration-slate-800"
               >
                 <User className="h-4 w-4" />
-                <span>{session.user.name}</span>
+                {session.user.name ? (
+                  <span>{session.user.name}</span>
+                ) : (
+                  <span className="italic">Anonymous</span>
+                )}
               </Link>
             )}
             {session.group && (
@@ -100,7 +91,7 @@ export default function SessionHeader({
               {session.features.map((feature, index) => (
                 <span
                   key={index}
-                  className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-800 dark:bg-slate-900 dark:text-slate-200"
+                  className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-800 dark:bg-slate-900 dark:text-slate-200"
                 >
                   {feature}
                 </span>

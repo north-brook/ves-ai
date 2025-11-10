@@ -38,9 +38,19 @@ async function LoadedSessions({ projectSlug }: { projectSlug: string }) {
     .eq("status", "analyzed")
     .order("session_at", { ascending: false });
 
+  const { count: awaitingSessions } = await supabase
+    .from("sessions")
+    .select("id", { count: "exact", head: true })
+    .eq("project_id", project.id)
+    .neq("status", "analyzed");
+
   return (
     <>
-      <SessionList initialSessions={sessions || []} project={project} />
+      <SessionList
+        initialSessions={sessions || []}
+        project={project}
+        initialAwaitingSessions={awaitingSessions || 0}
+      />
     </>
   );
 }
