@@ -1,50 +1,31 @@
 "use client";
 
 import Markdown from "@/components/markdown";
-import { Issue, ProjectGroup, ProjectUser, Session } from "@/types";
+import { ProjectGroup, ProjectUser, Session } from "@/types";
 import { formatDistanceToNow } from "date-fns";
 import { Building2, Calendar, User } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import SessionReplay from "../../replay";
 
-export default function IssueContent({
-  issue,
+export default function IssueSessions({
+  sessions,
 }: {
-  issue: Issue & {
-    sessions: (Session & {
-      user: ProjectUser;
-      group: ProjectGroup | null;
-    })[];
-  };
+  sessions: (Session & {
+    user: ProjectUser;
+    group: ProjectGroup | null;
+  })[];
 }) {
   return (
-    <div className="flex w-full flex-col gap-4">
-      <IssueStory story={issue.story} />
-      <div className="flex flex-col gap-4">
-        {issue.sessions.map((session) => (
-          <SessionSummary key={session.id} session={session} />
-        ))}
-      </div>
+    <div className="flex flex-col gap-4">
+      {sessions.map((session) => (
+        <SessionItem key={session.id} session={session} />
+      ))}
     </div>
   );
 }
 
-function IssueStory({ story }: { story: string | null }) {
-  if (!story) {
-    return (
-      <div className="rounded-lg border border-slate-200 bg-slate-50 p-6 dark:border-slate-800 dark:bg-slate-900">
-        <p className="text-sm text-slate-600 italic dark:text-slate-400">
-          No analysis available yet.
-        </p>
-      </div>
-    );
-  }
-
-  return <Markdown>{story}</Markdown>;
-}
-
-function SessionSummary({
+function SessionItem({
   session,
 }: {
   session: Session & {
