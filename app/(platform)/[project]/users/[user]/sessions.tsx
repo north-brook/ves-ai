@@ -82,7 +82,7 @@ function SessionItem({ session }: { session: Session }) {
           )}
         </div>
         {session.story && (
-          <Markdown className="line-clamp-5 text-sm">{session.story}</Markdown>
+          <Markdown className="line-clamp-4 text-sm">{session.story}</Markdown>
         )}
       </div>
     </Link>

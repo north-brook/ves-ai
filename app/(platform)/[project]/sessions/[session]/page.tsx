@@ -3,10 +3,11 @@ import { format } from "date-fns";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
-import SessionHealth from "./health";
-import SessionStory from "./story";
-import SessionReplaySection from "./replay";
 import SessionHeader from "./header";
+import SessionHealth from "./health";
+import SessionIssues, { IssuesSkeleton } from "./issues";
+import SessionReplaySection from "./replay";
+import SessionStory from "./story";
 
 export const revalidate = 0;
 
@@ -78,6 +79,9 @@ export default async function SessionDetailPage({
         </Suspense>
         <Suspense fallback={<StorySkeleton />}>
           <LoadedStory sessionId={sessionId} projectId={project.id} />
+        </Suspense>
+        <Suspense fallback={<IssuesSkeleton />}>
+          <LoadedIssues sessionId={sessionId} projectId={project.id} />
         </Suspense>
       </div>
     </main>
@@ -162,6 +166,25 @@ async function LoadedStory({
   if (!data) return null;
 
   return <SessionStory story={data.story} />;
+}
+
+async function LoadedIssues({
+  sessionId,
+  projectId,
+}: {
+  sessionId: string;
+  projectId: string;
+}) {
+  const supabase = await serverSupabase();
+  const { data: sessionIssues } = await supabase
+    .from("session_issues")
+    .select("issue:issues(*)")
+    .eq("session_id", sessionId)
+    .eq("project_id", projectId);
+
+  const issues = sessionIssues?.map((si) => si.issue) || [];
+
+  return <SessionIssues issues={issues} />;
 }
 
 function HeaderSkeleton() {

@@ -73,7 +73,7 @@ function UserCard({ user }: { user: ProjectUser & { sessions: Session[] } }) {
           {sortedSessions.map((session) => (
             <div
               key={session.id}
-              className="flex w-[300px] shrink-0 flex-col gap-1 rounded-lg"
+              className="flex w-[240px] shrink-0 flex-col gap-1 rounded-lg"
             >
               {session.video_uri ? (
                 <SessionReplay sessionId={session.id} className="w-full" />

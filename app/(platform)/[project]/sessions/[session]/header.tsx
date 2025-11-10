@@ -78,7 +78,7 @@ export default function SessionHeader({
             {session.group && (
               <Link
                 href={`/${params.project}/groups/${session.group.id}`}
-                className="flex items-center gap-1"
+                className="hover:decoration-accent-purple flex items-center gap-1 underline decoration-slate-200 underline-offset-4 duration-300 dark:decoration-slate-800"
               >
                 <Building2 className="h-4 w-4" />
                 <span>{session.group.name}</span>
