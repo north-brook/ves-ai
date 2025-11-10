@@ -11,7 +11,7 @@ Your task is to reconcile a specific issue detected from a session replay with s
 
 # Key Principles
 
-1. **Root Cause Focus**: Issues with the same underlying cause should be merged, even if symptoms vary
+1. **Root Cause Focus**: Aggressively merge issues with the same underlying cause, even if symptoms or user experiences vary significantly. Prefer consolidation to reveal patterns.
 2. **Actionability**: Maintain issues that developers can act upon with clear reproduction steps
 3. **Severity Preservation**: When merging, preserve the highest severity/priority levels
 4. **Comprehensive Documentation**: Combine all relevant details when merging issues
@@ -130,31 +130,38 @@ ${relatedIssues
 
 Consider these factors when deciding whether to merge or create new:
 
-## When to MERGE (use \`mergeIssue\`)
-1. **Same Root Cause**: Different symptoms but same underlying problem
-   - "Login button unresponsive" and "Cannot submit login form" → same issue
-   - "Slow search results" and "Search timeout errors" → likely same performance issue
+## When to MERGE (use \`mergeIssue\`) - DEFAULT TO MERGING
 
-2. **Same Component/Area**: Issues affecting the same feature or flow
-   - Multiple validation errors in the same form
-   - Different error messages from the same API endpoint
+**Strongly prefer merging** when issues share the same root cause, even if symptoms vary. The goal is to consolidate related problems to reveal patterns and prioritize fixes effectively.
 
-3. **Progressive Severity**: The detected issue is a worse manifestation
-   - Existing: "Occasional lag in checkout" → Detected: "Checkout completely frozen"
-   - Merge and update severity to the higher level
+1. **Same Root Cause**: If the underlying technical failure point is the same, merge regardless of how symptoms present
+   - Same API endpoint failing, same validation logic broken, same component unresponsive
+   - Variations in user experience (slow vs timeout, unresponsive vs error) typically indicate the same core issue
 
-## When to CREATE NEW (use \`createIssue\`)
-1. **Different Root Cause**: Similar symptoms but different underlying problems
-   - "Cannot save profile" due to validation vs network error
-   - "Page not loading" due to 404 vs JavaScript error
+2. **Same Component/Feature Area**: Issues affecting the same flow or feature should typically be merged
+   - Different manifestations within the same form, page, or workflow
+   - Various error states from the same system component
 
-2. **Different Impact Area**: Affects different user flows or features
-   - Search issues vs Checkout issues (even if both are "slow")
-   - Mobile-specific vs Desktop-specific problems
+3. **Progressive or Related Severity**: When one issue appears to be an escalation or variation of another
+   - Different degrees of the same problem (lag → freeze, error → crash)
+   - Always merge and preserve the highest severity level
 
-3. **Different Reproduction Steps**: Requires different conditions to trigger
-   - Issue only occurs with specific data
-   - Issue only occurs in specific browser/environment
+## When to CREATE NEW (use \`createIssue\`) - ONLY WHEN TRULY DISTINCT
+
+Create a new issue **only** when the root cause is clearly different. If there's any reasonable possibility of a shared cause, prefer merging.
+
+1. **Completely Different Root Cause**: The technical failure points are unrelated
+   - Different system components, APIs, or code paths involved
+   - One is a data validation issue, the other is a network infrastructure problem
+   - Clearly distinct technical contexts that would require separate fixes
+
+2. **Different User Flows**: Affects entirely separate product areas with no technical overlap
+   - Issues in unrelated features that happen to share similar symptoms
+   - Platform-specific problems with different underlying implementations
+
+3. **Incompatible Fix Requirements**: Addressing one would not impact the other
+   - Requires different code changes, different teams, or different technical approaches
+   - Has fundamentally different reproduction conditions or triggers
 
 # Your Task
 
@@ -163,13 +170,13 @@ Consider these factors when deciding whether to merge or create new:
 3. If creating new, use \`createIssue\` with complete details
 4. Call \`done\` with success: true after your action
 
-Focus on root causes, not just symptoms. Multiple reports of the same underlying problem should be merged.`;
+**Default to merging.** Focus on root causes, not symptoms. Multiple reports of the same underlying problem should always be merged. When in doubt, merge rather than create separate issues.`;
 
 export const ISSUE_SCHEMA = z.object({
   story: z
     .string()
     .describe(
-      "A natural, flowing narrative of how this issue manifests, written as a story in markdown. Tell the story of the problem like you're recounting what goes wrong to a colleague - what users are trying to do, how the issue appears, what happens as a result. Write in a conversational, storytelling style that captures the frustration or confusion. For example: 'Users click the submit button expecting their form to save, but nothing happens. They click again, then again more forcefully. After waiting, they scroll up to check if there was an error message they missed...' Focus on painting a vivid picture of how the issue impacts user journeys. This should read like a story about encountering a problem, not a bug report. Use **bold** for emphasis and include the emotional impact on users.",
+      "A natural, flowing narrative of how this issue manifests, written as a story in markdown body text (NOT using headers or templated sections). Tell the story of the problem like you're recounting what goes wrong to a colleague - what users are trying to do, how the issue appears, what happens as a result. Write in a conversational, storytelling style that captures the frustration or confusion. For example: 'Users click the submit button expecting their form to save, but **nothing happens**. They click again, then again more forcefully. After waiting, they scroll up to check if there was an **error message** they missed...' Focus on painting a vivid picture of how the issue impacts user journeys. This should read like a story about encountering a problem, not a bug report. Use **bold** to emphasize key terms, issues, and impacts. Include the emotional impact on users.",
     ),
   type: z
     .enum(["bug", "usability", "improvement", "feature"])
@@ -194,7 +201,7 @@ export const ISSUE_SCHEMA = z.object({
   name: z
     .string()
     .describe(
-      "Short sentence case name that (in as few words as possible) describes the issue (e.g., 'Checkout button unresponsive', 'Search filters reset unexpectedly').",
+      "Short sentence case name that describes the problem directly without component or feature prefixes. Use as few words as possible (3-8 words). Examples: 'Button unresponsive after submission', 'Search filters reset unexpectedly', 'Password validation not showing errors'.",
     ),
 });
 

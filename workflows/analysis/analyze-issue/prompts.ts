@@ -23,21 +23,25 @@ Your analysis should produce:
 ## For the Name
 Create a concise, scannable title that:
 - Clearly states what's broken or problematic
-- Indicates where in the product it occurs
+- Is short and direct, excluding feature or component prefixes
 - Is actionable for developers
 - Avoids generic terms like "issue" or "problem"
-- Format: "[Component] Specific problem description"
-- Examples: "Login Form - Password validation not showing errors", "Dashboard - Charts fail to load with large datasets"
+- Uses sentence case (e.g., "Password validation not showing errors")
+- Examples: "Password validation not showing errors", "Charts fail to load with large datasets", "Workspace search returns no relevant results"
 
 ## For the Story
-Write a comprehensive narrative that includes:
+Write a comprehensive narrative in flowing body text that includes:
 - **Pattern Recognition**: How does this issue manifest across different sessions?
 - **User Impact**: What are users trying to accomplish when they encounter this?
 - **Frequency & Conditions**: When and how often does this occur?
 - **Variations**: Are there different ways this issue presents itself?
 - **Root Indicators**: What might be causing this based on the patterns?
 - **Business Impact**: How does this affect user success and satisfaction?
-- Use markdown formatting with **bold** for emphasis
+
+Formatting principles:
+- Use markdown body text with **bold** for emphasis on key terms
+- DO NOT use markdown headers (##) or templated section structure
+- Write as natural, flowing paragraphs that read like a story
 - Write in present tense, focusing on current state
 - Be specific with examples from actual sessions
 
@@ -121,8 +125,8 @@ ${session.observations && session.observations.length > 0 ? `\n**Key Observation
 Based on all these occurrences, provide a comprehensive analysis of this issue including its name, story, type, severity, priority, and your confidence level.`;
 
 export const ANALYZE_ISSUE_SCHEMA = z.object({
-  name: z.string().describe("A clear, actionable title for the issue in the format '[Component] Specific problem description'. Should be concise (5-10 words), specific about what's wrong and where, and scannable for developers. Examples: 'Checkout Flow - Payment method validation fails silently', 'User Profile - Avatar upload shows wrong error message'. Avoid generic terms."),
-  story: z.string().describe("A comprehensive narrative in markdown that tells the complete story of this issue. Start with a clear problem statement, then describe how it manifests across sessions, its impact on users, any patterns or triggers identified, and potential root causes. Use **bold** for emphasis. Include specific examples from sessions. Write in present tense, be factual and evidence-based. Structure with clear paragraphs covering: Problem Overview, User Impact, Pattern Analysis, Technical Indicators, and Business Implications."),
+  name: z.string().describe("A clear, actionable title that describes the problem directly without component or feature prefixes. Should be concise (3-8 words), specific about what's wrong, and scannable for developers. Use sentence case. Examples: 'Payment method validation fails silently', 'Avatar upload shows wrong error message', 'Search returns no relevant results'. Avoid generic terms like 'issue' or 'problem'."),
+  story: z.string().describe("A comprehensive narrative in markdown body text that tells the complete story of this issue. Write as flowing paragraphs (NOT using markdown headers or templated sections). Start with a clear problem statement, then describe how it manifests across sessions, its impact on users, any patterns or triggers identified, and potential root causes. Use **bold** to emphasize key terms, issues, and impacts. Include specific examples from sessions. Write in present tense, be factual and evidence-based. Cover the following in natural prose: problem overview, user impact, pattern analysis, technical indicators, and business implications."),
   type: z.enum(["bug", "usability", "improvement", "feature"]).describe("Classify the issue type: 'bug' = something is broken or malfunctioning; 'usability' = works but causes user friction or confusion; 'improvement' = enhancement to existing functionality; 'feature' = new capability that doesn't exist"),
   severity: z.enum(["critical", "high", "medium", "low", "suggestion"]).describe("Technical/functional severity: 'critical' = complete failure, data loss, security issue; 'high' = major functionality impaired; 'medium' = moderate impact with workaround; 'low' = minor inconvenience; 'suggestion' = nice-to-have"),
   priority: z.enum(["immediate", "high", "medium", "low", "backlog"]).describe("Business priority for fixing: 'immediate' = fix now, business-critical; 'high' = next sprint, significant impact; 'medium' = upcoming release; 'low' = when convenient; 'backlog' = future consideration"),
