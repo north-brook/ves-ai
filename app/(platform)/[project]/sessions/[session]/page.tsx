@@ -103,9 +103,16 @@ async function LoadedHeader({
     .eq("project_id", projectId)
     .single();
 
-  if (!session) notFound();
+  const { data: source } = await supabase
+    .from("sources")
+    .select("source_project")
+    .eq("project_id", projectId)
+    .limit(1)
+    .single();
 
-  return <SessionHeader session={session} />;
+  if (!session || !source) notFound();
+
+  return <SessionHeader session={session} source={source} />;
 }
 
 async function LoadedHealth({
