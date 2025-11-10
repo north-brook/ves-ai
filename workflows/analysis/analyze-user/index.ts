@@ -61,8 +61,17 @@ export async function analyzeUser(projectUserId: string) {
     throw new FatalError("Project user has no sessions");
   }
 
+  // Hash both analyzed sessions + all sessions to trigger re-analysis when:
+  // 1. New sessions are discovered (all IDs change)
+  // 2. Existing sessions complete analysis (analyzed IDs change)
+  const analyzedSessionIds = sessions
+    .filter((s) => s.status === "analyzed" && s.story)
+    .map((s) => s.id)
+    .sort();
+  const allSessionIds = sessions.map((s) => s.id).sort();
+
   const analysisHash = createHash("sha256")
-    .update(JSON.stringify(sessions.map((s) => s.id).sort()))
+    .update(JSON.stringify({ analyzed: analyzedSessionIds, all: allSessionIds }))
     .digest("hex");
 
   if (projectUser.analysis_hash === analysisHash) {

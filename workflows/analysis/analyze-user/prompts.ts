@@ -48,7 +48,18 @@ Evaluate the user's relationship with the product across multiple dimensions:
 - Consider the time gaps between sessions as indicators of engagement
 - Note any critical moments that changed the user's relationship with the product
 - Identify if the user has found their "aha moment" or core value proposition
-- Track whether issues from earlier sessions were resolved in later ones`;
+- Track whether issues from earlier sessions were resolved in later ones
+
+# Handling Incomplete Data
+
+Some sessions may not yet have AI analysis available (status != "analyzed"). When this occurs:
+- **Base your analysis primarily on sessions with complete analysis** (those with story, health, and score)
+- Sessions without analysis still provide valuable context (session timing, duration, basic metadata)
+- **Explicitly acknowledge data limitations** when a significant portion of sessions lack analysis
+- **Qualify your confidence** based on the ratio of analyzed to unanalyzed sessions
+- If many recent sessions are unanalyzed, note that the user's current state may be uncertain
+- Weight analyzed sessions more heavily in your scoring and health assessment
+- Be transparent about what you can and cannot confidently assess given the available data`;
 
 export const ANALYZE_USER_PROMPT = ({
   projectUser,
@@ -56,7 +67,11 @@ export const ANALYZE_USER_PROMPT = ({
 }: {
   projectUser: ProjectUser;
   sessions: Session[];
-}) => `Analyze this user's complete journey across all their sessions with the product.
+}) => {
+  const analyzedSessions = sessions.filter(s => s.status === "analyzed" && s.story);
+  const unanalyzedSessions = sessions.filter(s => s.status !== "analyzed" || !s.story);
+
+  return `Analyze this user's complete journey across all their sessions with the product.
 
 # User Information
 - User ID: ${projectUser.id}
@@ -64,6 +79,11 @@ export const ANALYZE_USER_PROMPT = ({
 - First Seen: ${projectUser.created_at}
 - Total Sessions: ${sessions.length}
 ${projectUser.properties ? `- User Properties: ${JSON.stringify(projectUser.properties, null, 2)}` : ""}
+
+# Data Completeness
+- **Analyzed Sessions**: ${analyzedSessions.length} (with full AI analysis available)
+- **Unanalyzed Sessions**: ${unanalyzedSessions.length} (analysis pending or in progress)
+${unanalyzedSessions.length > 0 ? `- **Note**: Base your assessment primarily on the ${analyzedSessions.length} analyzed session(s). Acknowledge uncertainty from ${unanalyzedSessions.length} unanalyzed session(s) in your health assessment.` : ""}
 
 # Session History
 The user has had ${sessions.length} session(s) with the product. Here are their session stories in chronological order:
@@ -80,6 +100,7 @@ ${session.score ? `\n### Session Score: ${session.score}/100` : ""}
 `).join("\n")}
 
 Based on this complete session history, provide your analysis of this user's journey, health, and score.`;
+};
 
 export const ANALYZE_USER_SCHEMA = z.object({
   story: z.string().describe("A natural, flowing narrative of the user's journey across all their sessions, written as a qualitative story in markdown. Tell their story like you're describing someone's evolving relationship with a product to a colleague - how they started, what they explored, how their usage changed over time. Write in a conversational, storytelling style that captures their progression. For example: 'This user first discovered the platform on March 15th, tentatively exploring the dashboard and settings. Over their next few visits, they grew more confident, diving into the analytics features and customizing their workspace. By their fifth session, they had become a regular, immediately navigating to their favorite tools...' Focus on painting a vivid picture of their journey - from newcomer to wherever they are now. Include natural observations about patterns, habits, and evolution. This should read like a story about a person's developing relationship with a product, not a clinical report. Use **bold** for emphasis and weave timing details naturally into the narrative."),
