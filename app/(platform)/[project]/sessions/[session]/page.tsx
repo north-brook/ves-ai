@@ -64,18 +64,11 @@ export default async function SessionDetailPage({
     .single();
   if (!role) redirect("/home");
 
-  const { data: session } = await supabase
-    .from("sessions")
-    .select("*, user:project_users(*), group:project_groups(*), issues(*)")
-    .eq("id", sessionId)
-    .eq("project_id", project.id)
-    .single();
-
-  if (!session) notFound();
-
   return (
     <main className="flex-1 p-4">
-      <SessionHeader session={session} />
+      <Suspense fallback={<HeaderSkeleton />}>
+        <LoadedHeader sessionId={sessionId} projectId={project.id} />
+      </Suspense>
       <div className="flex w-full flex-col gap-4">
         <Suspense fallback={<HealthSkeleton />}>
           <LoadedHealth sessionId={sessionId} projectId={project.id} />
@@ -89,6 +82,26 @@ export default async function SessionDetailPage({
       </div>
     </main>
   );
+}
+
+async function LoadedHeader({
+  sessionId,
+  projectId,
+}: {
+  sessionId: string;
+  projectId: string;
+}) {
+  const supabase = await serverSupabase();
+  const { data: session } = await supabase
+    .from("sessions")
+    .select("*, user:project_users(*), group:project_groups(*), issues(*)")
+    .eq("id", sessionId)
+    .eq("project_id", projectId)
+    .single();
+
+  if (!session) notFound();
+
+  return <SessionHeader session={session} />;
 }
 
 async function LoadedHealth({
@@ -149,6 +162,30 @@ async function LoadedStory({
   if (!data) return null;
 
   return <SessionStory story={data.story} />;
+}
+
+function HeaderSkeleton() {
+  return (
+    <div className="mb-8 border-b border-slate-200 pb-6 dark:border-slate-800">
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <div className="h-9 w-64 animate-pulse rounded-md bg-slate-200 dark:bg-slate-800" />
+          <div className="mt-4 flex flex-wrap items-center gap-4">
+            <div className="h-5 w-28 animate-pulse rounded-md bg-slate-200 dark:bg-slate-800" />
+            <div className="h-5 w-20 animate-pulse rounded-md bg-slate-200 dark:bg-slate-800" />
+            <div className="h-5 w-20 animate-pulse rounded-md bg-slate-200 dark:bg-slate-800" />
+            <div className="h-5 w-20 animate-pulse rounded-md bg-slate-200 dark:bg-slate-800" />
+            <div className="h-5 w-32 animate-pulse rounded-md bg-slate-200 dark:bg-slate-800" />
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <div className="h-7 w-24 animate-pulse rounded-full bg-slate-200 dark:bg-slate-800" />
+            <div className="h-7 w-28 animate-pulse rounded-full bg-slate-200 dark:bg-slate-800" />
+            <div className="h-7 w-20 animate-pulse rounded-full bg-slate-200 dark:bg-slate-800" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function HealthSkeleton() {

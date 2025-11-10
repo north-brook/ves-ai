@@ -68,19 +68,11 @@ export default async function GroupDetailPage({
   if (roleError) console.error(roleError);
   if (!role) redirect("/home");
 
-  const { data: group, error: groupError } = await supabase
-    .from("project_groups")
-    .select("*")
-    .eq("id", groupId)
-    .eq("project_id", project.id)
-    .single();
-
-  if (groupError) console.error(groupError);
-  if (!group) redirect(`/${projectSlug}/groups`);
-
   return (
     <main className="flex-1 p-4">
-      <GroupHeader group={group} />
+      <Suspense fallback={<HeaderSkeleton />}>
+        <LoadedHeader groupId={groupId} projectId={project.id} />
+      </Suspense>
       <div className="flex w-full flex-col gap-4">
         <Suspense fallback={<HealthSkeleton />}>
           <LoadedHealth groupId={groupId} projectId={project.id} />
@@ -94,6 +86,26 @@ export default async function GroupDetailPage({
       </div>
     </main>
   );
+}
+
+async function LoadedHeader({
+  groupId,
+  projectId,
+}: {
+  groupId: string;
+  projectId: string;
+}) {
+  const supabase = await serverSupabase();
+  const { data: group } = await supabase
+    .from("project_groups")
+    .select("*, users:project_users(*), sessions(*)")
+    .eq("id", groupId)
+    .eq("project_id", projectId)
+    .single();
+
+  if (!group) redirect(`/`);
+
+  return <GroupHeader group={group} />;
 }
 
 async function LoadedHealth({
@@ -152,6 +164,24 @@ async function LoadedSessions({
     .order("session_at", { ascending: false });
 
   return <GroupSessions sessions={sessions || []} />;
+}
+
+function HeaderSkeleton() {
+  return (
+    <div className="mb-8 border-b border-slate-200 pb-6 dark:border-slate-800">
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <div className="h-9 w-56 animate-pulse rounded-md bg-slate-200 dark:bg-slate-800" />
+          <div className="mt-4 flex flex-wrap items-center gap-4">
+            <div className="h-5 w-32 animate-pulse rounded-md bg-slate-200 dark:bg-slate-800" />
+            <div className="h-5 w-20 animate-pulse rounded-md bg-slate-200 dark:bg-slate-800" />
+            <div className="h-5 w-24 animate-pulse rounded-md bg-slate-200 dark:bg-slate-800" />
+            <div className="h-5 w-36 animate-pulse rounded-md bg-slate-200 dark:bg-slate-800" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function HealthSkeleton() {
