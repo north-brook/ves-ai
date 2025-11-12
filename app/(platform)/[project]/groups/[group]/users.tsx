@@ -1,6 +1,7 @@
 "use client";
 
 import Markdown from "@/components/markdown";
+import { getScoreColor } from "@/lib/score";
 import { ProjectUser, Session } from "@/types";
 import { formatDistanceToNow } from "date-fns";
 import { Calendar, Hourglass } from "lucide-react";
@@ -41,8 +42,14 @@ function UserCard({ user }: { user: ProjectUser & { sessions: Session[] } }) {
   return (
     <Link
       href={`/${params.project}/users/${user.id}`}
-      className="flex w-full flex-col gap-4 rounded-lg border border-slate-200 bg-slate-50 px-4 pt-3 pb-1 dark:border-slate-800 dark:bg-slate-900"
+      className="relative flex w-full flex-col gap-4 rounded-lg border border-slate-200 bg-slate-50 px-4 pt-3 pb-1 dark:border-slate-800 dark:bg-slate-900"
     >
+      {!!user.score && (
+        <span
+          className="absolute right-3 top-3 h-1.5 w-1.5 shrink-0 rounded-full"
+          style={{ backgroundColor: getScoreColor(user.score) }}
+        />
+      )}
       {/* Top section: User info */}
       <div className="flex flex-col gap-2">
         <h3 className="text-lg font-medium text-slate-800 dark:text-slate-200">

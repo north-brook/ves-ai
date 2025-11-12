@@ -6,6 +6,7 @@ import {
   getIssueIcon,
   getIssuePriorityIcon,
 } from "@/lib/issue";
+import { getIssueScoreColor } from "@/lib/score";
 import { titlefy } from "@/lib/slugify";
 import { Issue } from "@/types";
 import { AlertTriangle } from "lucide-react";
@@ -33,8 +34,12 @@ function IssueItem({ issue }: { issue: Issue }) {
   return (
     <Link
       href={`/${params.project}/issues/${issue.id}`}
-      className="flex w-full flex-col items-stretch justify-start gap-2 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900"
+      className="relative flex w-full flex-col items-stretch justify-start gap-2 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900"
     >
+      <span
+        className="absolute right-3 top-3 h-1.5 w-1.5 shrink-0 rounded-full"
+        style={{ backgroundColor: getIssueScoreColor(issue) }}
+      />
       <h3 className="text-lg font-medium text-slate-800 dark:text-slate-200">
         {issue.name || "Unnamed Issue"}
       </h3>

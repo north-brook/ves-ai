@@ -1,3 +1,4 @@
+import createMDX from "@next/mdx";
 import { withSentryConfig } from "@sentry/nextjs";
 import dotenvExpand from "dotenv-expand";
 import type { NextConfig } from "next";
@@ -6,6 +7,7 @@ import { withWorkflow } from "workflow/next";
 dotenvExpand.expand({ parsed: { ...process.env } as Record<string, string> });
 
 const nextConfig: NextConfig = {
+  pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
   reactStrictMode: false,
   images: {
     remotePatterns: [
@@ -43,7 +45,19 @@ const nextConfig: NextConfig = {
   skipTrailingSlashRedirect: true,
 };
 
-export default withSentryConfig(withWorkflow(nextConfig), {
+const withMDX = createMDX({
+  // Add markdown plugins here, as desired
+  options: {
+    remarkPlugins: [
+      "remark-gfm",
+      "remark-frontmatter",
+      "remark-mdx-frontmatter",
+    ],
+    rehypePlugins: [],
+  },
+});
+
+export default withSentryConfig(withWorkflow(withMDX(nextConfig)), {
   // For all available options, see:
   // https://www.npmjs.com/package/@sentry/webpack-plugin#options
 
