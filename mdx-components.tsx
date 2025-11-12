@@ -7,7 +7,7 @@ import { cn } from "./lib/utils";
 const components = {
   // Headings
   h1: ({ children }) => (
-    <h1 className="font-display mb-8 text-4xl font-bold text-slate-900 dark:text-slate-100">
+    <h1 className="font-display mb-8 text-3xl font-bold text-slate-900 md:text-4xl lg:text-5xl dark:text-slate-100">
       {children}
     </h1>
   ),

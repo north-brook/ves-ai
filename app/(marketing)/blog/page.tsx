@@ -43,7 +43,7 @@ export default async function BlogPage() {
   const posts = await getBlogPosts();
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col items-start px-6 py-16">
+    <div className="mx-auto flex max-w-4xl flex-col items-start px-4 py-16">
       <h1 className="font-display mb-6 text-3xl leading-tight font-bold md:text-4xl lg:text-5xl">
         Blog
       </h1>

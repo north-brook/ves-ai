@@ -12,7 +12,7 @@ export default async function MarketingNav() {
           <Logo />
         </Link>
 
-        <div className="flex items-center gap-8">
+        <div className="flex items-center md:gap-8">
           <Link
             href="/pricing"
             className="hover:text-foreground font-medium text-slate-600 transition-colors dark:text-slate-400"

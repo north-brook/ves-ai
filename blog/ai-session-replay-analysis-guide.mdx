@@ -1,5 +1,5 @@
 ---
-title: "The Complete Guide to Analyzing Session Replays with AI"
+title: "How to Analyze PostHog Session Replays with AI"
 description: "Learn how to automatically analyze thousands of session replays using multi-modal AI to extract insights, detect issues, and understand user behavior at scale."
 publishedAt: "2025-11-12"
 updatedAt: "2025-11-12"
@@ -11,13 +11,15 @@ keywords:
   - automated session replay analysis
   - multi-modal video analysis
   - gemini session analysis
+  - posthog session replay
 tags:
   - ai
   - session-replay
   - gemini
+  - posthog
 ---
 
-# The Complete Guide to Analyzing Session Replays with AI
+# How to Analyze PostHog Session Replays with AI
 
 Every product team struggles with the same problem: thousands of user sessions recorded, but no practical way to watch them all. Manual session replay analysis has become the bottleneck preventing teams from understanding what their users actually experience.
 
@@ -60,6 +62,8 @@ const recordings = data.results.filter((recording) => {
 
 console.log(`Found ${recordings.length} recordings ready for analysis`);
 ```
+
+---
 
 ## Step 2: Video Reconstruction with Playwright
 
@@ -835,6 +839,8 @@ export default async function constructVideo(params: {
 }
 ```
 
+---
+
 ## Step 3: Multi-Modal AI Analysis
 
 With video and events ready, we invoke Gemini 2.5 Pro for analysis. The key is passing both the video file and event context together:
@@ -1094,87 +1100,7 @@ Score Rubric (0-100):
 
 This rubric ensures different sessions are scored comparably, enabling meaningful trend analysis over time.
 
-## Common Challenges and Solutions
-
-Building a production session analysis system revealed several non-obvious challenges:
-
-### Challenge 1: Session Replay Artifacts
-
-**Problem**: Rrweb recordings often have visual artifacts - missing iframes, broken animations, masked inputs.
-
-**Solution**: Train the AI to recognize and ignore artifacts:
-
-```typescript
-const SYSTEM_PROMPT = `
-Technical limitations of session replays:
-- Iframes may not render (e.g., embedded videos)
-- Some animations may be missing or jumpy
-- Password fields and sensitive inputs are masked
-- System dialogs (print, file upload) won't show
-- Window resizing may cause rendering glitches
-
-Focus on user behavior patterns rather than visual perfection.
-`;
-```
-
-### Challenge 2: Video Generation Timeouts
-
-**Problem**: Long sessions (30+ minutes) can timeout during video generation, especially with limited compute resources.
-
-**Solution**: Use autoscaling Cloud Run instances with webhook callbacks for asynchronous processing:
-
-```typescript
-// Main workflow initiates video processing
-async function processReplay(sessionId: string) {
-  // Create webhook to receive completion callback
-  const webhook = await createWebhook();
-
-  // Fire-and-forget request to Cloud Run service
-  await fetch("https://cloud-service.run.app/process", {
-    method: "POST",
-    body: JSON.stringify({
-      session_id: sessionId,
-      callback: webhook.url, // Where to POST results
-    }),
-  });
-
-  // Wait for callback (can take 15+ minutes for long sessions)
-  const result = await webhook.wait({ timeout: 900000 }); // 15 min
-
-  return result;
-}
-
-// Cloud Run service processes synchronously
-app.post("/process", async (req, res) => {
-  const { session_id, callback } = req.body;
-
-  try {
-    // Process recording (long-running, keeps HTTP connection open)
-    const video = await recordReplayVideo(session_id);
-
-    // Send results to callback webhook
-    await fetch(callback, {
-      method: "POST",
-      body: JSON.stringify({
-        success: true,
-        video_uri: video.uri,
-        duration: video.duration,
-      }),
-    });
-
-    res.status(200).json({ success: true });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-```
-
-Key architectural benefits:
-
-- **Request-based autoscaling**: Each session gets its own Cloud Run instance
-- **Long timeout support**: Configure Cloud Run with 15+ minute request timeout
-- **No chunking needed**: Each request processes one complete session
-- **Automatic scaling**: Handles concurrent sessions without manual orchestration
+---
 
 ## Conclusion
 
