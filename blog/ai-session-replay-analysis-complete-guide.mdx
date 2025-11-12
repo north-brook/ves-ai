@@ -23,139 +23,7 @@ Every product team struggles with the same problem: thousands of user sessions r
 
 This guide reveals how to build a production-ready system that automatically analyzes every session replay using AI, combining video understanding with event data to extract actionable insights at scale. You'll learn the exact architecture, implementation details, and lessons learned from processing thousands of sessions with multi-modal AI.
 
-**In this guide, you'll learn:**
-
-- How to overcome the manual review bottleneck plaguing session replay tools
-- The complete architecture for converting recordings to analyzable video
-- Why multi-modal AI (video + events) delivers better accuracy
-- Step-by-step implementation with working TypeScript code
-- How to handle production challenges like timeouts and artifacts
-
-## Table of Contents
-
-- [Why Traditional Session Replay Analysis Doesn't Scale](#why-traditional-session-replay-analysis-doesnt-scale)
-- [The Multi-Modal Approach: Video + Events Together](#the-multi-modal-approach-video--events-together)
-- [Step 1: Recording Ingestion from PostHog](#step-1-recording-ingestion-from-posthog)
-- [Step 2: Video Reconstruction with Playwright](#step-2-video-reconstruction-with-playwright)
-- [Step 3: Multi-Modal AI Analysis](#step-3-multi-modal-ai-analysis)
-- [Structured Output for Production Reliability](#structured-output-for-production-reliability)
-- [Common Challenges and Solutions](#common-challenges-and-solutions)
-- [Conclusion](#conclusion)
-
 ---
-
-## Why Traditional Session Replay Analysis Doesn't Scale
-
-The promise of session replay tools like PostHog, FullStory, and LogRocket was compelling: watch exactly what your users do and fix their problems. The reality? Most teams watch less than 0.1% of their recorded sessions.
-
-### The Manual Review Bottleneck
-
-Consider the math: a typical B2B SaaS product might record 1,000 sessions per day. If each session averages 8 minutes of activity, that's **133 hours of footage daily**. Even sampling 10% would require a full-time person doing nothing but watching replays.
-
-The consequences are predictable:
-
-- **Critical issues go unnoticed** until multiple users complain
-- **Product decisions lack user behavior data** beyond basic analytics
-- **Session replays become a debugging tool** rather than an insight engine
-- **Teams cherry-pick sessions** based on support tickets, missing broader patterns
-
-### Why Human Review Fails at Scale
-
-Human reviewers face three fundamental limitations when analyzing session replays:
-
-1. **Attention fatigue**: After 30 minutes of watching sessions, pattern recognition degrades significantly
-2. **Context switching cost**: Each session requires mental context loading about the user's goals
-3. **Inconsistent categorization**: Different reviewers identify different issues from the same session
-
-Our data shows that when two human reviewers watch the same session independently, they only agree on detected issues **62% of the time**. This inconsistency makes trend analysis nearly impossible.
-
-### The Hidden Cost of Unanalyzed Sessions
-
-Every unanalyzed session represents a missed opportunity. In our analysis of 10,000+ sessions, we found:
-
-- **23% contained critical usability issues** that blocked user workflows
-- **41% showed feature confusion** requiring better onboarding
-- **15% included error loops or broken states** indicating bugs
-
-When you're only reviewing sessions from users who complain, you're seeing the tip of the iceberg. The silent majority who struggle and leave without feedback remain invisible.
-
-## The Multi-Modal Approach: Video + Events Together
-
-The breakthrough in automated session analysis comes from combining visual understanding with structured event data. While video shows **what** happened visually, events explain **how** it happened programmatically.
-
-### Why Video Alone Isn't Enough
-
-Consider a user clicking a button that doesn't respond. The video shows a click animation, but without event data, the AI can't determine:
-
-- Whether the click was registered by the application
-- If an API call was triggered and failed
-- What error messages appeared in the console
-- Whether the user was authenticated properly
-
-### Why Events Alone Miss Critical Context
-
-Conversely, event streams miss visual context that humans naturally understand:
-
-- User confusion shown through mouse movement patterns
-- Visual bugs like overlapping elements or broken layouts
-- Loading states and their impact on user behavior
-- Non-interactive issues like confusing copy or poor contrast
-
-### The Power of Multi-Modal Analysis
-
-By feeding both video and events to the AI simultaneously, we achieve something neither could do alone. Here's how we structure this multi-modal input:
-
-```typescript
-// workflows/analysis/analyze-session/context.ts
-export default async function constructContext({
-  eventUri: string,
-  sessionId: string,
-}): Promise<string> {
-  // Fetch events from cloud storage
-  const response = await fetch(eventUri);
-  const events = await response.json();
-
-  // Group events by type for easier parsing
-  const eventsByType = events.reduce((acc: any, event: any) => {
-    const type = getEventTypeName(event.type);
-    if (!acc[type]) acc[type] = [];
-    acc[type].push(event);
-    return acc;
-  }, {});
-
-  // Build human-readable timeline
-  let context = `# Session Event Context\n\n`;
-  context += `Total Events: ${events.length}\n`;
-  context += `Duration: ${formatDuration(events)}\n\n`;
-
-  // Add critical events with timestamps
-  context += `## User Actions Timeline\n\n`;
-
-  for (const event of events) {
-    if (isUserAction(event)) {
-      const timestamp = formatTimestamp(event.timestamp - events[0].timestamp);
-      const description = describeEvent(event);
-      context += `${timestamp} - ${description}\n`;
-    }
-  }
-
-  return context;
-}
-```
-
-This context transformation converts raw rrweb events into a narrative the AI can correlate with video timestamps. For example:
-
-```
-0:00 - Session started at /dashboard
-0:03 - Clicked "New Project" button
-0:04 - Form appeared with 5 fields
-0:15 - Entered text in "Project Name" field
-0:18 - Clicked "Create" button
-0:19 - Error: "Project name already exists"
-0:22 - Modified "Project Name" field
-0:25 - Clicked "Create" button again
-0:26 - Navigation to /projects/abc-123
-```
 
 ## Step 1: Recording Ingestion from PostHog
 
@@ -193,137 +61,779 @@ const recordings = data.results.filter((recording) => {
 console.log(`Found ${recordings.length} recordings ready for analysis`);
 ```
 
-Key implementation details:
-
-- **Pagination** with offset-based queries (100 recordings per page)
-- **Incremental sync** using `date_from` parameter with last sync timestamp
-- **Filtering** to exclude ongoing, short, or anonymous sessions
-
 ## Step 2: Video Reconstruction with Playwright
 
-The most technically challenging step: converting rrweb events into analyzable video. This requires two parts: building an HTML page with the rrweb player, then recording it with Playwright.
-
-**Part 1: Build the HTML replay page**
+The most technically challenging step: converting rrweb events into analyzable video. We need to build an HTML page with the rrweb player, record the session replay with Playwright, then upload to Google Cloud Storage.
 
 ```typescript
-import rrweb from "rrweb";
+import { join, resolve as pathResolve } from "node:path";
+import { createReadStream, createWriteStream, promises as fs } from "node:fs";
+import { spawn } from "node:child_process";
+import { createRequire } from "node:module";
+import { chromium, LaunchOptions } from "playwright";
+import { pipeline } from "node:stream/promises";
+import { Storage } from "@google-cloud/storage";
+
+// rrweb EventType.Meta = 4
+const RRWEB_EVENT_META = 4;
+
+// --------------------------------------------------------
+// Inline "rrvideo" replacement using Playwright directly
+// --------------------------------------------------------
+
+const requireFromHere = createRequire(__filename);
+async function readRrwebAssets() {
+  // Get rrweb build for the Replayer class - using the all-in-one bundle
+  // The main entry point is at node_modules/rrweb/lib/index.js
+  // We need the dist files at node_modules/rrweb/dist/
+  const rrwebMain = requireFromHere.resolve("rrweb");
+  // Go from lib/index.js to dist/
+  const rrwebDistDir = pathResolve(rrwebMain, "../../dist");
+  const rrwebPath = pathResolve(rrwebDistDir, "rrweb-all.js");
+  const rrwebCssPath = pathResolve(rrwebDistDir, "rrweb-all.css");
+
+  const rrwebScript = await fs.readFile(rrwebPath, "utf-8");
+  const rrwebCss = await fs.readFile(rrwebCssPath, "utf-8");
+
+  return {
+    script: rrwebScript,
+    css: rrwebCss,
+  };
+}
 
 function buildReplayHtml(
-  events: any[],
-  options: {
+  eventsJson: string,
+  assets: { script: string; css: string },
+  opts: {
     width: number;
     height: number;
     speed: number;
+    skipInactive: boolean;
+    inactiveThreshold?: number;
+    mouseTail?: {
+      strokeStyle?: string;
+      lineWidth?: number;
+      duration?: number;
+      lineCap?: string;
+    };
   },
-) {
-  // Safely embed events in HTML (escape closing script tags)
-  const eventsJson = JSON.stringify(events).replace(
-    /<\/script>/g,
-    "<\\/script>",
-  );
+): string {
+  const safeEvents = eventsJson.replace(/<\/script>/g, "<\\/script>");
 
   return `
 <!doctype html>
 <html>
   <head>
+    <meta charset="utf-8" />
+    <style>${assets.css}</style>
     <style>
-      body {
-        margin: 0;
+      html, body { 
+        margin: 0; 
+        padding: 0; 
         background: #000;
-        width: ${options.width}px;
-        height: ${options.height}px;
+        width: ${opts.width}px;
+        height: ${opts.height}px;
+        overflow: hidden;
+      }
+      .replayer-wrapper {
+        position: relative;
+        width: ${opts.width}px;
+        height: ${opts.height}px;
+      }
+      .replayer-wrapper iframe {
+        background: #000 !important;
+      }
+      /* Hide any mouse tail or controller UI */
+      .replayer-mouse-tail {
+        display: ${opts.mouseTail ? "block" : "none"};
+      }
+      /* Skipping overlay */
+      #skip-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        pointer-events: none;
+      }
+      #skip-overlay.active {
+        display: flex;
+      }
+      #skip-overlay-text {
+        color: white;
+        font-size: 48px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-weight: 600;
+        text-align: center;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
       }
     </style>
-    <link rel="stylesheet" href="rrweb/dist/rrweb.min.css">
   </head>
   <body>
-    <div id="replayer"></div>
-    <script src="rrweb/dist/rrweb-all.js"></script>
+    <div id="replayer" class="replayer-wrapper">
+      <div id="skip-overlay">
+        <div>
+          <div id="skip-overlay-text">Skipping inactivity...</div>
+        </div>
+      </div>
+    </div>
     <script>
-      const events = ${eventsJson};
+      ${assets.script}
+      
+      // Setup rrweb Replayer directly
+      (async function() {
+        const __events = ${safeEvents};
+        
+        // Extract segments from custom event
+        let segments = [];
+        let segmentEventIndex = -1;
+        for (let i = 0; i < __events.length; i++) {
+          const evt = __events[i];
+          if (evt.type === 5 && evt.data && evt.data.tag === 'replay-segments') {
+            segments = evt.data.payload.segments || [];
+            segmentEventIndex = i;
+            console.log('Found', segments.length, 'segments in recording');
+            break;
+          }
+        }
+        
+        // Remove segment event so it doesn't interfere with replay
+        if (segmentEventIndex >= 0) {
+          __events.splice(segmentEventIndex, 1);
+        }
+        
+        console.log('Initializing Replayer with dynamic speed control');
+        console.log('Starting replay with', __events.length, 'events');
+        
+        // Debug segments
+        if (segments.length > 0) {
+          let totalActive = 0;
+          let totalInactive = 0;
+          segments.forEach(seg => {
+            if (seg.isActive) totalActive += seg.duration;
+            else totalInactive += seg.duration;
+          });
+          console.log('Active time:', (totalActive/1000).toFixed(1) + 's');
+          console.log('Inactive time:', (totalInactive/1000).toFixed(1) + 's');
+          console.log('Skip savings:', ((totalInactive * 0.98) / 1000).toFixed(1) + 's');
+        }
+        
+        // Track timing
+        window.__startTime = Date.now();
+        window.__lastProgressTime = Date.now();
+        let currentTime = 0;
+        let totalTime = 0;
+        let isFinished = false;
+        let animationFrameId = null;
 
-      // Create rrweb Replayer instance
-      const replayer = new rrweb.Replayer(events, {
-        root: document.getElementById('replayer'),
-        speed: ${options.speed},
-        skipInactive: true,
-        mouseTail: { strokeStyle: 'red', lineWidth: 2 }
-      });
+        // Get base timestamp for segment analytics logging
+        const baseTimestamp = __events[0]?.timestamp || 0;
 
-      // Start playback
-      replayer.play();
+        // Debug: Log all segments
+        console.log('=== SEGMENTS DEBUG ===');
+        console.log('Base timestamp:', baseTimestamp);
+        segments.forEach((seg, i) => {
+          const relativeStart = seg.startTime - baseTimestamp;
+          const relativeEnd = seg.endTime - baseTimestamp;
+          console.log('Segment', i, ':', {
+            isActive: seg.isActive,
+            absoluteTime: seg.startTime + '-' + seg.endTime,
+            relativeTime: (relativeStart/1000).toFixed(1) + 's-' + (relativeEnd/1000).toFixed(1) + 's',
+            duration: ((seg.endTime - seg.startTime) / 1000).toFixed(1) + 's'
+          });
+        });
+        
+        try {
+          // Create Replayer instance using rrweb directly
+          // We manually control speed based on segments (PostHog approach)
+          const replayer = new rrweb.Replayer(__events, {
+            root: document.getElementById('replayer'),
+            skipInactive: false,  // Manually control speed via segments
+            speed: ${opts.speed},
+            maxSpeed: 360,
+            mouseTail: ${opts.mouseTail ? JSON.stringify(opts.mouseTail) : "false"},
+            triggerFocus: true,
+            pauseAnimation: true,
+            UNSAFE_replayCanvas: false,
+            showWarning: true,
+            showDebug: true,
+            blockClass: 'rr-block',
+            useVirtualDom: true,
+            liveMode: false,
+            insertStyleRules: []
+          });
+          
+          window.replayer = replayer;
+          
+          // Get metadata
+          const meta = replayer.getMetaData();
+          totalTime = meta.totalTime || 0;
+          
+          console.log('Replay metadata:', {
+            startTime: meta.startTime,
+            endTime: meta.endTime,
+            totalTime: totalTime
+          });
+          
+          // Debug: Check if getCurrentTime works
+          console.log('Initial getCurrentTime:', replayer.getCurrentTime());
+          console.log('First event timestamp:', __events[0]?.timestamp);
+          console.log('Last event timestamp:', __events[__events.length - 1]?.timestamp);
 
-      // Signal when replay finishes
-      replayer.on('finish', () => {
-        window.replayFinished = true;
+          // Segment tracking state (PostHog approach)
+          let currentSegmentIndex = -1;
+          let lastSegmentIndex = -1;
+          let isSkippingInactivity = false;
+          const baseSpeed = ${opts.speed};
+          const skipOverlay = document.getElementById('skip-overlay');
+
+          // Helper: Find segment for given timestamp
+          function getCurrentSegment(timestamp) {
+            if (!segments || segments.length === 0) return null;
+
+            for (let i = 0; i < segments.length; i++) {
+              const seg = segments[i];
+              if (timestamp >= seg.startTime && timestamp <= seg.endTime) {
+                return { segment: seg, index: i };
+              }
+            }
+            return null;
+          }
+
+          // Helper: Calculate playback speed (PostHog approach)
+          function calculatePlaybackSpeed(segment, currentTime, isSkipping) {
+            if (!isSkipping || !segment) {
+              return baseSpeed;
+            }
+
+            // Dynamic speed based on remaining time in inactive segment
+            const remainingSeconds = (segment.endTime - currentTime) / 1000;
+            return Math.max(50, remainingSeconds);
+          }
+
+          console.log('🎮 [SKIP CONTROL] Manual speed control initialized with', segments.length, 'segments');
+
+          // Set up event listeners
+          replayer.on('finish', () => {
+            isFinished = true;
+            if (animationFrameId) {
+              cancelAnimationFrame(animationFrameId);
+            }
+
+            const elapsed = (Date.now() - window.__startTime) / 1000;
+            console.log('Replay finished after', elapsed.toFixed(1) + 's');
+            try {
+              window.onReplayFinish && window.onReplayFinish();
+            } catch(e) {
+              console.error('Error in onReplayFinish:', e);
+            }
+          });
+
+          replayer.on('fullsnapshot-rebuilded', () => {
+            const doc = replayer.iframe.contentDocument;
+            if (!doc) return;
+
+            // Use the recorded page URL as the base
+            const baseHref = (__events.find(e => e.type === 4 /* Meta */)?.data?.href) || '';
+            if (baseHref && !doc.querySelector('base')) {
+              const base = doc.createElement('base');
+              base.href = baseHref;
+              doc.head.prepend(base);
+            }
+
+            // Rewrite root-relative <link href="/..."> to absolute
+            const origin = baseHref ? new URL(baseHref).origin : '';
+            doc.querySelectorAll('link[rel="stylesheet"]').forEach(link => {
+              const href = link.getAttribute('href');
+              if (href && href.startsWith('/') && origin) {
+                link.href = origin + href;
+              }
+            });
+          });
+
+          // Track progress with segment-based speed control
+          function updateProgress() {
+            if (!isFinished && replayer) {
+              try {
+                currentTime = replayer.getCurrentTime();
+                const progress = totalTime > 0 ? currentTime / totalTime : 0;
+                const percent = Math.round(progress * 100);
+                const elapsed = (Date.now() - window.__startTime) / 1000;
+                const timeSinceLastProgress = Date.now() - window.__lastProgressTime;
+
+                // Segment-based speed control (PostHog approach)
+                const segmentResult = getCurrentSegment(currentTime);
+                if (segmentResult) {
+                  currentSegmentIndex = segmentResult.index;
+                  const segment = segmentResult.segment;
+
+                  // Detect segment change
+                  if (currentSegmentIndex !== lastSegmentIndex) {
+                    lastSegmentIndex = currentSegmentIndex;
+
+                    // Update skipping state based on segment activity
+                    const wasSkipping = isSkippingInactivity;
+                    isSkippingInactivity = !segment.isActive;
+
+                    // Calculate and set new speed
+                    const newSpeed = calculatePlaybackSpeed(segment, currentTime, isSkippingInactivity);
+                    replayer.setConfig({ speed: newSpeed });
+
+                    // Update overlay visibility
+                    if (skipOverlay) {
+                      if (isSkippingInactivity) {
+                        skipOverlay.classList.add('active');
+                      } else {
+                        skipOverlay.classList.remove('active');
+                      }
+                    }
+
+                    // Log segment transition
+                    const action = isSkippingInactivity ? 'SKIPPING' : 'PLAYING';
+                    console.log('🎮 [SEGMENT CHANGE]', action, 'segment', currentSegmentIndex, 'at speed', newSpeed.toFixed(1) + 'x');
+                  } else if (isSkippingInactivity) {
+                    // Recalculate speed within inactive segment for dynamic adjustment
+                    const newSpeed = calculatePlaybackSpeed(segment, currentTime, isSkippingInactivity);
+                    replayer.setConfig({ speed: newSpeed });
+                  }
+                }
+
+                // Log at intervals
+                if (timeSinceLastProgress > 2000 || percent === 100) {
+                  console.log('Progress:', percent + '%', 'at', elapsed.toFixed(1) + 's');
+                  window.__lastProgressTime = Date.now();
+
+                  // Notify host
+                  try {
+                    window.onReplayProgressUpdate && window.onReplayProgressUpdate({ payload: progress });
+                  } catch(e) {}
+                }
+
+                // Continue tracking
+                if (!isFinished) {
+                  animationFrameId = requestAnimationFrame(updateProgress);
+                }
+              } catch(e) {
+                console.error('Error updating progress:', e);
+              }
+            }
+          }
+          
+          // Start playback
+          console.log('Starting playback...');
+          replayer.play(0);
+          
+          // Start progress tracking
+          updateProgress();
+          
+        } catch(e) {
+          console.error('Failed to initialize Replayer:', e);
+          if (e.stack) {
+            console.error('Stack trace:', e.stack);
+          }
+          // Signal finish on error to prevent hanging
+          try { 
+            window.onReplayFinish && window.onReplayFinish(); 
+          } catch(e2) {}
+        }
+      })();
+      
+      // Error handling
+      window.addEventListener('error', (e) => {
+        console.error('[ERROR]', e.message, 'at', e.filename, ':', e.lineno, ':', e.colno);
+        if (e.error && e.error.stack) {
+          console.error('[STACK]', e.error.stack);
+        }
       });
     </script>
   </body>
 </html>`;
 }
-```
 
-**Part 2: Record the replay with Playwright**
+async function moveFile(src: string, dest: string) {
+  try {
+    await fs.rename(src, dest);
+  } catch {
+    // cross-device fallback
+    const rs = createWriteStream(dest);
+    await fs.copyFile(src, dest);
+    rs.close();
+    await fs.unlink(src);
+  }
+}
 
-```typescript
-import { chromium } from "playwright";
-import fs from "fs/promises";
+// --------------------------------------------------------
+// Main entry: REPLAY events via Playwright -> return WEBM
+// --------------------------------------------------------
 
-async function recordReplayVideo(
-  events: any[],
-  outputPath: string,
-): Promise<{ videoPath: string; duration: number }> {
-  // Extract viewport size from events
-  const metaEvent = events.find((e) => e.type === 4); // Meta event
-  const width = metaEvent?.data.width || 1280;
-  const height = metaEvent?.data.height || 720;
+export default async function constructVideo(params: {
+  projectId: string;
+  sessionId: string;
+  eventsPath: string;
+  config?: {
+    width?: number;
+    height?: number;
+    speed?: number;
+    skipInactive?: boolean;
+    mouseTail?: {
+      strokeStyle?: string;
+      lineWidth?: number;
+      duration?: number;
+      lineCap?: string;
+    };
+  };
+}): Promise<{
+  videoPath: string;
+  videoDuration: number;
+  videoUri: string;
+}> {
+  const { eventsPath, config = {} } = params;
 
-  // Build HTML replay page
-  const html = buildReplayHtml(events, { width, height, speed: 1 });
-  const htmlPath = "/tmp/replay.html";
-  await fs.writeFile(htmlPath, html);
+  // Read events from file and parse metadata
+  const eventsJson = await fs.readFile(eventsPath, "utf-8");
+  const allEvents = JSON.parse(eventsJson);
 
-  // Launch browser with video recording
-  const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({
-    viewport: { width, height },
-    recordVideo: {
-      dir: "/tmp/videos",
-      size: { width, height },
-    },
-  });
+  // Get max viewport dimensions from Meta events
+  let maxViewportWidth = 0;
+  let maxViewportHeight = 0;
 
-  const page = await context.newPage();
+  for (const event of allEvents) {
+    if (event.type === RRWEB_EVENT_META && event.data) {
+      const w = Number(event.data.width);
+      const h = Number(event.data.height);
+      if (Number.isFinite(w) && w > maxViewportWidth) maxViewportWidth = w;
+      if (Number.isFinite(h) && h > maxViewportHeight) maxViewportHeight = h;
+    }
+  }
 
-  // Load replay HTML
-  await page.goto(`file://${htmlPath}`);
+  // Calculate duration
+  const firstTimestamp = allEvents[0]?.timestamp || 0;
+  const lastTimestamp = allEvents[allEvents.length - 1]?.timestamp || 0;
+  const duration = (lastTimestamp - firstTimestamp) / 1000;
 
-  // Wait for replay to finish (check every second)
-  await page.waitForFunction(
-    () => window.replayFinished === true,
-    { timeout: 600000 }, // 10 minute max
+  console.log(`🎬 [REPLAY] Replaying with vanilla rrweb-player...`);
+  console.log(`📊 [REPLAY] Duration: ${duration.toFixed(1)}s`);
+  console.log(
+    `📊 [REPLAY] Max viewport: ${maxViewportWidth}x${maxViewportHeight}`,
   );
 
-  // Close to finalize video
-  await page.close();
-  const videoPath = await context.video().path();
-  await context.close();
-  await browser.close();
+  // Get output path from eventsPath
+  const workDir = eventsPath.substring(0, eventsPath.lastIndexOf("/"));
+  const externalId =
+    eventsPath.match(/recording-([^.]+)\.json$/)?.[1] || "unknown";
+  const outPath = join(workDir, `recording-${externalId}.webm`);
 
-  // Get video duration
-  const stats = await fs.stat(videoPath);
-  const duration = stats.size / (1024 * 1024); // Rough estimate
+  // Debug: Save events with delay to verify
+  const debugPath = join(workDir, `debug-${externalId}.json`);
+  await fs.writeFile(debugPath, JSON.stringify(allEvents), "utf-8");
+  console.log(`📝 [REPLAY] Debug events saved to: ${debugPath}`);
 
-  return { videoPath, duration };
+  // Also save to dist for inspection
+  try {
+    const distDebugPath = join(__dirname, `debug-${externalId}.json`);
+    const distSamplePath = join(__dirname, `debug-sample-${externalId}.json`);
+    await fs.writeFile(distDebugPath, JSON.stringify(allEvents), "utf-8");
+    // Save sample (first 100 events) for easier inspection
+    await fs.writeFile(
+      distSamplePath,
+      JSON.stringify(allEvents.slice(0, 100), null, 2),
+      "utf-8",
+    );
+    console.log(`📝 [REPLAY] Debug files also saved to dist/`);
+  } catch (e) {
+    console.log(`⚠️ [REPLAY] Could not save debug files to dist:`, e);
+  }
+
+  // Defaults
+  const width = config.width || Math.max(1, maxViewportWidth || 1400);
+  const height = config.height || Math.max(1, maxViewportHeight || 900);
+  const speed = config.speed ?? 1;
+  const skipInactive = config.skipInactive ?? true; // Always skip inactive periods
+  const inactiveThreshold = 5000; // 5 seconds of inactivity triggers skip (matching PostHog)
+  const mouseTail = config.mouseTail;
+
+  // Read rrweb assets
+  const assets = await readRrwebAssets();
+
+  // Build the replay HTML
+  const html = buildReplayHtml(eventsJson, assets, {
+    width,
+    height,
+    speed,
+    skipInactive,
+    inactiveThreshold,
+    mouseTail,
+  });
+
+  // Write HTML to file
+  const htmlPath = join(workDir, `recording-${externalId}.html`);
+  await fs.writeFile(htmlPath, html, "utf-8");
+  console.log(`📝 [REPLAY] HTML written to: ${htmlPath}`);
+
+  // Calculate expected duration for timeout
+  const expectedDuration = Math.max((duration / speed) * 1000, 30000); // At least 30s
+  const timeout = expectedDuration * 2 + 120000; // 2x expected + 2 minutes buffer
+
+  // Launch browser with optimized settings
+  const launchOptions: LaunchOptions = {
+    headless: true,
+    args: [
+      "--disable-gpu",
+      "--disable-dev-shm-usage",
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-web-security",
+      "--disable-features=IsolateOrigins,site-per-process",
+      "--disable-blink-features=AutomationControlled",
+      "--window-size=1920,1080",
+      "--force-device-scale-factor=1",
+    ],
+  };
+
+  // Try Chromium first
+  const browser = await chromium.launch(launchOptions);
+
+  console.log(`🌐 [REPLAY] Browser launched: ${browser.version()}`);
+
+  try {
+    const context = await browser.newContext({
+      viewport: { width, height },
+      deviceScaleFactor: 1,
+      recordVideo: {
+        dir: workDir,
+        size: { width, height },
+      },
+      ignoreHTTPSErrors: true,
+      reducedMotion: "no-preference",
+    });
+
+    const page = await context.newPage();
+
+    // Track progress and finish
+    let isFinished = false;
+    let lastLoggedProgress = -1;
+    let lastProgressLogTime = Date.now();
+
+    // Capture console messages from the browser with better deduplication
+    page.on("console", (msg: any) => {
+      const type = msg.type();
+      const text = msg.text();
+
+      // For errors, always log with full details
+      if (type === "error") {
+        console.error(`🌐 [BROWSER ERROR] ${text}`);
+        // Try to get more info from the error
+        msg.args().forEach(async (arg: any) => {
+          try {
+            const value = await arg.jsonValue();
+            if (value && typeof value === "object" && value.stack) {
+              console.error(`  Stack trace:`, value.stack);
+            }
+          } catch (e) {
+            // Ignore errors getting arg values
+          }
+        });
+        return;
+      }
+
+      // For other messages, only log if important
+      if (
+        text.includes("finished") ||
+        text.includes("started") ||
+        text.includes("Starting replay") ||
+        text.includes("Found") ||
+        text.includes("First") ||
+        text.includes("skipInactive")
+      ) {
+        console.log(`🌐 [BROWSER] ${text}`);
+      }
+    });
+
+    page.on("pageerror", (error: any) => {
+      console.error(`💥 [PAGE ERROR]`, error.message);
+    });
+
+    await page.exposeFunction("onReplayProgressUpdate", (p: any) => {
+      if (p?.payload) {
+        const percent = Math.round(p.payload * 100);
+        const now = Date.now();
+
+        // Only log progress at 10% intervals or if 5+ seconds have passed
+        const shouldLog =
+          percent !== lastLoggedProgress &&
+          (percent % 10 === 0 ||
+            percent === 100 ||
+            now - lastProgressLogTime > 5000);
+
+        if (shouldLog) {
+          console.log(`📊 [REPLAY] Progress: ${percent}%`);
+          lastLoggedProgress = percent;
+          lastProgressLogTime = now;
+        }
+      }
+    });
+
+    await page.exposeFunction("onReplayFinish", () => {
+      isFinished = true;
+      console.log(`✅ [REPLAY] Replay finished signal received`);
+    });
+
+    // Navigate and start
+    console.log(`🎬 [REPLAY] Loading replay HTML...`);
+    await page.goto(`file://${htmlPath}`, { waitUntil: "domcontentloaded" });
+
+    // Wait for either finish or timeout
+    const startTime = Date.now();
+    const pollInterval = 1000;
+    let warningShown = false;
+
+    while (!isFinished) {
+      await new Promise((r) => setTimeout(r, pollInterval));
+      const elapsed = Date.now() - startTime;
+
+      if (elapsed > timeout) {
+        console.warn(
+          `⏱️ [REPLAY] Timeout after ${(elapsed / 1000).toFixed(1)}s`,
+        );
+        break;
+      }
+
+      if (!warningShown && elapsed > expectedDuration * 1.5) {
+        console.warn(
+          `⚠️ [REPLAY] Taking longer than expected (${(elapsed / 1000).toFixed(1)}s elapsed)`,
+        );
+        warningShown = true;
+      }
+    }
+
+    const replayDuration = (Date.now() - startTime) / 1000;
+    console.log(
+      `⏱️ [REPLAY] Replay completed in ${replayDuration.toFixed(1)}s`,
+    );
+
+    // Close to save video
+    await page.close();
+    await context.close();
+
+    // Find the video file
+    const files = await fs.readdir(workDir);
+    const videoFile = files.find(
+      (f) => f.endsWith(".webm") && f !== `recording-${externalId}.webm`,
+    );
+
+    if (!videoFile) {
+      throw new Error(`No video file generated in ${workDir}`);
+    }
+
+    const tmpVideoPath = join(workDir, videoFile);
+    await moveFile(tmpVideoPath, outPath);
+
+    console.log(`✅ [REPLAY] Video saved to: ${outPath}`);
+
+    // Get actual video file size and duration
+    const stats = await fs.stat(outPath);
+    console.log(
+      `📊 [REPLAY] Video size: ${(stats.size / 1024 / 1024).toFixed(2)} MB`,
+    );
+
+    // Use ffprobe to get actual video duration if available
+    let actualDuration = duration;
+    try {
+      const ffprobeResult = await new Promise<string>((resolve, reject) => {
+        const proc = spawn("ffprobe", [
+          "-v",
+          "error",
+          "-show_entries",
+          "format=duration",
+          "-of",
+          "default=noprint_wrappers=1:nokey=1",
+          outPath,
+        ]);
+        let output = "";
+        proc.stdout.on("data", (data) => (output += data));
+        proc.on("close", (code) => {
+          if (code === 0) resolve(output.trim());
+          else reject(new Error(`ffprobe exited with code ${code}`));
+        });
+        proc.on("error", reject);
+      });
+      actualDuration = parseFloat(ffprobeResult);
+      console.log(
+        `📊 [REPLAY] Actual video duration: ${actualDuration.toFixed(1)}s`,
+      );
+    } catch (err) {
+      console.warn(`⚠️ [REPLAY] Could not get actual video duration:`, err);
+    }
+
+    const fileName = `${params.sessionId}.webm`;
+    const bucketName = "ves.ai";
+    const filePath = `${params.projectId}/${fileName}`;
+
+    console.log(`  🗂️ Bucket: ${bucketName}`);
+    console.log(`  📁 File path: ${filePath}`);
+    console.log(`  📊 File size: ${(stats.size / 1024 / 1024).toFixed(2)} MB`);
+
+    // Initialize GCS client
+    const storage = new Storage();
+    const bucket = storage.bucket(bucketName);
+    const file = bucket.file(filePath);
+
+    // Create read stream from the local file
+    const readStream = createReadStream(outPath);
+
+    // Track upload progress
+    let uploadedBytes = 0;
+    let lastProgress = 0;
+
+    readStream.on("data", (chunk) => {
+      uploadedBytes += chunk.length;
+      const progress = Math.round((uploadedBytes / stats.size) * 100);
+
+      // Log progress every 10%
+      if (progress >= lastProgress + 10) {
+        console.log(
+          `  📊 Upload progress: ${progress}% (${(uploadedBytes / 1024 / 1024).toFixed(1)} MB / ${(stats.size / 1024 / 1024).toFixed(1)} MB)`,
+        );
+        lastProgress = progress;
+      }
+    });
+
+    // Create write stream to GCS
+    const writeStream = file.createWriteStream({
+      metadata: {
+        contentType: "video/webm",
+        cacheControl: "public, max-age=3600",
+      },
+      resumable: false, // Disable resumable uploads for Cloud Run (stateless)
+      validation: false, // Disable validation for better performance
+      gzip: false, // Don't gzip video files
+    });
+
+    // Stream the video to GCS
+    try {
+      await pipeline(readStream, writeStream);
+      console.log(`  ✅ Upload completed successfully`);
+      const videoUri = `gs://${bucketName}/${filePath}`;
+
+      return {
+        videoPath: outPath,
+        videoDuration: actualDuration,
+        videoUri,
+      };
+    } catch (error) {
+      console.error(`  ❌ [UPLOAD ERROR] Failed to upload video:`, error);
+      throw error;
+    }
+  } finally {
+    await browser.close();
+  }
 }
 ```
-
-Critical implementation details:
-
-- **Dynamic viewport sizing** based on rrweb meta events
-- **Inactivity skipping** built into rrweb's `skipInactive` option
-- **WebM format** automatically generated by Playwright for efficient storage
-- **Completion detection** using page function to know when replay finishes
 
 ## Step 3: Multi-Modal AI Analysis
 
@@ -573,7 +1083,7 @@ try {
 
 We enforce consistent scoring through explicit rubrics:
 
-```
+```txt
 Score Rubric (0-100):
 - 90-100: Flawless - user achieved all goals effortlessly
 - 70-89: Successful - main goals achieved with minor friction
@@ -666,30 +1176,6 @@ Key architectural benefits:
 - **No chunking needed**: Each request processes one complete session
 - **Automatic scaling**: Handles concurrent sessions without manual orchestration
 
-### Challenge 3: Inconsistent Issue Categorization
-
-**Problem**: The same issue might be classified differently across sessions.
-
-**Solution**: Implement vector similarity matching with human review:
-
-```typescript
-// Find similar previously-categorized issues
-const similarIssues = await findSimilarIssues(issue.embedding);
-
-if (similarIssues.length > 0) {
-  // Use consensus category from similar issues
-  const categories = similarIssues.map((i) => i.category);
-  const consensus = mostFrequent(categories);
-
-  if (getConfidence(categories) > 0.8) {
-    issue.category = consensus;
-  } else {
-    // Flag for human review
-    issue.needs_review = true;
-  }
-}
-```
-
 ## Conclusion
 
 Automated AI session replay analysis transforms an overwhelming data problem into a strategic advantage. By combining video understanding with event analysis, we've built a system that analyzes every single user session, surfacing insights that would otherwise remain hidden.
@@ -705,9 +1191,3 @@ The key architectural decisions that made this possible:
 The impact extends beyond issue detection. Teams now understand user behavior patterns, identify feature adoption barriers, and catch critical bugs before users report them. Most importantly, the system scales linearly - whether you have 100 or 100,000 sessions, every single one gets analyzed.
 
 The future of session replay isn't watching videos - it's having AI watch them all and tell you what matters.
-
-**Related articles:**
-
-- [How to Use Google Gemini 2.5 Pro for Session Replay Analysis](/blog/gemini-session-replay-analysis)
-- [Prompt Engineering for Session Replay Analysis](/blog/prompt-engineering-session-replay)
-- [Converting PostHog Recordings to Analyzable Video](/blog/posthog-to-video-pipeline)

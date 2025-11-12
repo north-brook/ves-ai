@@ -1,6 +1,8 @@
+import "highlight.js/styles/atom-one-dark.css";
 import type { MDXComponents } from "mdx/types";
 import Image, { ImageProps } from "next/image";
 import Link from "next/link";
+import { cn } from "./lib/utils";
 
 const components = {
   // Headings
@@ -75,9 +77,9 @@ const components = {
     if (isInline) {
       return <code>{children}</code>;
     }
-    return <code className={className}>{children}</code>;
+    return <code className={cn(className, "rounded-lg")}>{children}</code>;
   },
-  pre: ({ children }) => <pre>{children}</pre>,
+  pre: ({ children }) => <pre className="mb-4 rounded-lg">{children}</pre>,
 
   // Blockquote
   blockquote: ({ children }) => (

@@ -1,6 +1,6 @@
 import { readdir } from "fs/promises";
-import { join } from "path";
 import Link from "next/link";
+import { join } from "path";
 
 interface BlogPost {
   slug: string;
@@ -43,15 +43,17 @@ export default async function BlogPage() {
   const posts = await getBlogPosts();
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-16">
-      <h1 className="font-display mb-12 text-4xl font-bold">Blog</h1>
+    <div className="mx-auto flex max-w-4xl flex-col items-start px-6 py-16">
+      <h1 className="font-display mb-6 text-3xl leading-tight font-bold md:text-4xl lg:text-5xl">
+        Blog
+      </h1>
 
       <div className="space-y-8">
         {posts.map((post) => (
           <Link
             key={post.slug}
             href={`/blog/${post.slug}`}
-            className="block border-b border-slate-200 pb-8 transition-colors hover:border-slate-300 dark:border-slate-800 dark:hover:border-slate-700"
+            className="block rounded-lg border border-slate-200 p-4 transition-colors hover:bg-slate-100 dark:border-slate-800 dark:hover:bg-slate-900"
           >
             <h2 className="font-display mb-2 text-2xl font-bold text-slate-800 dark:text-slate-200">
               {post.title}
