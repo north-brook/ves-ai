@@ -1,5 +1,5 @@
-import type { Metadata, Viewport } from "next";
 import { inter, spaceGrotesk } from "@/lib/fonts";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Providers from "./providers";
 

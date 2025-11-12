@@ -1,3 +1,5 @@
+import "@/app/code.css";
+
 export default function BlogLayout({
   children,
 }: {

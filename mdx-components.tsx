@@ -37,7 +37,7 @@ const components = {
 
   // Text elements
   p: ({ children }) => (
-    <p className="text-slate-600 dark:text-slate-400 mb-4">{children}</p>
+    <p className="mb-4 text-slate-600 dark:text-slate-400">{children}</p>
   ),
   strong: ({ children }) => (
     <strong className="font-semibold text-slate-900 dark:text-slate-100">
@@ -48,12 +48,12 @@ const components = {
 
   // Lists
   ul: ({ children }) => (
-    <ul className="text-slate-600 dark:text-slate-400 ml-4 list-inside list-disc space-y-2 mb-4">
+    <ul className="mb-4 ml-4 list-inside list-disc space-y-2 text-slate-600 dark:text-slate-400">
       {children}
     </ul>
   ),
   ol: ({ children }) => (
-    <ol className="text-slate-600 dark:text-slate-400 ml-4 list-inside list-decimal space-y-2 mb-4">
+    <ol className="mb-4 ml-4 list-inside list-decimal space-y-2 text-slate-600 dark:text-slate-400">
       {children}
     </ol>
   ),
@@ -63,7 +63,7 @@ const components = {
   a: ({ href, children }) => (
     <Link
       href={href || "#"}
-      className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline underline-offset-2 transition-colors"
+      className="text-blue-600 underline underline-offset-2 transition-colors hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
     >
       {children}
     </Link>
@@ -73,29 +73,15 @@ const components = {
   code: ({ children, className }) => {
     const isInline = !className;
     if (isInline) {
-      return (
-        <code className="bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-1.5 py-0.5 rounded text-sm font-mono">
-          {children}
-        </code>
-      );
+      return <code>{children}</code>;
     }
-    return (
-      <code
-        className={`${className} block bg-slate-900 dark:bg-slate-950 text-slate-100 p-4 rounded-lg overflow-x-auto mb-4 text-sm font-mono leading-relaxed`}
-      >
-        {children}
-      </code>
-    );
+    return <code className={className}>{children}</code>;
   },
-  pre: ({ children }) => (
-    <pre className="bg-slate-900 dark:bg-slate-950 text-slate-100 p-4 rounded-lg overflow-x-auto mb-4">
-      {children}
-    </pre>
-  ),
+  pre: ({ children }) => <pre>{children}</pre>,
 
   // Blockquote
   blockquote: ({ children }) => (
-    <blockquote className="border-l-4 border-slate-300 dark:border-slate-700 pl-4 my-6 italic text-slate-700 dark:text-slate-300">
+    <blockquote className="my-6 border-l-4 border-slate-300 pl-4 text-slate-700 italic dark:border-slate-700 dark:text-slate-300">
       {children}
     </blockquote>
   ),
@@ -105,7 +91,7 @@ const components = {
 
   // Table
   table: ({ children }) => (
-    <div className="overflow-x-auto my-6">
+    <div className="my-6 overflow-x-auto">
       <table className="min-w-full border-collapse border border-slate-200 dark:border-slate-800">
         {children}
       </table>
@@ -121,12 +107,12 @@ const components = {
     </tr>
   ),
   th: ({ children }) => (
-    <th className="text-left px-4 py-3 font-semibold text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800">
+    <th className="border border-slate-200 px-4 py-3 text-left font-semibold text-slate-900 dark:border-slate-800 dark:text-slate-100">
       {children}
     </th>
   ),
   td: ({ children }) => (
-    <td className="px-4 py-3 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800">
+    <td className="border border-slate-200 px-4 py-3 text-slate-600 dark:border-slate-800 dark:text-slate-400">
       {children}
     </td>
   ),
@@ -136,7 +122,7 @@ const components = {
     <Image
       sizes="100vw"
       style={{ width: "100%", height: "auto" }}
-      className="rounded-lg my-6"
+      className="my-6 rounded-lg"
       {...(props as ImageProps)}
     />
   ),

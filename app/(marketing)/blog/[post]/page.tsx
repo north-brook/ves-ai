@@ -1,3 +1,4 @@
+import "@/app/code.css";
 import { readdir } from "fs/promises";
 import type { Metadata } from "next";
 import { join } from "path";
@@ -14,10 +15,7 @@ export default async function BlogPostPage({
 }
 
 export async function generateStaticParams() {
-  const blogDir = join(process.cwd(), "blog");
-  const files = await readdir(blogDir);
-
-  return files
+  return (await readdir(join(process.cwd(), "blog")))
     .filter((file) => file.endsWith(".mdx"))
     .map((file) => ({
       post: file.replace(".mdx", ""),

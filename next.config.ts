@@ -53,7 +53,7 @@ const withMDX = createMDX({
       "remark-frontmatter",
       "remark-mdx-frontmatter",
     ],
-    rehypePlugins: [],
+    rehypePlugins: ["rehype-highlight"],
   },
 });
 
