@@ -66,7 +66,7 @@ export default function SectionNav({
         )}
       </div> */}
 
-      <div className="flex w-full flex-1 flex-col gap-0.5 overflow-y-auto px-1.5 pt-2.5 pb-5">
+      <div className="flex w-full flex-1 flex-col gap-0.5 overflow-y-auto px-1.5 py-2.5">
         {items?.map((item) => (
           <SectionNavItem
             key={item.link}
@@ -77,42 +77,44 @@ export default function SectionNav({
           />
         ))}
       </div>
-      <div className="flex w-full flex-col gap-0.5 border-t border-slate-200 bg-slate-50 px-2.5 py-2.5 dark:border-slate-800 dark:bg-slate-950">
-        {!!loading && (
-          <div
-            className={cn(
-              "flex items-center gap-1 rounded-md text-sm text-slate-400 duration-300 dark:text-slate-600",
-            )}
-          >
-            <LoaderCircle className="h-4 w-4 animate-spin" />
-
-            <span
+      {(!!loading || !!awaiting) && (
+        <div className="flex w-full flex-col gap-0.5 border-t border-slate-200 bg-slate-50 px-2.5 py-2.5 dark:border-slate-800 dark:bg-slate-950">
+          {!!loading && (
+            <div
               className={cn(
-                "overflow-hidden text-sm text-ellipsis whitespace-nowrap italic",
+                "flex items-center gap-1 rounded-md text-sm text-slate-400 duration-300 dark:text-slate-600",
               )}
             >
-              {loading}
-            </span>
-          </div>
-        )}
-        {!!awaiting && (
-          <div
-            className={cn(
-              "flex items-center gap-1 rounded-md text-sm text-slate-400 dark:text-slate-600",
-            )}
-          >
-            <Hourglass className="h-4 w-4" />
+              <LoaderCircle className="h-4 w-4 animate-spin" />
 
-            <span
+              <span
+                className={cn(
+                  "overflow-hidden text-sm text-ellipsis whitespace-nowrap italic",
+                )}
+              >
+                {loading}
+              </span>
+            </div>
+          )}
+          {!!awaiting && (
+            <div
               className={cn(
-                "overflow-hidden text-sm text-ellipsis whitespace-nowrap italic",
+                "flex items-center gap-1 rounded-md text-sm text-slate-400 dark:text-slate-600",
               )}
             >
-              {awaiting}
-            </span>
-          </div>
-        )}
-      </div>
+              <Hourglass className="h-4 w-4" />
+
+              <span
+                className={cn(
+                  "overflow-hidden text-sm text-ellipsis whitespace-nowrap italic",
+                )}
+              >
+                {awaiting}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
     </section>
   );
 }

@@ -66,38 +66,41 @@ export const ANALYZE_GROUP_PROMPT = ({
 - Total Users: ${projectUsers.length}
 ${projectGroup.properties ? `- Group Properties: ${JSON.stringify(projectGroup.properties, null, 2)}` : ""}
 
-# User Distribution
-The group has ${projectUsers.length} user(s). Here's the breakdown:
-
-${(() => {
-  const activeUsers = projectUsers.filter(u => u.score && u.score >= 70);
-  const occasionalUsers = projectUsers.filter(u => u.score && u.score >= 30 && u.score < 70);
-  const strugglingUsers = projectUsers.filter(u => u.score && u.score < 30);
-  const unanalyzedUsers = projectUsers.filter(u => !u.score);
-  
-  return `- Active/Power Users (70-100 score): ${activeUsers.length}
-- Occasional Users (30-69 score): ${occasionalUsers.length}
-- Struggling Users (0-29 score): ${strugglingUsers.length}
-- Not Yet Analyzed: ${unanalyzedUsers.length}`;
-})()}
-
 # Individual User Stories
 Here are the individual user analyses for all users in this group:
 
 ${projectUsers
-  .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-  .map((user, index) => `
+  .sort(
+    (a, b) =>
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  )
+  .map(
+    (user, index) => `
 ## User ${index + 1}: ${user.name || "Unknown"} (Joined ${new Date(user.created_at).toLocaleDateString()})
 - User ID: ${user.id}
 ${user.story ? `\n### User Story\n${user.story}` : "- No story available"}
 ${user.health ? `\n### User Health\n${user.health}` : ""}
 ${user.score !== null && user.score !== undefined ? `\n### User Score: ${user.score}/100` : ""}
-`).join("\n")}
+`,
+  )
+  .join("\n")}
 
 Based on all these individual user journeys, provide your analysis of this group's collective story, health, and score.`;
 
 export const ANALYZE_GROUP_SCHEMA = z.object({
-  story: z.string().describe("A natural, flowing narrative of the group's collective journey with the product, written as a qualitative story in markdown. Tell their story like you're describing a team's adoption journey to a colleague - how they discovered the product, who the early adopters were, how usage spread (or didn't), and what the current state looks like. Write in a conversational, storytelling style that captures the organizational dynamics. For example: 'This organization's journey began when Sarah from the marketing team discovered the platform in early March. She became an immediate champion, using it daily and showing impressive results. Her enthusiasm caught the attention of her teammates, and within weeks, three more marketers had joined. Meanwhile, the engineering team remained skeptical, with only one developer occasionally logging in...' Focus on painting a vivid picture of how the product has (or hasn't) woven itself into the organization's fabric. Include natural observations about adoption patterns, team dynamics, and collective behaviors. This should read like a story about a group's relationship with a product, not a corporate report. Use **bold** for emphasis and weave insights naturally into the narrative."),
-  health: z.string().describe("A brief, conversational assessment of this group's relationship with the product in markdown. In 2-3 sentences, capture the organizational reality: Is adoption spreading or stalling? Are they getting collective value or is it just a few champions? Write naturally, like you're quickly summarizing to a colleague: 'Adoption is viral - half the team is already power users and pulling others in' or 'It's basically just two people using it while everyone else ignores it.' Use **bold** for emphasis where needed."),
-  score: z.number().describe("A numerical health score from 0-100 based on this strict rubric: 90-100 = Thriving organization with widespread adoption, expanding usage, and high collective success; 70-89 = Healthy adoption with good user retention, positive trends, and most users successful; 50-69 = Mixed adoption where some users thrive while others struggle, with neutral trends; 30-49 = Poor adoption with many users churning, limited success, and negative trends; 0-29 = Failing adoption with widespread issues, minimal engagement, and abandonment risk. Apply consistently for cross-group comparisons."),
+  story: z
+    .string()
+    .describe(
+      "A natural, flowing narrative of the group's collective journey with the product, written as a qualitative story in markdown. Tell their story like you're describing a team's adoption journey to a colleague - how they discovered the product, who the early adopters were, how usage spread (or didn't), and what the current state looks like. Write in a conversational, storytelling style that captures the organizational dynamics. For example: 'This organization's journey began when Sarah from the marketing team discovered the platform in early March. She became an immediate champion, using it daily and showing impressive results. Her enthusiasm caught the attention of her teammates, and within weeks, three more marketers had joined. Meanwhile, the engineering team remained skeptical, with only one developer occasionally logging in...' Focus on painting a vivid picture of how the product has (or hasn't) woven itself into the organization's fabric. Include natural observations about adoption patterns, team dynamics, and collective behaviors. This should read like a story about a group's relationship with a product, not a corporate report. Use **bold** for emphasis and weave insights naturally into the narrative.",
+    ),
+  health: z
+    .string()
+    .describe(
+      "A brief, conversational assessment of this group's relationship with the product in markdown. In 2-3 sentences, capture the organizational reality: Is adoption spreading or stalling? Are they getting collective value or is it just a few champions? Write naturally, like you're quickly summarizing to a colleague: 'Adoption is viral - half the team is already power users and pulling others in' or 'It's basically just two people using it while everyone else ignores it.' Use **bold** for emphasis where needed.",
+    ),
+  score: z
+    .number()
+    .describe(
+      "A numerical health score from 0-100 based on this strict rubric: 90-100 = Thriving organization with widespread adoption, expanding usage, and high collective success; 70-89 = Healthy adoption with good user retention, positive trends, and most users successful; 50-69 = Mixed adoption where some users thrive while others struggle, with neutral trends; 30-49 = Poor adoption with many users churning, limited success, and negative trends; 0-29 = Failing adoption with widespread issues, minimal engagement, and abandonment risk. Apply consistently for cross-group comparisons.",
+    ),
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import Markdown from "@/components/markdown";
+import { getScoreColor } from "@/lib/score";
 import { formatDuration } from "@/lib/time";
 import { Session } from "@/types";
 import { format, formatDistanceToNow } from "date-fns";
@@ -24,8 +25,14 @@ function SessionItem({ session }: { session: Session }) {
   return (
     <Link
       href={`/${params.project}/sessions/${session.id}`}
-      className="flex w-full flex-row items-stretch justify-start gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900"
+      className="relative flex w-full flex-row items-stretch justify-start gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900"
     >
+      {!!session.score && (
+        <span
+          className="absolute right-3 top-3 h-1.5 w-1.5 shrink-0 rounded-full"
+          style={{ backgroundColor: getScoreColor(session.score) }}
+        />
+      )}
       {session.video_uri ? (
         <SessionReplay
           sessionId={session.id}

@@ -65,8 +65,18 @@ export async function analyzeGroup(projectGroupId: string) {
     throw new FatalError("Project group has no users");
   }
 
+  // Hash both analyzed sessions + all sessions across all users to trigger re-analysis when:
+  // 1. New sessions are discovered for any user (all IDs change)
+  // 2. Existing sessions complete analysis (analyzed IDs change)
+  const allSessions = projectUsers.flatMap((u) => u.sessions || []);
+  const analyzedSessionIds = allSessions
+    .filter((s) => s.status === "analyzed" && s.story)
+    .map((s) => s.id)
+    .sort();
+  const allSessionIds = allSessions.map((s) => s.id).sort();
+
   const analysisHash = createHash("sha256")
-    .update(JSON.stringify(projectUsers.map((u) => u.analysis_hash).sort()))
+    .update(JSON.stringify({ analyzed: analyzedSessionIds, all: allSessionIds }))
     .digest("hex");
 
   if (projectGroup.analysis_hash === analysisHash) {

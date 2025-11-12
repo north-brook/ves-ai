@@ -1,7 +1,8 @@
 "use client";
 
+import PostHog from "@/components/icons/posthog";
 import { formatDuration } from "@/lib/time";
-import { ProjectGroup, ProjectUser, Session } from "@/types";
+import { ProjectGroup, ProjectUser, Session, Source } from "@/types";
 import { format, formatDistanceToNow } from "date-fns";
 import {
   Activity,
@@ -15,8 +16,10 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 
 export default function SessionHeader({
+  source,
   session,
 }: {
+  source: Pick<Source, "source_project">;
   session: Session & {
     user: ProjectUser;
     group: ProjectGroup | null;
@@ -25,7 +28,7 @@ export default function SessionHeader({
   const params = useParams();
 
   return (
-    <div className="mb-8 border-b border-slate-200 pb-6 dark:border-slate-800">
+    <div className="mb-6 border-b border-slate-200 pb-6 dark:border-slate-800">
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <h1 className="font-display text-3xl font-bold">
@@ -40,6 +43,12 @@ export default function SessionHeader({
             )}
           </h1>
           <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
+            <a
+              href={`https://us.posthog.com/project/${source.source_project}/replay/${session.external_id}`}
+              target="_blank"
+            >
+              <PostHog size={16} />
+            </a>
             <div className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
               <span>

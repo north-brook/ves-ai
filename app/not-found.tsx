@@ -1,9 +1,6 @@
 "use client";
 
-import { useParams } from "next/navigation";
-
 export default function NotFound() {
-  const params = useParams();
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-6 p-6">
       <h1 className="font-display text-6xl font-bold text-gray-900 dark:text-gray-100">
@@ -19,10 +16,10 @@ export default function NotFound() {
       </div>
 
       <a
-        href={`/${params.project}`}
+        href="/"
         className="rounded-lg bg-slate-100 px-6 py-3 text-center text-slate-800 transition-all duration-200 dark:bg-slate-900 dark:text-slate-200"
       >
-        Back to Project
+        Back to Home
       </a>
     </div>
   );

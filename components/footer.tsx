@@ -23,6 +23,12 @@ export default function Footer() {
               Pricing
             </Link>
             <Link
+              href="/blog"
+              className="hover:text-foreground transition-colors"
+            >
+              Blog
+            </Link>
+            <Link
               href="/privacy"
               className="hover:text-foreground transition-colors"
             >
