@@ -37,7 +37,7 @@ function IssueItem({ issue }: { issue: Issue }) {
       className="relative flex w-full flex-col items-stretch justify-start gap-2 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900"
     >
       <span
-        className="absolute right-3 top-3 h-1.5 w-1.5 shrink-0 rounded-full"
+        className="absolute top-3 right-3 h-1.5 w-1.5 shrink-0 rounded-full"
         style={{ backgroundColor: getIssueScoreColor(issue) }}
       />
       <h3 className="text-lg font-medium text-slate-800 dark:text-slate-200">
@@ -68,7 +68,7 @@ function IssueItem({ issue }: { issue: Issue }) {
         </div>
       </div>
       {issue.story && (
-        <Markdown className="line-clamp-4 text-sm">{issue.story}</Markdown>
+        <Markdown className="line-clamp-2 text-sm">{issue.story}</Markdown>
       )}
     </Link>
   );

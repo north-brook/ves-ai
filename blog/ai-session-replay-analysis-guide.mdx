@@ -251,7 +251,16 @@ function buildReplayHtml(
             duration: ((seg.endTime - seg.startTime) / 1000).toFixed(1) + 's'
           });
         });
-        
+
+        // Normalize segment timestamps to relative time to match replayer.getCurrentTime()
+        // getCurrentTime() returns milliseconds from start, but segments use absolute Unix timestamps
+        segments = segments.map(seg => ({
+          ...seg,
+          startTime: seg.startTime - baseTimestamp,
+          endTime: seg.endTime - baseTimestamp
+        }));
+        console.log('✅ Normalized', segments.length, 'segments to relative time for getCurrentTime() matching');
+
         try {
           // Create Replayer instance using rrweb directly
           // We manually control speed based on segments (PostHog approach)
