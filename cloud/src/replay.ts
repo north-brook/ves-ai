@@ -342,6 +342,26 @@ function buildReplayHtml(
                     const newSpeed = calculatePlaybackSpeed(segment, currentTime, isSkippingInactivity);
                     replayer.setConfig({ speed: newSpeed });
                   }
+                } else {
+                  // No segment found - this is a GAP between segments
+                  // Gaps should be treated as inactive periods and skipped
+                  if (currentSegmentIndex !== -1 || !isSkippingInactivity) {
+                    // Transition to gap (inactive)
+                    currentSegmentIndex = -1;
+                    lastSegmentIndex = -1;
+                    isSkippingInactivity = true;
+
+                    // Skip gaps at high speed (use max speed since we don't know duration)
+                    const gapSpeed = 360; // Max speed for gaps
+                    replayer.setConfig({ speed: gapSpeed });
+
+                    // Show skip overlay
+                    if (skipOverlay) {
+                      skipOverlay.classList.add('active');
+                    }
+
+                    console.log('🎮 [GAP] Skipping gap at', (currentTime/1000).toFixed(1) + 's, speed:', gapSpeed + 'x');
+                  }
                 }
 
                 // Log at intervals
