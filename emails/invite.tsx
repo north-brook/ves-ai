@@ -66,8 +66,7 @@ export default function InviteEmail({
                 style={{
                   display: "inline-block",
                   borderRadius: "8px",
-                  background:
-                    "linear-gradient(to right, #6c47ff, #ff4d94, #ff8a3d)",
+                  backgroundColor: "#6c47ff",
                   padding: "16px 32px",
                   fontWeight: "600",
                   color: "white",
