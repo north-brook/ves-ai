@@ -310,12 +310,13 @@ function buildReplayHtml(
                 // Segment-based speed control (PostHog approach)
                 const segmentResult = getCurrentSegment(currentTime);
                 if (segmentResult) {
-                  currentSegmentIndex = segmentResult.index;
+                  const newSegmentIndex = segmentResult.index;
                   const segment = segmentResult.segment;
 
-                  // Detect segment change
-                  if (currentSegmentIndex !== lastSegmentIndex) {
-                    lastSegmentIndex = currentSegmentIndex;
+                  // Detect segment change (including transitioning from gap to segment)
+                  if (newSegmentIndex !== currentSegmentIndex) {
+                    currentSegmentIndex = newSegmentIndex;
+                    lastSegmentIndex = newSegmentIndex;
 
                     // Update skipping state based on segment activity
                     const wasSkipping = isSkippingInactivity;
@@ -336,7 +337,8 @@ function buildReplayHtml(
 
                     // Log segment transition
                     const action = isSkippingInactivity ? 'SKIPPING' : 'PLAYING';
-                    console.log('🎮 [SEGMENT CHANGE]', action, 'segment', currentSegmentIndex, 'at speed', newSpeed.toFixed(1) + 'x');
+                    const source = wasSkipping && currentSegmentIndex === -1 ? 'from GAP' : '';
+                    console.log('🎮 [SEGMENT CHANGE]', action, 'segment', currentSegmentIndex, source, 'at speed', newSpeed.toFixed(1) + 'x');
                   } else if (isSkippingInactivity) {
                     // Recalculate speed within inactive segment for dynamic adjustment
                     const newSpeed = calculatePlaybackSpeed(segment, currentTime, isSkippingInactivity);
@@ -344,11 +346,10 @@ function buildReplayHtml(
                   }
                 } else {
                   // No segment found - this is a GAP between segments
-                  // Gaps should be treated as inactive periods and skipped
-                  if (currentSegmentIndex !== -1 || !isSkippingInactivity) {
-                    // Transition to gap (inactive)
+                  // PostHog marks all gaps as inactive, so skip them
+                  if (currentSegmentIndex !== -1) {
+                    // Transition from segment to gap
                     currentSegmentIndex = -1;
-                    lastSegmentIndex = -1;
                     isSkippingInactivity = true;
 
                     // Skip gaps at high speed (use max speed since we don't know duration)
