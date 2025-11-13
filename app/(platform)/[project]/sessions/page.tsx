@@ -49,7 +49,7 @@ export default async function SessionsPage({
     .select("id")
     .eq("project_id", project.id)
     .eq("status", "analyzed")
-    .order("created_at", { ascending: false })
+    .order("session_at", { ascending: false })
     .limit(1)
     .single();
 
