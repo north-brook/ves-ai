@@ -1,14 +1,15 @@
 "use server";
 
+import log from "@/lib/log";
+import posthog from "@/lib/posthog/server";
+import adminSupabase from "@/lib/supabase/admin";
 import serverSupabase from "@/lib/supabase/server";
+import { Project, User } from "@/types";
+import * as Sentry from "@sentry/nextjs";
+import { AuthSession, AuthUser } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { AuthSession, AuthUser } from "@supabase/supabase-js";
-import { User, Project } from "@/types";
-import posthog from "@/lib/posthog/server";
 import { Resend } from "resend";
-import log from "@/lib/log";
-import * as Sentry from "@sentry/nextjs";
 
 export async function googleAuth(formData: FormData) {
   const supabase = await serverSupabase();
@@ -160,44 +161,6 @@ export async function syncAuth(auth: {
       text: `👤 New user created: ${user.email}`,
     });
 
-    // Check for pending invitations
-    if (user.email) {
-      const { data: pendingRoles } = await supabase
-        .from("roles")
-        .select("*,project:projects(*)")
-        .eq("user_email", user.email)
-        .is("user_id", null);
-
-      if (pendingRoles && pendingRoles.length > 0) {
-        // User has pending invitations, link them
-        for (const pendingRole of pendingRoles) {
-          const { error } = await supabase
-            .from("roles")
-            .update({
-              user_id: user.id,
-              user_email: user.email,
-            })
-            .eq("id", pendingRole.id);
-          if (error) {
-            console.error(error);
-            posthog.captureException(error);
-            Sentry.captureException(error, {
-              tags: { action: "syncAuth", step: "linkPendingRole" },
-              extra: { roleId: pendingRole.id, userId: user.id },
-            });
-            return { error: "Could not link user to collection" };
-          }
-        }
-
-        if (pendingRoles[0].project) {
-          project = pendingRoles[0].project as Project;
-
-          // Skip creating a new collection and role since user was invited
-          revalidatePath("/", "layout");
-        }
-      }
-    }
-
     // add user to resend audience
     if (!user.email.includes("mailslurp")) {
       const resend = new Resend(process.env.RESEND_API_KEY!);
@@ -209,6 +172,45 @@ export async function syncAuth(auth: {
           unsubscribed: false,
           audienceId: "b5d7d34a-09d1-4fdc-9148-55e4a56cc95d",
         });
+      }
+    }
+  }
+
+  // Check for pending invitations
+  const admin = adminSupabase();
+  if (user.email) {
+    const { data: pendingRoles } = await admin
+      .from("roles")
+      .select("*,project:projects(*)")
+      .eq("user_email", user.email)
+      .is("user_id", null);
+
+    if (pendingRoles && pendingRoles.length > 0) {
+      // User has pending invitations, link them
+      for (const pendingRole of pendingRoles) {
+        const { error } = await admin
+          .from("roles")
+          .update({
+            user_id: user.id,
+            user_email: user.email,
+          })
+          .eq("id", pendingRole.id);
+        if (error) {
+          console.error(error);
+          posthog.captureException(error);
+          Sentry.captureException(error, {
+            tags: { action: "syncAuth", step: "linkPendingRole" },
+            extra: { roleId: pendingRole.id, userId: user.id },
+          });
+          return { error: "Could not link user to collection" };
+        }
+      }
+
+      if (pendingRoles[0].project) {
+        project = pendingRoles[0].project as Project;
+
+        // Skip creating a new collection and role since user was invited
+        revalidatePath("/", "layout");
       }
     }
   }
