@@ -1,4 +1,3 @@
-import * as React from "react";
 import {
   Body,
   Button,
@@ -11,18 +10,9 @@ import {
   Link,
   Preview,
   Section,
-  Text,
   Tailwind,
+  Text,
 } from "@react-email/components";
-import {
-  Plug,
-  Eye,
-  ListChecks,
-  Bug,
-  Lightbulb,
-  Zap,
-  Activity,
-} from "lucide-react";
 
 const url = process.env.APP_URL || "https://ves.ai";
 
@@ -109,167 +99,6 @@ export default function InviteEmail({
                   {loginUrl}
                 </Text>
               </div>
-            </Section>
-
-            <Hr className="my-8 border-gray-200" />
-
-            {/* How it Works Section */}
-            <Section className="mb-8">
-              <Heading className="mb-4 text-xl font-semibold text-gray-900">
-                How It Works
-              </Heading>
-
-              <div className="space-y-3">
-                <div className="flex gap-3">
-                  <div
-                    style={{
-                      width: "32px",
-                      height: "32px",
-                      borderRadius: "8px",
-                      background: "linear-gradient(135deg, #6c47ff, #ff4d94)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Plug size={18} color="white" />
-                  </div>
-                  <div style={{ paddingTop: "4px" }}>
-                    <Text className="font-semibold text-gray-900" style={{ margin: 0, marginBottom: "2px" }}>
-                      1. Connect PostHog
-                    </Text>
-                    <Text className="text-sm text-gray-600" style={{ margin: 0 }}>
-                      We instantly start watching every session replay.
-                    </Text>
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <div
-                    style={{
-                      width: "32px",
-                      height: "32px",
-                      borderRadius: "8px",
-                      background: "linear-gradient(135deg, #ff4d94, #ff8a3d)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Eye size={18} color="white" />
-                  </div>
-                  <div style={{ paddingTop: "4px" }}>
-                    <Text className="font-semibold text-gray-900" style={{ margin: 0, marginBottom: "2px" }}>
-                      2. AI Review
-                    </Text>
-                    <Text className="text-sm text-gray-600" style={{ margin: 0 }}>
-                      Every session is analyzed for bugs, friction points, and opportunities.
-                    </Text>
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <div
-                    style={{
-                      width: "32px",
-                      height: "32px",
-                      borderRadius: "8px",
-                      background: "linear-gradient(135deg, #ff8a3d, #6c47ff)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                    }}
-                  >
-                    <ListChecks size={18} color="white" />
-                  </div>
-                  <div style={{ paddingTop: "4px" }}>
-                    <Text className="font-semibold text-gray-900" style={{ margin: 0, marginBottom: "2px" }}>
-                      3. Action in Linear
-                    </Text>
-                    <Text className="text-sm text-gray-600" style={{ margin: 0 }}>
-                      Clear, prioritized tickets appear in your backlog automatically.
-                    </Text>
-                  </div>
-                </div>
-              </div>
-            </Section>
-
-            <Hr className="my-8 border-gray-200" />
-
-            {/* Why Use VES Section */}
-            <Section className="mb-8">
-              <Heading className="mb-4 text-xl font-semibold text-gray-900">
-                Why Use VES
-              </Heading>
-
-              <Section className="space-y-3 rounded-lg bg-gray-50 p-6">
-                <div className="flex gap-3">
-                  <Bug 
-                    size={20} 
-                    color="#6c47ff" 
-                    style={{ flexShrink: 0, marginTop: "2px" }}
-                  />
-                  <div style={{ paddingTop: "2px" }}>
-                    <Text className="font-semibold text-gray-900" style={{ margin: 0, marginBottom: "2px" }}>
-                      Catch every issue
-                    </Text>
-                    <Text className="text-sm text-gray-600" style={{ margin: 0 }}>
-                      No more relying on random QA or user complaints
-                    </Text>
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <Lightbulb 
-                    size={20} 
-                    color="#ff4d94" 
-                    style={{ flexShrink: 0, marginTop: "2px" }}
-                  />
-                  <div style={{ paddingTop: "2px" }}>
-                    <Text className="font-semibold text-gray-900" style={{ margin: 0, marginBottom: "2px" }}>
-                      Ship better features
-                    </Text>
-                    <Text className="text-sm text-gray-600" style={{ margin: 0 }}>
-                      Ideas come from real user behavior
-                    </Text>
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <Zap 
-                    size={20} 
-                    color="#ff8a3d" 
-                    style={{ flexShrink: 0, marginTop: "2px" }}
-                  />
-                  <div style={{ paddingTop: "2px" }}>
-                    <Text className="font-semibold text-gray-900" style={{ margin: 0, marginBottom: "2px" }}>
-                      Save PM time
-                    </Text>
-                    <Text className="text-sm text-gray-600" style={{ margin: 0 }}>
-                      AI handles the review work for you
-                    </Text>
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <Activity 
-                    size={20} 
-                    color="#6c47ff" 
-                    style={{ flexShrink: 0, marginTop: "2px" }}
-                  />
-                  <div style={{ paddingTop: "2px" }}>
-                    <Text className="font-semibold text-gray-900" style={{ margin: 0, marginBottom: "2px" }}>
-                      No workflow changes
-                    </Text>
-                    <Text className="text-sm text-gray-600" style={{ margin: 0 }}>
-                      Everything appears in Linear
-                    </Text>
-                  </div>
-                </div>
-              </Section>
             </Section>
 
             <Hr className="mb-6 border-gray-200" />
