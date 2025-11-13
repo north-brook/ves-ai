@@ -25,11 +25,11 @@ function SessionItem({ session }: { session: Session }) {
   return (
     <Link
       href={`/${params.project}/sessions/${session.id}`}
-      className="relative flex w-full flex-row items-stretch justify-start gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900"
+      className="relative flex w-full flex-row items-stretch justify-start gap-4 rounded-lg border border-slate-200 bg-slate-100 p-4 dark:border-slate-800 dark:bg-slate-900"
     >
       {!!session.score && (
         <span
-          className="absolute right-3 top-3 h-1.5 w-1.5 shrink-0 rounded-full"
+          className="absolute top-3 right-3 h-1.5 w-1.5 shrink-0 rounded-full"
           style={{ backgroundColor: getScoreColor(session.score) }}
         />
       )}
@@ -39,7 +39,7 @@ function SessionItem({ session }: { session: Session }) {
           className="max-w-[300px] shrink-0"
         />
       ) : (
-        <div className="flex aspect-video w-full max-w-[300px] shrink-0 flex-col items-center justify-center gap-2 rounded-lg bg-slate-100 p-4 dark:bg-slate-900">
+        <div className="flex aspect-video w-full max-w-[300px] shrink-0 flex-col items-center justify-center gap-2 rounded-lg bg-slate-200 p-4 dark:bg-slate-800">
           <Hourglass className="h-4 w-4 text-slate-400 dark:text-slate-600" />
           <span className="text-xs text-slate-400 dark:text-slate-600">
             Session awaiting analysis

@@ -10,7 +10,7 @@ export default function GroupHealth({
   score: number | null;
   health: string | null;
 }) {
-  if (!score || !health) return null;
+  if (score === null || health === null) return null;
 
   return (
     <div
