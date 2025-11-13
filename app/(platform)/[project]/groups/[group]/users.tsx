@@ -42,11 +42,11 @@ function UserCard({ user }: { user: ProjectUser & { sessions: Session[] } }) {
   return (
     <Link
       href={`/${params.project}/users/${user.id}`}
-      className="relative flex w-full flex-col gap-4 rounded-lg border border-slate-200 bg-slate-50 px-4 pt-3 pb-1 dark:border-slate-800 dark:bg-slate-900"
+      className="relative flex w-full flex-col gap-4 rounded-lg border border-slate-200 bg-slate-100 px-4 pt-3 pb-1 dark:border-slate-800 dark:bg-slate-900"
     >
       {!!user.score && (
         <span
-          className="absolute right-3 top-3 h-1.5 w-1.5 shrink-0 rounded-full"
+          className="absolute top-3 right-3 h-1.5 w-1.5 shrink-0 rounded-full"
           style={{ backgroundColor: getScoreColor(user.score) }}
         />
       )}
@@ -85,7 +85,7 @@ function UserCard({ user }: { user: ProjectUser & { sessions: Session[] } }) {
               {session.video_uri ? (
                 <SessionReplay sessionId={session.id} className="w-full" />
               ) : (
-                <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-lg bg-slate-100 p-4 dark:bg-slate-900">
+                <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-lg bg-slate-200 p-4 dark:bg-slate-800">
                   <Hourglass className="h-4 w-4 text-slate-400 dark:text-slate-600" />
                   <span className="text-xs text-slate-400 dark:text-slate-600">
                     Session awaiting analysis
