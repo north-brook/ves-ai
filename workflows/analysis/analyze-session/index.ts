@@ -7,6 +7,8 @@ import {
   createPartFromUri,
   createUserContent,
   GoogleGenAI,
+  MediaResolution,
+  ThinkingLevel,
 } from "@google/genai";
 import { FatalError } from "workflow";
 import constructContext from "./context";
@@ -138,7 +140,7 @@ export async function analyzeSession(
   const userPromptContent = `Video: ${session.video_uri}`;
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-pro",
+    model: "gemini-3-pro-preview",
     contents: [
       createUserContent(ANALYZE_SESSION_SYSTEM),
       createUserContent([
@@ -148,10 +150,11 @@ export async function analyzeSession(
     ],
     config: {
       thinkingConfig: {
-        thinkingBudget: 32768,
+        thinkingLevel: ThinkingLevel.HIGH,
       },
       responseMimeType: "application/json",
       responseSchema: ANALYZE_SESSION_SCHEMA,
+      mediaResolution: MediaResolution.MEDIA_RESOLUTION_HIGH,
     },
   });
 

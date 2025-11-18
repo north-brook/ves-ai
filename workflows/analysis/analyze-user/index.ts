@@ -1,6 +1,7 @@
 import { writeDebugFile } from "@/lib/debug/helper";
 import adminSupabase from "@/lib/supabase/admin";
-import { google, GoogleGenerativeAIProviderOptions } from "@ai-sdk/google";
+import { google } from "@ai-sdk/google";
+import { ThinkingLevel } from "@google/genai";
 import { generateObject } from "ai";
 import { createHash } from "crypto";
 import { FatalError } from "workflow";
@@ -71,7 +72,9 @@ export async function analyzeUser(projectUserId: string) {
   const allSessionIds = sessions.map((s) => s.id).sort();
 
   const analysisHash = createHash("sha256")
-    .update(JSON.stringify({ analyzed: analyzedSessionIds, all: allSessionIds }))
+    .update(
+      JSON.stringify({ analyzed: analyzedSessionIds, all: allSessionIds }),
+    )
     .digest("hex");
 
   if (projectUser.analysis_hash === analysisHash) {
@@ -106,13 +109,13 @@ export async function analyzeUser(projectUserId: string) {
   });
 
   const { object } = await generateObject({
-    model: google("gemini-2.5-pro"),
+    model: google("gemini-3-pro-preview"),
     providerOptions: {
       google: {
         thinkingConfig: {
-          thinkingBudget: 32768,
+          thinkingLevel: ThinkingLevel.HIGH,
         },
-      } satisfies GoogleGenerativeAIProviderOptions,
+      },
     },
     system: ANALYZE_USER_SYSTEM,
     schema: ANALYZE_USER_SCHEMA,

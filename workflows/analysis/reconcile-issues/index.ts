@@ -1,7 +1,8 @@
 import { clearDebugFile, writeDebugFile } from "@/lib/debug/helper";
 import embed from "@/lib/embed";
 import adminSupabase from "@/lib/supabase/admin";
-import { google, GoogleGenerativeAIProviderOptions } from "@ai-sdk/google";
+import { google } from "@ai-sdk/google";
+import { ThinkingLevel } from "@google/genai";
 import * as Sentry from "@sentry/nextjs";
 import { generateObject } from "ai";
 import { FatalError } from "workflow";
@@ -126,13 +127,13 @@ export async function reconcileIssues(sessionId: string): Promise<string[]> {
 
       // Generate reconciliation decision using Gemini
       const { object: issueResponse } = await generateObject({
-        model: google("gemini-2.5-pro"),
+        model: google("gemini-3-pro-preview"),
         providerOptions: {
           google: {
             thinkingConfig: {
-              thinkingBudget: 32768,
+              thinkingLevel: ThinkingLevel.HIGH,
             },
-          } satisfies GoogleGenerativeAIProviderOptions,
+          },
         },
         system: RECONCILE_ISSUE_SYSTEM,
         schema: RECONCILE_ISSUE_SCHEMA,

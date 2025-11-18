@@ -1,6 +1,7 @@
 import { writeDebugFile } from "@/lib/debug/helper";
 import adminSupabase from "@/lib/supabase/admin";
-import { google, GoogleGenerativeAIProviderOptions } from "@ai-sdk/google";
+import { google } from "@ai-sdk/google";
+import { ThinkingLevel } from "@google/genai";
 import * as Sentry from "@sentry/nextjs";
 import { generateObject } from "ai";
 import { NextRequest, NextResponse } from "next/server";
@@ -179,13 +180,13 @@ export async function POST(request: NextRequest) {
       });
 
       const { object } = await generateObject({
-        model: google("gemini-2.5-pro"),
+        model: google("gemini-3-pro-preview"),
         providerOptions: {
           google: {
             thinkingConfig: {
-              thinkingBudget: 32768,
+              thinkingLevel: ThinkingLevel.HIGH,
             },
-          } satisfies GoogleGenerativeAIProviderOptions,
+          },
         },
         system: ANALYZE_PROJECT_SYSTEM,
         schema: ANALYZE_PROJECT_SCHEMA,
