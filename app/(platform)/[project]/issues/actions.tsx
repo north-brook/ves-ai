@@ -1,9 +1,8 @@
 "use server";
 
+import embed from "@/lib/embed";
 import serverSupabase from "@/lib/supabase/server";
 import { Issue, ProjectGroup, ProjectUser, Session } from "@/types";
-import { openai } from "@ai-sdk/openai";
-import { embed } from "ai";
 
 export async function searchIssues(
   projectId: string,
@@ -19,10 +18,7 @@ export async function searchIssues(
   const supabase = await serverSupabase();
 
   // First, get the embedding for the search query
-  const { embedding } = await embed({
-    model: openai.textEmbeddingModel("text-embedding-3-small"),
-    value: query,
-  });
+  const embedding = await embed(query);
 
   // Use the match_issues function for vector similarity search
   const { data: matchedIssues, error: matchError } = await supabase.rpc(

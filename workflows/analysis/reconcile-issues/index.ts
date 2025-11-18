@@ -1,9 +1,9 @@
 import { clearDebugFile, writeDebugFile } from "@/lib/debug/helper";
+import embed from "@/lib/embed";
 import adminSupabase from "@/lib/supabase/admin";
 import { google, GoogleGenerativeAIProviderOptions } from "@ai-sdk/google";
-import { openai } from "@ai-sdk/openai";
 import * as Sentry from "@sentry/nextjs";
-import { embed, generateObject } from "ai";
+import { generateObject } from "ai";
 import { FatalError } from "workflow";
 import {
   RECONCILE_ISSUE_PROMPT,
@@ -79,10 +79,9 @@ export async function reconcileIssues(sessionId: string): Promise<string[]> {
     issueRunNumber++;
     try {
       // get 10 related issues (by embedding similarity)
-      const { embedding: detectedIssueEmbedding } = await embed({
-        model: openai.textEmbeddingModel("text-embedding-3-small"),
-        value: `${detectedIssue.name}`,
-      });
+      const detectedIssueEmbedding = await embed(
+        `${detectedIssue.name}\n${detectedIssue.type}\n${detectedIssue.story}`,
+      );
 
       const { data: relatedIssueData, error: relatedIssueError } =
         await supabase.rpc("match_issues", {
@@ -262,10 +261,9 @@ export async function reconcileIssues(sessionId: string): Promise<string[]> {
         }
 
         // Create new issue
-        const { embedding: newIssueEmbedding } = await embed({
-          model: openai.textEmbeddingModel("text-embedding-3-small"),
-          value: `${issueResponse.newIssue.name}\n${issueResponse.newIssue.type}\n${issueResponse.newIssue.story}`,
-        });
+        const newIssueEmbedding = await embed(
+          `${issueResponse.newIssue.name}\n${issueResponse.newIssue.type}\n${issueResponse.newIssue.story}`,
+        );
 
         // Create the new issue
         const { data: createdIssue, error: createIssueError } = await supabase

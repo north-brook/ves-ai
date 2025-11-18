@@ -1,14 +1,13 @@
 import { ReplaySuccess } from "@/cloud/src/types";
 import { writeDebugFile } from "@/lib/debug/helper";
+import embed from "@/lib/embed";
 import adminSupabase from "@/lib/supabase/admin";
 import { Database, Session, SessionDetectedIssue } from "@/types";
-import { openai } from "@ai-sdk/openai";
 import {
   createPartFromUri,
   createUserContent,
   GoogleGenAI,
 } from "@google/genai";
-import { embed } from "ai";
 import { FatalError } from "workflow";
 import constructContext from "./context";
 import { ANALYZE_SESSION_SCHEMA, ANALYZE_SESSION_SYSTEM } from "./prompts";
@@ -205,11 +204,10 @@ export async function analyzeSession(
     throw new Error("Invalid analysis data");
   }
 
-  // embed the session name, pages, and story
-  const { embedding } = await embed({
-    model: openai.textEmbeddingModel("text-embedding-3-small"),
-    value: `${data.name}\n${data.features.join(", ")}`,
-  });
+  // embed the session name and story
+  const embedding = await embed(
+    `${data.name}\n${data.features.join(", ")}\n${data.story}`,
+  );
 
   const { data: analyzedSession, error: analysisError } = await supabase
     .from("sessions")
