@@ -418,35 +418,34 @@ function buildReplayHtml(
                 } else {
                   // No segment found - this is a GAP between segments
                   // PostHog marks all gaps as inactive, so skip them
+
+                  // Transition tracking (only once when entering gap)
                   if (currentSegmentIndex !== -1) {
-                    // Transition from segment to gap
                     currentSegmentIndex = -1;
                     isSkippingInactivity = true;
+                    console.log('🎮 [GAP START] Entered gap at', (currentTime/1000).toFixed(1) + 's');
+                  }
 
-                    // Look ahead to see if we're approaching an active segment
-                    // This prevents fast-forwarding through interactions after tab returns
-                    const nextSegment = segments.find(s => s.startTime > currentTime);
-                    const timeToNextSegment = nextSegment ? nextSegment.startTime - currentTime : Infinity;
+                  // Update speed EVERY FRAME based on proximity to next segment
+                  // This ensures we slow down as we approach active content
+                  const nextSegment = segments.find(s => s.startTime > currentTime);
+                  const timeToNextSegment = nextSegment ? nextSegment.startTime - currentTime : Infinity;
 
-                    // If next segment is active and within 500ms, slow down preemptively
-                    // This ensures smooth transitions and prevents skipping through actual interactions
-                    const gapSpeed = (nextSegment?.isActive && timeToNextSegment < 500)
-                      ? baseSpeed    // Slow to normal speed when approaching activity
-                      : 360;         // Otherwise skip at max speed
+                  // If next segment is active and within 500ms, slow down preemptively
+                  // This ensures smooth transitions and prevents skipping through actual interactions
+                  const gapSpeed = (nextSegment?.isActive && timeToNextSegment < 500)
+                    ? baseSpeed    // Slow to normal speed when approaching activity
+                    : 360;         // Otherwise skip at max speed
 
-                    replayer.setConfig({ speed: gapSpeed });
+                  replayer.setConfig({ speed: gapSpeed });
 
-                    // Show skip overlay only if actually skipping
-                    if (skipOverlay) {
-                      if (gapSpeed > baseSpeed) {
-                        skipOverlay.classList.add('active');
-                      } else {
-                        skipOverlay.classList.remove('active');
-                      }
+                  // Show skip overlay only if actually skipping
+                  if (skipOverlay) {
+                    if (gapSpeed > baseSpeed) {
+                      skipOverlay.classList.add('active');
+                    } else {
+                      skipOverlay.classList.remove('active');
                     }
-
-                    const status = gapSpeed > baseSpeed ? 'speed: ' + gapSpeed + 'x' : 'approaching active segment';
-                    console.log('🎮 [GAP]', status, 'at', (currentTime/1000).toFixed(1) + 's');
                   }
                 }
 
