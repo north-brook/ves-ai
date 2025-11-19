@@ -10,7 +10,6 @@ import {
   MediaResolution,
   ThinkingLevel,
 } from "@google/genai";
-import { FatalError } from "workflow";
 import constructContext from "./context";
 import { ANALYZE_SESSION_SCHEMA, ANALYZE_SESSION_SYSTEM } from "./prompts";
 
@@ -49,7 +48,7 @@ export async function analyzeSession(
       `❌ [CALLBACK] Failed to update session:`,
       updateSessionError,
     );
-    throw updateSessionError;
+    throw new Error("Failed to update session");
   }
 
   // Fetch session details
@@ -66,7 +65,7 @@ export async function analyzeSession(
       `❌ [ANALYZE SESSION] Session not found: ${sessionId}`,
       sessionError,
     );
-    throw new FatalError("Session not found");
+    throw new Error(sessionError.message);
   }
 
   console.log(`📋 [ANALYZE SESSION] Session details:`);
@@ -81,21 +80,19 @@ export async function analyzeSession(
     console.warn(
       `⚠️ [ANALYZE SESSION] Session ${sessionId} is not processed (status: ${session.status})`,
     );
-    throw new FatalError(
-      `Session is not processed (status: ${session.status})`,
-    );
+    throw new Error(`Session is not processed (status: ${session.status})`);
   }
 
   if (!session.video_uri) {
     console.error(`❌ [ANALYZE SESSION] Session ${sessionId} has no video URL`);
-    throw new FatalError("Session has no video URL");
+    throw new Error("Session has no video URL");
   }
 
   if (!session.event_uri) {
     console.error(
       `❌ [ANALYZE SESSION] Session ${sessionId} has no events URL`,
     );
-    throw new FatalError("Session has no events URL");
+    throw new Error("Session has no events URL");
   }
 
   // Update session status to analyzing

@@ -4,7 +4,6 @@ import { google } from "@ai-sdk/google";
 import { ThinkingLevel } from "@google/genai";
 import { generateObject } from "ai";
 import { createHash } from "crypto";
-import { FatalError } from "workflow";
 import {
   ANALYZE_GROUP_PROMPT,
   ANALYZE_GROUP_SCHEMA,
@@ -42,7 +41,7 @@ export async function analyzeGroup(projectGroupId: string) {
       `❌ [ANALYZE GROUP] Group not found: ${projectGroupId}`,
       projectGroupError,
     );
-    throw new FatalError("Group not found");
+    throw new Error("Group not found");
   }
 
   const { projectUsers, ...projectGroup } = projectGroupData;
@@ -56,14 +55,14 @@ export async function analyzeGroup(projectGroupId: string) {
     console.error(
       `❌ [ANALYZE GROUP] Project group ${projectGroupId} has no users`,
     );
-    throw new FatalError("Project group has no users");
+    throw new Error("Project group has no users");
   }
 
   if (!projectUsers.length) {
     console.error(
       `❌ [ANALYZE GROUP] Project group ${projectGroupId} has no users`,
     );
-    throw new FatalError("Project group has no users");
+    throw new Error("Project group has no users");
   }
 
   // Hash both analyzed sessions + all sessions across all users to trigger re-analysis when:

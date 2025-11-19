@@ -4,7 +4,6 @@ import { google } from "@ai-sdk/google";
 import { ThinkingLevel } from "@google/genai";
 import { generateObject } from "ai";
 import { createHash } from "crypto";
-import { FatalError } from "workflow";
 import {
   ANALYZE_USER_PROMPT,
   ANALYZE_USER_SCHEMA,
@@ -38,7 +37,7 @@ export async function analyzeUser(projectUserId: string) {
       `❌ [ANALYZE USER] User not found: ${projectUserId}`,
       projectUserError,
     );
-    throw new FatalError("User not found");
+    throw new Error("User not found");
   }
 
   const { sessions, ...projectUser } = projectUserData;
@@ -52,14 +51,14 @@ export async function analyzeUser(projectUserId: string) {
     console.error(
       `❌ [ANALYZE USER] Project user ${projectUserId} has no sessions`,
     );
-    throw new FatalError("Project user has no sessions");
+    throw new Error("Project user has no sessions");
   }
 
   if (!sessions.length) {
     console.error(
       `❌ [ANALYZE USER] Project user ${projectUserId} has no sessions`,
     );
-    throw new FatalError("Project user has no sessions");
+    throw new Error("Project user has no sessions");
   }
 
   // Hash both analyzed sessions + all sessions to trigger re-analysis when:
