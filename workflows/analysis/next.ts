@@ -6,6 +6,7 @@ import {
 import adminSupabase from "@/lib/supabase/admin";
 import { start } from "workflow/api";
 import { analysis } from ".";
+import * as Sentry from "@sentry/nextjs";
 
 export async function next(projectId: string) {
   "use step";
@@ -13,16 +14,22 @@ export async function next(projectId: string) {
   const supabase = adminSupabase();
 
   // Get project data for limits
-  const { data: projectData } = await supabase
+  const { data: projectData, error: projectError } = await supabase
     .from("projects")
     .select("plan, subscribed_at, created_at")
     .eq("id", projectId)
     .single();
 
-  if (!projectData) {
+  if (projectError || !projectData) {
+    const error = projectError || new Error("Project data not found");
     console.error(
       `❌ [NEXT JOB] Could not fetch project data for ${projectId}`,
+      error,
     );
+    Sentry.captureException(error, {
+      tags: { job: "analyzeSession", step: "next" },
+      extra: { projectId },
+    });
     return false;
   }
 
@@ -46,6 +53,36 @@ export async function next(projectId: string) {
       .lte("analyzed_at", billingPeriod.end.toISOString()),
   ]);
 
+  if (activeWorkersData.error) {
+    console.error(
+      `❌ [NEXT JOB] Error checking active workers:`,
+      activeWorkersData.error,
+    );
+    Sentry.captureException(activeWorkersData.error, {
+      tags: { job: "analyzeSession", step: "next" },
+      extra: { projectId },
+    });
+    return false;
+  }
+
+  if (periodSessionsData.error) {
+    console.error(
+      `❌ [NEXT JOB] Error checking period sessions:`,
+      periodSessionsData.error,
+    );
+    Sentry.captureException(periodSessionsData.error, {
+      tags: { job: "analyzeSession", step: "next" },
+      extra: {
+        projectId,
+        billingPeriod: {
+          start: billingPeriod.start.toISOString(),
+          end: billingPeriod.end.toISOString(),
+        },
+      },
+    });
+    return false;
+  }
+
   const activeWorkerCount = activeWorkersData.data?.length || 0;
   const periodSessions = periodSessionsData.data || [];
 
@@ -64,13 +101,26 @@ export async function next(projectId: string) {
   }
 
   // Get the next pending session (latest first)
-  const { data: pendingSessions } = await supabase
-    .from("sessions")
-    .select("id, external_id, active_duration, session_at")
-    .eq("project_id", projectId)
-    .eq("status", "pending")
-    .order("session_at", { ascending: false })
-    .limit(1);
+  const { data: pendingSessions, error: pendingSessionsError } =
+    await supabase
+      .from("sessions")
+      .select("id, external_id, active_duration, session_at")
+      .eq("project_id", projectId)
+      .eq("status", "pending")
+      .order("session_at", { ascending: false })
+      .limit(1);
+
+  if (pendingSessionsError) {
+    console.error(
+      `❌ [NEXT JOB] Error fetching pending sessions:`,
+      pendingSessionsError,
+    );
+    Sentry.captureException(pendingSessionsError, {
+      tags: { job: "analyzeSession", step: "next" },
+      extra: { projectId },
+    });
+    return false;
+  }
 
   if (!pendingSessions || pendingSessions.length === 0) {
     console.log(`📭 [NEXT JOB] No pending sessions for project ${projectId}`);
@@ -83,7 +133,16 @@ export async function next(projectId: string) {
   console.log(
     `🎯 [NEXT JOB] Starting run for session ${session.id} (recording: ${session.external_id})`,
   );
-  await start(analysis, [session.id]);
+  try {
+    await start(analysis, [session.id]);
+  } catch (error) {
+    console.error(`❌ [NEXT JOB] Error starting analysis workflow:`, error);
+    Sentry.captureException(error, {
+      tags: { job: "analyzeSession", step: "next" },
+      extra: { projectId, sessionId: session.id },
+    });
+    return false;
+  }
 
   return true;
 }

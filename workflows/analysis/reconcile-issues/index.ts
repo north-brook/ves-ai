@@ -5,7 +5,6 @@ import { google } from "@ai-sdk/google";
 import { ThinkingLevel } from "@google/genai";
 import * as Sentry from "@sentry/nextjs";
 import { generateObject } from "ai";
-import { FatalError } from "workflow";
 import {
   RECONCILE_ISSUE_PROMPT,
   RECONCILE_ISSUE_SCHEMA,
@@ -28,7 +27,7 @@ export async function reconcileIssues(sessionId: string): Promise<string[]> {
       "❌ [RECONCILE ISSUES] Failed to fetch session:",
       sessionError,
     );
-    throw new FatalError("Failed to fetch session");
+    throw new Error("Failed to fetch session");
   }
 
   if (!session.project_id) {
@@ -36,7 +35,7 @@ export async function reconcileIssues(sessionId: string): Promise<string[]> {
       "❌ [RECONCILE ISSUES] Session has no project ID:",
       sessionId,
     );
-    throw new FatalError("Session has no project ID");
+    throw new Error("Session has no project ID");
   }
 
   if (!session.detected_issues) {
@@ -44,12 +43,12 @@ export async function reconcileIssues(sessionId: string): Promise<string[]> {
       "❌ [RECONCILE ISSUES] Session has no detected issues:",
       sessionId,
     );
-    throw new FatalError("Session has no detected issues");
+    throw new Error("Session has no detected issues");
   }
 
   if (!session.story) {
     console.error("❌ [RECONCILE ISSUES] Session has no story:", sessionId);
-    throw new FatalError("Session has no story");
+    throw new Error("Session has no story");
   }
 
   if (!session.active_duration) {
@@ -57,12 +56,12 @@ export async function reconcileIssues(sessionId: string): Promise<string[]> {
       "❌ [RECONCILE ISSUES] Session has no active duration:",
       sessionId,
     );
-    throw new FatalError("Session has no active duration");
+    throw new Error("Session has no active duration");
   }
 
   if (!session.score) {
     console.error("❌ [RECONCILE ISSUES] Session has no score:", sessionId);
-    throw new FatalError("Session has no score");
+    throw new Error("Session has no score");
   }
 
   // Track reconciled issue IDs (currently not used for triggering but may be in future)

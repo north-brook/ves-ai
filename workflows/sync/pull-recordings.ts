@@ -1,6 +1,7 @@
 import adminSupabase from "@/lib/supabase/admin";
 import { FatalError } from "workflow";
 import { PostHogRecording, PostHogRecordingsResponse } from "./types";
+import * as Sentry from "@sentry/nextjs";
 
 const ACTIVE_SECONDS_THRESHOLD = 5;
 
@@ -29,29 +30,58 @@ export async function pullRecordings(
     )
     .eq("id", sourceId)
     .single();
-  if (!source) throw new FatalError("Source not found");
+  if (!source) {
+    const error = new Error("Source not found");
+    Sentry.captureException(error, {
+      tags: { job: "syncSessions", step: "pullRecordings" },
+      extra: { sourceId, offset },
+    });
+    throw new FatalError("Source not found");
+  }
 
   console.log(`📄 [PULL RECORDINGS] Fetching from PostHog...`);
 
-  const response = await fetch(
-    `${source.source_host}/api/projects/${source.source_project}/session_recordings?limit=100&date_from=${sinceDate}&offset=${offset}`,
-    {
-      headers: {
-        Authorization: `Bearer ${source.source_key}`,
-        "Content-Type": "application/json",
+  let response;
+  let data: PostHogRecordingsResponse;
+
+  try {
+    response = await fetch(
+      `${source.source_host}/api/projects/${source.source_project}/session_recordings?limit=100&date_from=${sinceDate}&offset=${offset}`,
+      {
+        headers: {
+          Authorization: `Bearer ${source.source_key}`,
+          "Content-Type": "application/json",
+        },
       },
-    },
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(
-      `❌ [PULL RECORDINGS] PostHog API error: ${response.status} - ${errorText}`,
     );
-    throw new Error(`PostHog API error: ${response.status}`);
-  }
 
-  const data: PostHogRecordingsResponse = await response.json();
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(
+        `❌ [PULL RECORDINGS] PostHog API error: ${response.status} - ${errorText}`,
+      );
+      const error = new Error(`PostHog API error: ${response.status}`);
+      Sentry.captureException(error, {
+        tags: { job: "syncSessions", step: "pullRecordings" },
+        extra: {
+          sourceId,
+          offset,
+          status: response.status,
+          errorText,
+        },
+      });
+      throw error;
+    }
+
+    data = await response.json();
+  } catch (error) {
+    console.error(`❌ [PULL RECORDINGS] Error fetching recordings:`, error);
+    Sentry.captureException(error, {
+      tags: { job: "syncSessions", step: "pullRecordings" },
+      extra: { sourceId, offset, sinceDate },
+    });
+    throw error;
+  }
 
   // log data without the results
   const { results: _, ...rest } = data;
@@ -86,12 +116,31 @@ export async function pullRecordings(
     if (!recording.person?.uuid) continue;
 
     // Check if session already exists
-    const { data: existing } = await supabase
+    const { data: existing, error: existingError } = await supabase
       .from("sessions")
       .select("id")
       .eq("project_id", source.project_id)
       .eq("external_id", recording.id)
       .single();
+
+    if (existingError && existingError.code !== "PGRST116") {
+      // PGRST116 is "not found" error which is expected
+      console.error(
+        `❌ [PULL RECORDINGS] Error checking existing session:`,
+        existingError,
+      );
+      Sentry.captureException(existingError, {
+        tags: { job: "syncSessions", step: "pullRecordings" },
+        extra: {
+          sourceId,
+          offset,
+          recordingId: recording.id,
+          projectId: source.project_id,
+        },
+      });
+      // Continue processing other recordings even if this check fails
+      continue;
+    }
 
     if (existing) continue;
 

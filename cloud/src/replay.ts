@@ -352,16 +352,30 @@ function buildReplayHtml(
                     currentSegmentIndex = -1;
                     isSkippingInactivity = true;
 
-                    // Skip gaps at high speed (use max speed since we don't know duration)
-                    const gapSpeed = 360; // Max speed for gaps
+                    // Look ahead to see if we're approaching an active segment
+                    // This prevents fast-forwarding through interactions after tab returns
+                    const nextSegment = segments.find(s => s.startTime > currentTime);
+                    const timeToNextSegment = nextSegment ? nextSegment.startTime - currentTime : Infinity;
+
+                    // If next segment is active and within 500ms, slow down preemptively
+                    // This ensures smooth transitions and prevents skipping through actual interactions
+                    const gapSpeed = (nextSegment?.isActive && timeToNextSegment < 500)
+                      ? baseSpeed    // Slow to normal speed when approaching activity
+                      : 360;         // Otherwise skip at max speed
+
                     replayer.setConfig({ speed: gapSpeed });
 
-                    // Show skip overlay
+                    // Show skip overlay only if actually skipping
                     if (skipOverlay) {
-                      skipOverlay.classList.add('active');
+                      if (gapSpeed > baseSpeed) {
+                        skipOverlay.classList.add('active');
+                      } else {
+                        skipOverlay.classList.remove('active');
+                      }
                     }
 
-                    console.log('🎮 [GAP] Skipping gap at', (currentTime/1000).toFixed(1) + 's, speed:', gapSpeed + 'x');
+                    const status = gapSpeed > baseSpeed ? 'speed: ' + gapSpeed + 'x' : 'approaching active segment';
+                    console.log('🎮 [GAP]', status, 'at', (currentTime/1000).toFixed(1) + 's');
                   }
                 }
 

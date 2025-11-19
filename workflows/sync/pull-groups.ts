@@ -1,6 +1,7 @@
 import adminSupabase from "@/lib/supabase/admin";
 import { Json } from "@/schema";
 import { FatalError } from "workflow";
+import * as Sentry from "@sentry/nextjs";
 
 export async function pullGroups(
   sourceId: string,
@@ -21,7 +22,14 @@ export async function pullGroups(
     .eq("id", sourceId)
     .single();
 
-  if (!source) throw new FatalError("Source not found");
+  if (!source) {
+    const error = new Error("Source not found");
+    Sentry.captureException(error, {
+      tags: { job: "syncSessions", step: "pullGroups" },
+      extra: { sourceId },
+    });
+    throw new FatalError("Source not found");
+  }
 
   const groupNames: Record<string, string> = {};
   const groupProperties: Record<string, Json> = {};
@@ -29,34 +37,59 @@ export async function pullGroups(
     `https://us.posthog.com/api/projects/${source.source_project}/groups/?group_type_index=0`;
 
   while (true) {
-    // get posthog groups
-    const groupResponse = await fetch(query, {
-      headers: {
-        Authorization: `Bearer ${source.source_key}`,
-        "Content-Type": "application/json",
-      },
-    });
+    try {
+      // get posthog groups
+      const groupResponse = await fetch(query, {
+        headers: {
+          Authorization: `Bearer ${source.source_key}`,
+          "Content-Type": "application/json",
+        },
+      });
 
-    const groupData = (await groupResponse.json()) as {
-      next: string | null;
-      previous: string | null;
-      results: {
-        group_type_index: number;
-        group_key: string;
-        group_properties: Record<string, unknown>;
-        group_created_at: string;
-      }[];
-    };
+      if (!groupResponse.ok) {
+        const error = new Error(
+          `PostHog API request failed: ${groupResponse.status} ${groupResponse.statusText}`,
+        );
+        console.error(`❌ [PULL GROUPS] PostHog API error:`, error);
+        Sentry.captureException(error, {
+          tags: { job: "syncSessions", step: "pullGroups" },
+          extra: {
+            sourceId,
+            status: groupResponse.status,
+            statusText: groupResponse.statusText,
+          },
+        });
+        throw error;
+      }
 
-    for (const group of groupData.results) {
-      groupNames[group.group_key] = group.group_properties.name as string;
-      groupProperties[group.group_key] = group.group_properties as Json;
-    }
+      const groupData = (await groupResponse.json()) as {
+        next: string | null;
+        previous: string | null;
+        results: {
+          group_type_index: number;
+          group_key: string;
+          group_properties: Record<string, unknown>;
+          group_created_at: string;
+        }[];
+      };
 
-    if (groupData.next) {
-      query = groupData.next;
-    } else {
-      break;
+      for (const group of groupData.results) {
+        groupNames[group.group_key] = group.group_properties.name as string;
+        groupProperties[group.group_key] = group.group_properties as Json;
+      }
+
+      if (groupData.next) {
+        query = groupData.next;
+      } else {
+        break;
+      }
+    } catch (error) {
+      console.error(`❌ [PULL GROUPS] Error pulling groups:`, error);
+      Sentry.captureException(error, {
+        tags: { job: "syncSessions", step: "pullGroups" },
+        extra: { sourceId, query },
+      });
+      throw error;
     }
   }
 

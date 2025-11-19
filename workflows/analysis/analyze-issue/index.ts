@@ -10,6 +10,7 @@ import {
   ANALYZE_ISSUE_SCHEMA,
   ANALYZE_ISSUE_SYSTEM,
 } from "./prompts";
+import * as Sentry from "@sentry/nextjs";
 
 export type AnalyzeIssueJobRequest = {
   issue_id: string;
@@ -38,7 +39,12 @@ export async function analyzeIssue(issueId: string) {
     .single();
 
   if (issueError || !issueData) {
-    console.error(`❌ [ANALYZE ISSUE] Issue not found: ${issueId}`, issueError);
+    const error = issueError || new Error("Issue not found");
+    console.error(`❌ [ANALYZE ISSUE] Issue not found: ${issueId}`, error);
+    Sentry.captureException(error, {
+      tags: { job: "analyzeSession", step: "analyzeIssue" },
+      extra: { issueId },
+    });
     return NextResponse.json({ error: "Issue not found" }, { status: 404 });
   }
 
@@ -51,7 +57,16 @@ export async function analyzeIssue(issueId: string) {
   console.log(`   Session Occurrences: ${session_issues.length}`);
 
   if (!session_issues || session_issues.length === 0) {
+    const error = new Error("Issue has no linked sessions");
     console.error(`❌ [ANALYZE ISSUE] Issue ${issueId} has no linked sessions`);
+    Sentry.captureException(error, {
+      tags: { job: "analyzeSession", step: "analyzeIssue" },
+      extra: {
+        issueId,
+        projectId: issue.project_id,
+        issueName: issue.name,
+      },
+    });
     return NextResponse.json(
       {
         error: "Issue has no linked sessions",
@@ -87,6 +102,13 @@ export async function analyzeIssue(issueId: string) {
       `❌ [ANALYZE ISSUE] Failed to update issue status:`,
       startUpdateError,
     );
+    Sentry.captureException(startUpdateError, {
+      tags: { job: "analyzeSession", step: "analyzeIssue" },
+      extra: {
+        issueId,
+        projectId: issue.project_id,
+      },
+    });
     throw new Error("Failed to update issue status");
   }
 
@@ -101,19 +123,34 @@ export async function analyzeIssue(issueId: string) {
 
   console.log(`🤖 [ANALYZE ISSUE] Generating analysis with AI...`);
 
-  const { object } = await generateObject({
-    model: google("gemini-3-pro-preview"),
-    providerOptions: {
-      google: {
-        thinkingConfig: {
-          thinkingLevel: ThinkingLevel.HIGH,
+  let object;
+  try {
+    const result = await generateObject({
+      model: google("gemini-3-pro-preview"),
+      providerOptions: {
+        google: {
+          thinkingConfig: {
+            thinkingLevel: ThinkingLevel.HIGH,
+          },
         },
       },
-    },
-    system: ANALYZE_ISSUE_SYSTEM,
-    schema: ANALYZE_ISSUE_SCHEMA,
-    prompt: userPrompt,
-  });
+      system: ANALYZE_ISSUE_SYSTEM,
+      schema: ANALYZE_ISSUE_SCHEMA,
+      prompt: userPrompt,
+    });
+    object = result.object;
+  } catch (error) {
+    console.error(`❌ [ANALYZE ISSUE] AI analysis failed:`, error);
+    Sentry.captureException(error, {
+      tags: { job: "analyzeSession", step: "analyzeIssue/ai" },
+      extra: {
+        issueId,
+        projectId: issue.project_id,
+        sessionIssuesCount: session_issues.length,
+      },
+    });
+    throw error;
+  }
 
   console.log(`🧠 [ANALYZE ISSUE] Analysis complete`);
   console.log(`   Generated Name: ${object.name}`);
@@ -154,6 +191,14 @@ export async function analyzeIssue(issueId: string) {
       `❌ [ANALYZE ISSUE] Failed to update issue with analysis:`,
       finishUpdateError,
     );
+    Sentry.captureException(finishUpdateError, {
+      tags: { job: "analyzeSession", step: "analyzeIssue/updateAnalysis" },
+      extra: {
+        issueId,
+        projectId: issue.project_id,
+        analysisData: object,
+      },
+    });
     throw new Error("Failed to update issue with analysis");
   }
 

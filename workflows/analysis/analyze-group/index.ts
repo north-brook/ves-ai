@@ -4,12 +4,12 @@ import { google } from "@ai-sdk/google";
 import { ThinkingLevel } from "@google/genai";
 import { generateObject } from "ai";
 import { createHash } from "crypto";
-import { FatalError } from "workflow";
 import {
   ANALYZE_GROUP_PROMPT,
   ANALYZE_GROUP_SCHEMA,
   ANALYZE_GROUP_SYSTEM,
 } from "./prompts";
+import * as Sentry from "@sentry/nextjs";
 
 export async function analyzeGroup(projectGroupId: string) {
   "use step";
@@ -38,11 +38,16 @@ export async function analyzeGroup(projectGroupId: string) {
     .single();
 
   if (projectGroupError || !projectGroupData) {
+    const error = projectGroupError || new Error("Group not found");
     console.error(
       `❌ [ANALYZE GROUP] Group not found: ${projectGroupId}`,
-      projectGroupError,
+      error,
     );
-    throw new FatalError("Group not found");
+    Sentry.captureException(error, {
+      tags: { job: "analyzeSession", step: "analyzeGroup" },
+      extra: { projectGroupId },
+    });
+    throw new Error("Group not found");
   }
 
   const { projectUsers, ...projectGroup } = projectGroupData;
@@ -53,17 +58,19 @@ export async function analyzeGroup(projectGroupId: string) {
   console.log(`   Users: ${projectUsers.length}`);
 
   if (!projectUsers.length) {
+    const error = new Error("Project group has no users");
     console.error(
       `❌ [ANALYZE GROUP] Project group ${projectGroupId} has no users`,
     );
-    throw new FatalError("Project group has no users");
-  }
-
-  if (!projectUsers.length) {
-    console.error(
-      `❌ [ANALYZE GROUP] Project group ${projectGroupId} has no users`,
-    );
-    throw new FatalError("Project group has no users");
+    Sentry.captureException(error, {
+      tags: { job: "analyzeSession", step: "analyzeGroup" },
+      extra: {
+        projectGroupId,
+        projectId: projectGroup.project_id,
+        groupName: projectGroup.name,
+      },
+    });
+    throw error;
   }
 
   // Hash both analyzed sessions + all sessions across all users to trigger re-analysis when:
@@ -104,6 +111,13 @@ export async function analyzeGroup(projectGroupId: string) {
       `❌ [ANALYZE GROUP] Failed to update group status:`,
       startUpdateError,
     );
+    Sentry.captureException(startUpdateError, {
+      tags: { job: "analyzeSession", step: "analyzeGroup" },
+      extra: {
+        projectGroupId,
+        projectId: projectGroup.project_id,
+      },
+    });
     throw new Error("Failed to update session status");
   }
 
@@ -113,19 +127,34 @@ export async function analyzeGroup(projectGroupId: string) {
     projectUsers,
   });
 
-  const { object } = await generateObject({
-    model: google("gemini-3-pro-preview"),
-    providerOptions: {
-      google: {
-        thinkingConfig: {
-          thinkingLevel: ThinkingLevel.HIGH,
+  let object;
+  try {
+    const result = await generateObject({
+      model: google("gemini-3-pro-preview"),
+      providerOptions: {
+        google: {
+          thinkingConfig: {
+            thinkingLevel: ThinkingLevel.HIGH,
+          },
         },
       },
-    },
-    system: ANALYZE_GROUP_SYSTEM,
-    schema: ANALYZE_GROUP_SCHEMA,
-    prompt: groupPrompt,
-  });
+      system: ANALYZE_GROUP_SYSTEM,
+      schema: ANALYZE_GROUP_SCHEMA,
+      prompt: groupPrompt,
+    });
+    object = result.object;
+  } catch (error) {
+    console.error(`❌ [ANALYZE GROUP] AI analysis failed:`, error);
+    Sentry.captureException(error, {
+      tags: { job: "analyzeSession", step: "analyzeGroup/ai" },
+      extra: {
+        projectGroupId,
+        projectId: projectGroup.project_id,
+        usersCount: projectUsers.length,
+      },
+    });
+    throw error;
+  }
 
   console.log(`🧠 [ANALYZE GROUP] Analysis complete`);
 
@@ -160,6 +189,14 @@ export async function analyzeGroup(projectGroupId: string) {
       `❌ [ANALYZE GROUP] Failed to update group status:`,
       finishUpdateError,
     );
+    Sentry.captureException(finishUpdateError, {
+      tags: { job: "analyzeSession", step: "analyzeGroup/updateStatus" },
+      extra: {
+        projectGroupId,
+        projectId: projectGroup.project_id,
+        analysisData: object,
+      },
+    });
     throw new Error("Failed to update user status");
   }
 

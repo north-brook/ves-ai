@@ -1,6 +1,7 @@
 import type { ProcessReplayRequest } from "@/cloud/src/types";
 import adminSupabase from "@/lib/supabase/admin";
 import { FatalError } from "workflow";
+import * as Sentry from "@sentry/nextjs";
 
 export type ProcessJobRequest = {
   session_id: string;
@@ -10,8 +11,13 @@ export async function processReplay(sessionId: string, webhookUrl: string) {
   "use step";
 
   if (!sessionId) {
+    const error = new Error("Missing session_id");
     console.error("❌ [PROCESS] Missing session_id");
-    throw new Error("Missing session_id");
+    Sentry.captureException(error, {
+      tags: { job: "analyzeSession", step: "processReplay" },
+      extra: { sessionId },
+    });
+    throw error;
   }
 
   console.log(`🎬 [PROCESS] Starting processing for session ${sessionId}`);
@@ -27,7 +33,12 @@ export async function processReplay(sessionId: string, webhookUrl: string) {
     .single();
 
   if (sessionError || !session) {
-    console.error(`❌ [PROCESS] Session not found: ${sessionId}`, sessionError);
+    const error = sessionError || new Error("Session not found");
+    console.error(`❌ [PROCESS] Session not found: ${sessionId}`, error);
+    Sentry.captureException(error, {
+      tags: { job: "analyzeSession", step: "processReplay" },
+      extra: { sessionId },
+    });
     throw new Error("Session not found");
   }
 
@@ -38,13 +49,23 @@ export async function processReplay(sessionId: string, webhookUrl: string) {
 
   // Check if already processing or processed
   if (session.status !== "pending") {
+    const error = new Error("Session is already processing");
     console.warn(`⚠️ [PROCESS] Session ${sessionId} is already processing`);
+    Sentry.captureException(error, {
+      tags: { job: "analyzeSession", step: "processReplay" },
+      extra: { sessionId, status: session.status },
+    });
     throw new FatalError("Session is already processing");
   }
 
   if (!session.active_duration) {
+    const error = new Error("Session missing active_duration");
     console.error(`❌ [PROCESS] Session ${sessionId} missing active_duration`);
-    throw new Error("Session missing active_duration");
+    Sentry.captureException(error, {
+      tags: { job: "analyzeSession", step: "processReplay" },
+      extra: { sessionId, projectId: session.project_id },
+    });
+    throw error;
   }
 
   // Prepare cloud service request
@@ -75,6 +96,10 @@ export async function processReplay(sessionId: string, webhookUrl: string) {
 
   if (updateError) {
     console.error(`❌ [PROCESS] Failed to update session status:`, updateError);
+    Sentry.captureException(updateError, {
+      tags: { job: "analyzeSession", step: "processReplay" },
+      extra: { sessionId, projectId: session.project_id },
+    });
   }
 
   console.log(`✅ [PROCESS] Updated session status to processing`);
@@ -106,15 +131,27 @@ export async function processReplay(sessionId: string, webhookUrl: string) {
         `HTTP ${response.status} - ${errorText.slice(0, 200)}`,
       );
 
+      const error = new Error(
+        `Cloud service rejected request: HTTP ${response.status}`,
+      );
+      Sentry.captureException(error, {
+        tags: { job: "analyzeSession", step: "processReplay" },
+        extra: {
+          sessionId,
+          projectId: session.project_id,
+          status: response.status,
+          errorText: errorText.slice(0, 200),
+          cloudUrl: process.env.CLOUD_URL,
+        },
+      });
+
       // Revert the status back to pending
       await supabase
         .from("sessions")
         .update({ status: "pending", processed_at: null })
         .eq("id", sessionId);
 
-      throw new Error(
-        `Cloud service rejected request: HTTP ${response.status}`,
-      );
+      throw error;
     }
 
     console.log(
@@ -134,6 +171,16 @@ export async function processReplay(sessionId: string, webhookUrl: string) {
         error.message,
       );
       console.error(`   Session will remain in "pending" status for retry`);
+
+      Sentry.captureException(error, {
+        tags: { job: "analyzeSession", step: "processReplay" },
+        extra: {
+          sessionId,
+          projectId: session.project_id,
+          cloudUrl: process.env.CLOUD_URL,
+          errorMessage: error.message,
+        },
+      });
 
       // Revert the status back to pending
       await supabase
