@@ -1,6 +1,6 @@
 import adminSupabase from "@/lib/supabase/admin";
 
-export async function failProcessReplay(sessionId: string) {
+export async function fail(sessionId: string) {
   "use step";
 
   const supabase = adminSupabase();
@@ -12,11 +12,11 @@ export async function failProcessReplay(sessionId: string) {
 
   if (updateError) {
     console.error(
-      `❌ [FAIL PROCESS REPLAY] Failed to update session status:`,
+      `❌ [FAIL ANALYSIS] Failed to update session status:`,
       updateError,
     );
     throw updateError;
   }
 
-  console.log(`✅ [FAIL PROCESS REPLAY] Updated session status to failed`);
+  console.log(`✅ [FAIL ANALYSIS] Updated session status to failed`);
 }
