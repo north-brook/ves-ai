@@ -20,6 +20,7 @@ export async function analysis(sessionId: string) {
     const replay = (await request.json()) as ReplaySuccess | ReplayError;
     if (!replay.success) {
       await fail(sessionId);
+      await next(sessionId);
       throw new FatalError("Session processing failed");
     }
 
@@ -39,9 +40,10 @@ export async function analysis(sessionId: string) {
     await Promise.all(issueIds.map((issueId) => analyzeIssue(issueId)));
 
     // kick off the next session
-    await next(session.project_id);
+    await next(sessionId);
   } catch (error) {
     await fail(sessionId);
+    await next(sessionId);
     throw error;
   }
 }
