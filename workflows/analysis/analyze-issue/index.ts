@@ -1,6 +1,7 @@
 import { writeDebugFile } from "@/lib/debug/helper";
 import adminSupabase from "@/lib/supabase/admin";
-import { google, GoogleGenerativeAIProviderOptions } from "@ai-sdk/google";
+import { google } from "@ai-sdk/google";
+import { ThinkingLevel } from "@google/genai";
 import { generateObject } from "ai";
 import { createHash } from "crypto";
 import { NextResponse } from "next/server";
@@ -101,13 +102,13 @@ export async function analyzeIssue(issueId: string) {
   console.log(`🤖 [ANALYZE ISSUE] Generating analysis with AI...`);
 
   const { object } = await generateObject({
-    model: google("gemini-2.5-pro"),
+    model: google("gemini-3-pro-preview"),
     providerOptions: {
       google: {
         thinkingConfig: {
-          thinkingBudget: 32768,
+          thinkingLevel: ThinkingLevel.HIGH,
         },
-      } satisfies GoogleGenerativeAIProviderOptions,
+      },
     },
     system: ANALYZE_ISSUE_SYSTEM,
     schema: ANALYZE_ISSUE_SCHEMA,

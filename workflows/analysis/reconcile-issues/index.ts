@@ -1,9 +1,10 @@
 import { clearDebugFile, writeDebugFile } from "@/lib/debug/helper";
+import embed from "@/lib/embed";
 import adminSupabase from "@/lib/supabase/admin";
-import { google, GoogleGenerativeAIProviderOptions } from "@ai-sdk/google";
-import { openai } from "@ai-sdk/openai";
+import { google } from "@ai-sdk/google";
+import { ThinkingLevel } from "@google/genai";
 import * as Sentry from "@sentry/nextjs";
-import { embed, generateObject } from "ai";
+import { generateObject } from "ai";
 import { FatalError } from "workflow";
 import {
   RECONCILE_ISSUE_PROMPT,
@@ -79,10 +80,9 @@ export async function reconcileIssues(sessionId: string): Promise<string[]> {
     issueRunNumber++;
     try {
       // get 10 related issues (by embedding similarity)
-      const { embedding: detectedIssueEmbedding } = await embed({
-        model: openai.textEmbeddingModel("text-embedding-3-small"),
-        value: `${detectedIssue.name}`,
-      });
+      const detectedIssueEmbedding = await embed(
+        `${detectedIssue.name}\n${detectedIssue.type}\n${detectedIssue.story}`,
+      );
 
       const { data: relatedIssueData, error: relatedIssueError } =
         await supabase.rpc("match_issues", {
@@ -127,13 +127,13 @@ export async function reconcileIssues(sessionId: string): Promise<string[]> {
 
       // Generate reconciliation decision using Gemini
       const { object: issueResponse } = await generateObject({
-        model: google("gemini-2.5-pro"),
+        model: google("gemini-3-pro-preview"),
         providerOptions: {
           google: {
             thinkingConfig: {
-              thinkingBudget: 32768,
+              thinkingLevel: ThinkingLevel.HIGH,
             },
-          } satisfies GoogleGenerativeAIProviderOptions,
+          },
         },
         system: RECONCILE_ISSUE_SYSTEM,
         schema: RECONCILE_ISSUE_SCHEMA,
@@ -262,10 +262,9 @@ export async function reconcileIssues(sessionId: string): Promise<string[]> {
         }
 
         // Create new issue
-        const { embedding: newIssueEmbedding } = await embed({
-          model: openai.textEmbeddingModel("text-embedding-3-small"),
-          value: `${issueResponse.newIssue.name}\n${issueResponse.newIssue.type}\n${issueResponse.newIssue.story}`,
-        });
+        const newIssueEmbedding = await embed(
+          `${issueResponse.newIssue.name}\n${issueResponse.newIssue.type}\n${issueResponse.newIssue.story}`,
+        );
 
         // Create the new issue
         const { data: createdIssue, error: createIssueError } = await supabase

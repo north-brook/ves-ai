@@ -879,6 +879,8 @@ import {
   GoogleGenAI,
   createPartFromUri,
   createUserContent,
+  ThinkingLevel,
+  MediaResolution,
 } from "@google/genai";
 
 async function analyzeSessionWithGemini(
@@ -903,7 +905,7 @@ Return structured JSON with your analysis.`;
 
   // Multi-modal analysis: video + event context
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-pro",
+    model: "gemini-3-pro-preview",
     contents: [
       createUserContent(systemPrompt),
       createUserContent([
@@ -916,8 +918,10 @@ Return structured JSON with your analysis.`;
     config: {
       // Extended thinking for deeper analysis
       thinkingConfig: {
-        thinkingBudget: 32768,
+        thinkingLevel: ThinkingLevel.HIGH,
       },
+      // High media resolution for clear understanding
+      mediaResolution: MediaResolution.MEDIA_RESOLUTION_HIGH,
       // Structured JSON output
       responseMimeType: "application/json",
       responseSchema: {
