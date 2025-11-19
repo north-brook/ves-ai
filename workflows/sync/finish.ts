@@ -1,4 +1,5 @@
 import adminSupabase from "@/lib/supabase/admin";
+import * as Sentry from "@sentry/nextjs";
 
 export async function finish(sourceId: string) {
   "use step";
@@ -16,6 +17,10 @@ export async function finish(sourceId: string) {
       `⚠️ [FINISH] Failed to update source last_active_at and status to synced:`,
       updateError,
     );
+    Sentry.captureException(updateError, {
+      tags: { job: "syncSessions", step: "finish" },
+      extra: { sourceId },
+    });
   }
 
   console.log(

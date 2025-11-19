@@ -9,6 +9,7 @@ import {
   ANALYZE_USER_SCHEMA,
   ANALYZE_USER_SYSTEM,
 } from "./prompts";
+import * as Sentry from "@sentry/nextjs";
 
 export async function analyzeUser(projectUserId: string) {
   "use step";
@@ -33,10 +34,15 @@ export async function analyzeUser(projectUserId: string) {
     .single();
 
   if (projectUserError || !projectUserData) {
+    const error = projectUserError || new Error("User not found");
     console.error(
       `❌ [ANALYZE USER] User not found: ${projectUserId}`,
-      projectUserError,
+      error,
     );
+    Sentry.captureException(error, {
+      tags: { job: "analyzeSession", step: "analyzeUser" },
+      extra: { projectUserId },
+    });
     throw new Error("User not found");
   }
 
@@ -55,10 +61,19 @@ export async function analyzeUser(projectUserId: string) {
   }
 
   if (!sessions.length) {
+    const error = new Error("Project user has no sessions");
     console.error(
       `❌ [ANALYZE USER] Project user ${projectUserId} has no sessions`,
     );
-    throw new Error("Project user has no sessions");
+    Sentry.captureException(error, {
+      tags: { job: "analyzeSession", step: "analyzeUser" },
+      extra: {
+        projectUserId,
+        projectId: projectUser.project_id,
+        userName: projectUser.name,
+      },
+    });
+    throw error;
   }
 
   // Hash both analyzed sessions + all sessions to trigger re-analysis when:
@@ -98,6 +113,13 @@ export async function analyzeUser(projectUserId: string) {
       `❌ [ANALYZE USER] Failed to update session status:`,
       startUpdateError,
     );
+    Sentry.captureException(startUpdateError, {
+      tags: { job: "analyzeSession", step: "analyzeUser" },
+      extra: {
+        projectUserId,
+        projectId: projectUser.project_id,
+      },
+    });
     throw new Error("Failed to update session status");
   }
 
@@ -107,19 +129,34 @@ export async function analyzeUser(projectUserId: string) {
     sessions,
   });
 
-  const { object } = await generateObject({
-    model: google("gemini-3-pro-preview"),
-    providerOptions: {
-      google: {
-        thinkingConfig: {
-          thinkingLevel: ThinkingLevel.HIGH,
+  let object;
+  try {
+    const result = await generateObject({
+      model: google("gemini-3-pro-preview"),
+      providerOptions: {
+        google: {
+          thinkingConfig: {
+            thinkingLevel: ThinkingLevel.HIGH,
+          },
         },
       },
-    },
-    system: ANALYZE_USER_SYSTEM,
-    schema: ANALYZE_USER_SCHEMA,
-    prompt: userPrompt,
-  });
+      system: ANALYZE_USER_SYSTEM,
+      schema: ANALYZE_USER_SCHEMA,
+      prompt: userPrompt,
+    });
+    object = result.object;
+  } catch (error) {
+    console.error(`❌ [ANALYZE USER] AI analysis failed:`, error);
+    Sentry.captureException(error, {
+      tags: { job: "analyzeSession", step: "analyzeUser/ai" },
+      extra: {
+        projectUserId,
+        projectId: projectUser.project_id,
+        sessionsCount: sessions.length,
+      },
+    });
+    throw error;
+  }
 
   console.log(`🧠 [ANALYZE USER] Analysis complete`);
 
@@ -151,6 +188,14 @@ export async function analyzeUser(projectUserId: string) {
       `❌ [ANALYZE USER] Failed to update user status:`,
       finishUpdateError,
     );
+    Sentry.captureException(finishUpdateError, {
+      tags: { job: "analyzeSession", step: "analyzeUser/updateStatus" },
+      extra: {
+        projectUserId,
+        projectId: projectUser.project_id,
+        analysisData: object,
+      },
+    });
     throw new Error("Failed to update user status");
   }
 

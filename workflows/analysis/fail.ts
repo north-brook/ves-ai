@@ -1,4 +1,5 @@
 import adminSupabase from "@/lib/supabase/admin";
+import * as Sentry from "@sentry/nextjs";
 
 export async function fail(sessionId: string) {
   "use step";
@@ -15,6 +16,10 @@ export async function fail(sessionId: string) {
       `❌ [FAIL ANALYSIS] Failed to update session status:`,
       updateError,
     );
+    Sentry.captureException(updateError, {
+      tags: { job: "analyzeSession", step: "fail" },
+      extra: { sessionId },
+    });
     throw updateError;
   }
 

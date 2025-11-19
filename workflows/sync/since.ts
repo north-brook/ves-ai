@@ -1,5 +1,6 @@
 import adminSupabase from "@/lib/supabase/admin";
 import { FatalError } from "workflow";
+import * as Sentry from "@sentry/nextjs";
 
 export async function since(sourceId: string): Promise<string> {
   "use step";
@@ -20,6 +21,10 @@ export async function since(sourceId: string): Promise<string> {
       `⚠️ [SINCE] Failed to update source last_active_at and status to syncing and get source:`,
       updateError,
     );
+    Sentry.captureException(updateError, {
+      tags: { job: "syncSessions", step: "since" },
+      extra: { sourceId },
+    });
     throw new FatalError(
       "Failed to update source last_active_at and status to syncing and get source",
     );
