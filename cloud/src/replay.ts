@@ -1,10 +1,10 @@
-import { join, resolve as pathResolve } from "node:path";
-import { createReadStream, createWriteStream, promises as fs } from "node:fs";
-import { spawn } from "node:child_process";
-import { createRequire } from "node:module";
-import { chromium, LaunchOptions } from "playwright";
-import { pipeline } from "node:stream/promises";
 import { Storage } from "@google-cloud/storage";
+import { spawn } from "node:child_process";
+import { createReadStream, createWriteStream, promises as fs } from "node:fs";
+import { createRequire } from "node:module";
+import { join, resolve as pathResolve } from "node:path";
+import { pipeline } from "node:stream/promises";
+import { chromium, LaunchOptions } from "playwright";
 
 // rrweb EventType.Meta = 4
 const RRWEB_EVENT_META = 4;
@@ -170,13 +170,14 @@ function buildReplayHtml(
         console.log('=== SEGMENTS DEBUG ===');
         console.log('Base timestamp:', baseTimestamp);
         segments.forEach((seg, i) => {
-          const relativeStart = seg.startTime - baseTimestamp;
-          const relativeEnd = seg.endTime - baseTimestamp;
+          const relativeStart = seg.startTimestamp - baseTimestamp;
+          const relativeEnd = seg.endTimestamp - baseTimestamp;
           console.log('Segment', i, ':', {
+            kind: seg.kind,
             isActive: seg.isActive,
-            absoluteTime: seg.startTime + '-' + seg.endTime,
+            absoluteTime: seg.startTimestamp + '-' + seg.endTimestamp,
             relativeTime: (relativeStart/1000).toFixed(1) + 's-' + (relativeEnd/1000).toFixed(1) + 's',
-            duration: ((seg.endTime - seg.startTime) / 1000).toFixed(1) + 's'
+            duration: ((seg.endTimestamp - seg.startTimestamp) / 1000).toFixed(1) + 's'
           });
         });
 
@@ -184,8 +185,8 @@ function buildReplayHtml(
         // getCurrentTime() returns milliseconds from start, but segments use absolute Unix timestamps
         segments = segments.map(seg => ({
           ...seg,
-          startTime: seg.startTime - baseTimestamp,
-          endTime: seg.endTime - baseTimestamp
+          startTimestamp: seg.startTimestamp - baseTimestamp,
+          endTimestamp: seg.endTimestamp - baseTimestamp
         }));
         console.log('✅ Normalized', segments.length, 'segments to relative time for getCurrentTime() matching');
 
@@ -239,7 +240,9 @@ function buildReplayHtml(
 
             for (let i = 0; i < segments.length; i++) {
               const seg = segments[i];
-              if (timestamp >= seg.startTime && timestamp <= seg.endTime) {
+              // Check if timestamp is within segment
+              // Note: normalized timestamps
+              if (timestamp >= seg.startTimestamp && timestamp <= seg.endTimestamp) {
                 return { segment: seg, index: i };
               }
             }
@@ -253,7 +256,7 @@ function buildReplayHtml(
             }
 
             // Dynamic speed based on remaining time in inactive segment
-            const remainingSeconds = (segment.endTime - currentTime) / 1000;
+            const remainingSeconds = (segment.endTimestamp - currentTime) / 1000;
             return Math.max(50, remainingSeconds);
           }
 
@@ -320,7 +323,10 @@ function buildReplayHtml(
 
                     // Update skipping state based on segment activity
                     const wasSkipping = isSkippingInactivity;
-                    isSkippingInactivity = !segment.isActive;
+                    // Consider gaps and buffers as inactive too, but they usually have isActive=false
+                    // Also check if skipInactive setting is enabled (it's default true in opts)
+                    const shouldSkip = !segment.isActive;
+                    isSkippingInactivity = shouldSkip;
 
                     // Calculate and set new speed
                     const newSpeed = calculatePlaybackSpeed(segment, currentTime, isSkippingInactivity);
@@ -338,44 +344,24 @@ function buildReplayHtml(
                     // Log segment transition
                     const action = isSkippingInactivity ? 'SKIPPING' : 'PLAYING';
                     const source = wasSkipping && currentSegmentIndex === -1 ? 'from GAP' : '';
-                    console.log('🎮 [SEGMENT CHANGE]', action, 'segment', currentSegmentIndex, source, 'at speed', newSpeed.toFixed(1) + 'x');
+                    console.log('🎮 [SEGMENT CHANGE]', action, 'segment', currentSegmentIndex, 'kind', segment.kind, source, 'at speed', newSpeed.toFixed(1) + 'x');
                   } else if (isSkippingInactivity) {
                     // Recalculate speed within inactive segment for dynamic adjustment
                     const newSpeed = calculatePlaybackSpeed(segment, currentTime, isSkippingInactivity);
                     replayer.setConfig({ speed: newSpeed });
                   }
                 } else {
-                  // No segment found - this is a GAP between segments
-                  // PostHog marks all gaps as inactive, so skip them
-
-                  // Transition tracking (only once when entering gap)
+                  // No segment found - this might be a gap in logic or between segments if gaps aren't covered
+                  // With the new logic, gaps are explicit segments, so we should usually find a segment.
+                  // However, if something is wrong, fallback to gap behavior
+                  
                   if (currentSegmentIndex !== -1) {
                     currentSegmentIndex = -1;
-                    isSkippingInactivity = true;
-                    console.log('🎮 [GAP START] Entered gap at', (currentTime/1000).toFixed(1) + 's');
+                    console.log('🎮 [UNKNOWN GAP] Entered unknown gap at', (currentTime/1000).toFixed(1) + 's');
                   }
-
-                  // Update speed EVERY FRAME based on proximity to next segment
-                  // This ensures we slow down as we approach active content
-                  const nextSegment = segments.find(s => s.startTime > currentTime);
-                  const timeToNextSegment = nextSegment ? nextSegment.startTime - currentTime : Infinity;
-
-                  // If next segment is active and within 500ms, slow down preemptively
-                  // This ensures smooth transitions and prevents skipping through actual interactions
-                  const gapSpeed = (nextSegment?.isActive && timeToNextSegment < 500)
-                    ? baseSpeed    // Slow to normal speed when approaching activity
-                    : 360;         // Otherwise skip at max speed
-
-                  replayer.setConfig({ speed: gapSpeed });
-
-                  // Show skip overlay only if actually skipping
-                  if (skipOverlay) {
-                    if (gapSpeed > baseSpeed) {
-                      skipOverlay.classList.add('active');
-                    } else {
-                      skipOverlay.classList.remove('active');
-                    }
-                  }
+                  
+                  // Just keep playing at base speed if we don't know what's happening
+                  replayer.setConfig({ speed: baseSpeed });
                 }
 
                 // Log at intervals
@@ -440,6 +426,92 @@ async function moveFile(src: string, dest: string) {
     rs.close();
     await fs.unlink(src);
   }
+}
+
+// --------------------------------------------------------
+// Trim black intro from video using FFmpeg blackdetect
+// --------------------------------------------------------
+
+async function trimBlackIntro(videoPath: string): Promise<string> {
+  console.log(`🎬 [TRIM] Detecting black intro in video...`);
+
+  // Step 1: Run blackdetect to find black segments at the start
+  const detectResult = await new Promise<string>((resolve, reject) => {
+    const proc = spawn("ffmpeg", [
+      "-i",
+      videoPath,
+      "-vf",
+      "blackdetect=d=0.1:pix_th=0.1",
+      "-an",
+      "-f",
+      "null",
+      "-",
+    ]);
+
+    let stderr = "";
+    proc.stderr.on("data", (data) => (stderr += data.toString()));
+    proc.on("close", (code) => {
+      // ffmpeg returns 0 on success, stderr contains detection info
+      if (code === 0) resolve(stderr);
+      else reject(new Error(`blackdetect failed with code ${code}: ${stderr}`));
+    });
+    proc.on("error", reject);
+  });
+
+  // Step 2: Parse the first black_end timestamp from output
+  // Format: [blackdetect @ 0x...] black_start:0 black_end:1.5 black_duration:1.5
+  const blackEndMatch = detectResult.match(/black_end:(\d+\.?\d*)/);
+
+  if (!blackEndMatch) {
+    console.log(`✅ [TRIM] No black intro detected, keeping original video`);
+    return videoPath;
+  }
+
+  const blackEnd = parseFloat(blackEndMatch[1]);
+
+  // Only trim if black intro is significant (> 0.1s) but not too long (< 10s)
+  if (blackEnd <= 0.1) {
+    console.log(
+      `✅ [TRIM] Black intro too short (${blackEnd.toFixed(2)}s), keeping original`,
+    );
+    return videoPath;
+  }
+
+  if (blackEnd > 10) {
+    console.warn(
+      `⚠️ [TRIM] Black intro suspiciously long (${blackEnd.toFixed(2)}s), keeping original`,
+    );
+    return videoPath;
+  }
+
+  console.log(`✂️ [TRIM] Trimming ${blackEnd.toFixed(2)}s black intro...`);
+
+  // Step 3: Trim the video from black_end
+  const trimmedPath = videoPath.replace(".webm", "-trimmed.webm");
+
+  await new Promise<void>((resolve, reject) => {
+    const proc = spawn("ffmpeg", [
+      "-ss",
+      blackEnd.toString(),
+      "-i",
+      videoPath,
+      "-c",
+      "copy",
+      "-y",
+      trimmedPath,
+    ]);
+
+    let stderr = "";
+    proc.stderr.on("data", (data) => (stderr += data.toString()));
+    proc.on("close", (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`ffmpeg trim failed with code ${code}: ${stderr}`));
+    });
+    proc.on("error", reject);
+  });
+
+  console.log(`✅ [TRIM] Video trimmed successfully`);
+  return trimmedPath;
 }
 
 // --------------------------------------------------------
@@ -707,6 +779,14 @@ export default async function constructVideo(params: {
 
     const tmpVideoPath = join(workDir, videoFile);
     await moveFile(tmpVideoPath, outPath);
+
+    // Trim black intro from video
+    const trimmedPath = await trimBlackIntro(outPath);
+    if (trimmedPath !== outPath) {
+      // Replace original with trimmed version
+      await fs.unlink(outPath);
+      await moveFile(trimmedPath, outPath);
+    }
 
     console.log(`✅ [REPLAY] Video saved to: ${outPath}`);
 

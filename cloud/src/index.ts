@@ -10,7 +10,7 @@ app.use(express.json({ limit: "512kb" }));
 
 const activeRecordings = new Map<
   string,
-  { body: ProcessReplayRequest; callbackUrl: string; startTime: number }
+  { body: ProcessReplayRequest; callbackUrl?: string | null; startTime: number }
 >();
 
 app.get("/health", (_req, res) => res.status(200).send("ok"));
@@ -27,7 +27,6 @@ app.post("/process", async (req, res) => {
     "session_id",
     "external_id",
     "active_duration",
-    "callback",
   ].filter(
     (k) =>
       !(k in body) || (body as any)[k] === undefined || (body as any)[k] === "",
@@ -48,10 +47,11 @@ app.post("/process", async (req, res) => {
   // Process synchronously and keep HTTP request open
   // This maintains request-based billing autoscaling (1 request = 1 session)
   try {
-    await processRecordingAsync(body);
+    const { response } = await processRecordingAsync(body);
     res.status(200).json({
       success: true,
       message: "Recording processed and finished callback sent",
+      response,
       external_id: body.external_id,
     });
   } catch (err: any) {
@@ -67,13 +67,15 @@ app.post("/process", async (req, res) => {
   }
 });
 
-async function processRecordingAsync(body: ProcessReplayRequest) {
+async function processRecordingAsync(
+  body: ProcessReplayRequest,
+): Promise<{ response: ReplaySuccess | ReplayError | null }> {
   let ReplaySuccess: ReplaySuccess | null = null;
   let ReplayError: ReplayError | null = null;
   const processStartTime = Date.now();
 
   let callbackUrl = body.callback;
-  if (callbackUrl.includes("localhost") && process.env.DOCKERIZED === "true") {
+  if (callbackUrl?.includes("localhost") && process.env.DOCKERIZED === "true") {
     callbackUrl = callbackUrl.replace("localhost", "host.docker.internal");
     console.log(`🔄 [DOCKER] Rewriting callback URL to: ${callbackUrl}`);
   }
@@ -146,11 +148,13 @@ async function processRecordingAsync(body: ProcessReplayRequest) {
       video_duration: Math.round(videoDuration),
       events_uri: eventsUri,
     };
-    await postCallback(callbackUrl, ReplaySuccess);
+    if (callbackUrl) await postCallback(callbackUrl, ReplaySuccess);
 
     console.log(
       `✅ [COMPLETED] Recording ${body.external_id} processed successfully`,
     );
+
+    return { response: ReplaySuccess };
   } catch (err: any) {
     clearInterval(processHeartbeat);
     const message = err?.message || String(err);
@@ -166,7 +170,8 @@ async function processRecordingAsync(body: ProcessReplayRequest) {
       error: message,
       external_id: body.external_id,
     };
-    await postCallback(callbackUrl, ReplayError);
+    if (callbackUrl) await postCallback(callbackUrl, ReplayError);
+    return { response: ReplayError };
   } finally {
     clearInterval(processHeartbeat);
     activeRecordings.delete(body.external_id);
@@ -202,19 +207,20 @@ async function gracefulShutdown(signal: string) {
       error: `Service shutdown (${signal}) - recording interrupted after ${elapsed}s`,
       external_id: externalId,
     };
-    promises.push(
-      postCallback(recording.callbackUrl, ReplayError)
-        .then(() => {
-          console.log(`✅ [SHUTDOWN] Callback sent for ${externalId}`);
-          activeRecordings.delete(externalId);
-        })
-        .catch((err) =>
-          console.error(
-            `❌ [SHUTDOWN] Failed callback for ${externalId}:`,
-            err,
+    if (recording.callbackUrl)
+      promises.push(
+        postCallback(recording.callbackUrl, ReplayError)
+          .then(() => {
+            console.log(`✅ [SHUTDOWN] Callback sent for ${externalId}`);
+            activeRecordings.delete(externalId);
+          })
+          .catch((err) =>
+            console.error(
+              `❌ [SHUTDOWN] Failed callback for ${externalId}:`,
+              err,
+            ),
           ),
-        ),
-    );
+      );
   }
   if (promises.length) {
     await Promise.race([
