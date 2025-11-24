@@ -133,7 +133,7 @@ jobs:
           done
 
       - name: 🧪 Run Tests
-        run: bunx dotenv -e .env.local -- bunx playwright test
+        run: bunx dotenv-cli -e .env.local -- bunx playwright test
 
       - name: 📤 Upload Test Results
         uses: actions/upload-artifact@v4

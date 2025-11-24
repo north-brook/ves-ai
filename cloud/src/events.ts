@@ -478,11 +478,11 @@ function createSegments(events: RrwebEvent[]): RecordingSegment[] {
     const currentWindowId = snapshot.windowId || "main";
     const previousWindowId = previousSnapshot?.windowId || "main";
 
-    const currentWindowSnapshots = snapshotsByWindowId[currentWindowId] || [];
+    const previousWindowSnapshots = snapshotsByWindowId[previousWindowId] || [];
     const isPreviousSnapshotLastForWindow =
       previousSnapshot &&
-      currentWindowSnapshots.length > 0 &&
-      currentWindowSnapshots[currentWindowSnapshots.length - 1] ===
+      previousWindowSnapshots.length > 0 &&
+      previousWindowSnapshots[previousWindowSnapshots.length - 1] ===
         previousSnapshot;
 
     // When do we create a new segment?
@@ -503,7 +503,7 @@ function createSegments(events: RrwebEvent[]): RecordingSegment[] {
     }
 
     // 4. If windowId changes we create a new segment
-    if (activeSegment?.windowId !== currentWindowId && eventIsActive) {
+    if (activeSegment?.windowId !== currentWindowId) {
       isNewSegment = true;
     }
 

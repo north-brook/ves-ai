@@ -458,16 +458,38 @@ async function trimBlackIntro(videoPath: string): Promise<string> {
     proc.on("error", reject);
   });
 
-  // Step 2: Parse the first black_end timestamp from output
+  // Step 2: Parse black segments from output
   // Format: [blackdetect @ 0x...] black_start:0 black_end:1.5 black_duration:1.5
-  const blackEndMatch = detectResult.match(/black_end:(\d+\.?\d*)/);
+  // We need to find a black segment that starts at 0 (the intro), not mid-video transitions
+  const blackSegmentRegex =
+    /black_start:(\d+\.?\d*)\s+black_end:(\d+\.?\d*)\s+black_duration:(\d+\.?\d*)/g;
+  let introBlackEnd: number | null = null;
 
-  if (!blackEndMatch) {
+  let match;
+  while ((match = blackSegmentRegex.exec(detectResult)) !== null) {
+    const blackStart = parseFloat(match[1]);
+    const blackEnd = parseFloat(match[2]);
+
+    // Only consider this an "intro" if it starts at/near 0 (within 0.05s tolerance)
+    if (blackStart <= 0.05) {
+      introBlackEnd = blackEnd;
+      console.log(
+        `🔍 [TRIM] Found intro black segment: start=${blackStart.toFixed(2)}s, end=${blackEnd.toFixed(2)}s`,
+      );
+      break; // Found the intro, stop searching
+    } else {
+      console.log(
+        `🔍 [TRIM] Skipping mid-video black segment: start=${blackStart.toFixed(2)}s, end=${blackEnd.toFixed(2)}s`,
+      );
+    }
+  }
+
+  if (introBlackEnd === null) {
     console.log(`✅ [TRIM] No black intro detected, keeping original video`);
     return videoPath;
   }
 
-  const blackEnd = parseFloat(blackEndMatch[1]);
+  const blackEnd = introBlackEnd;
 
   // Only trim if black intro is significant (> 0.1s) but not too long (< 10s)
   if (blackEnd <= 0.1) {
