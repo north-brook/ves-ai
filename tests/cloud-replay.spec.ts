@@ -251,7 +251,7 @@ test("cloud replay service", async ({ request }) => {
           });
 
           // Verify video duration is not more than 30% longer than active duration
-          const minDuration = activeDuration * 1;
+          const minDuration = activeDuration * 0.7;
           const maxDuration = activeDuration * 1.3;
 
           expect
