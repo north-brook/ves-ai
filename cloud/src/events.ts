@@ -475,9 +475,9 @@ function createSegments(events: RrwebEvent[]): RecordingSegment[] {
 
     // Fallback to 'main' if windowId is missing
     const currentWindowId = snapshot.windowId || "main";
-    const previousWindowId = snapshot.windowId || "main";
-
     const previousSnapshot = events[index - 1];
+    const previousWindowId = previousSnapshot?.windowId || "main";
+
     const isPreviousSnapshotLastForWindow =
       snapshotsByWindowId[previousWindowId]?.slice(-1)[0] === previousSnapshot;
 
