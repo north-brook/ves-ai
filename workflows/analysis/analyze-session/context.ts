@@ -406,7 +406,7 @@ export default async function constructContext({
       .join("\n");
 
     // Save debug output if sessionId is provided
-    if (sessionId) {
+    if (sessionId && process.env.NODE_ENV === "development") {
       try {
         const debugDir = path.join(process.cwd(), "app", "jobs", "debug");
         const debugFile = path.join(debugDir, `debug-context-${sessionId}.txt`);
