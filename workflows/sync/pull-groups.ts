@@ -1,11 +1,18 @@
 import adminSupabase from "@/lib/supabase/admin";
 import { Json } from "@/schema";
-import { FatalError } from "workflow";
 import * as Sentry from "@sentry/nextjs";
+import { FatalError, RetryableError } from "workflow";
 
-export async function pullGroups(
-  sourceId: string,
-): Promise<{
+function parseRetryAfter(response: Response): number {
+  const retryAfter = response.headers.get("Retry-After");
+  if (retryAfter) {
+    const seconds = parseInt(retryAfter, 10);
+    if (!isNaN(seconds)) return seconds;
+  }
+  return 60; // Default fallback
+}
+
+export async function pullGroups(sourceId: string): Promise<{
   groupNames: Record<string, string>;
   groupProperties: Record<string, Json>;
 }> {
@@ -45,6 +52,14 @@ export async function pullGroups(
           "Content-Type": "application/json",
         },
       });
+
+      if (groupResponse.status === 429) {
+        const retryAfter = parseRetryAfter(groupResponse);
+        console.warn(
+          `⏳ [PULL GROUPS] PostHog rate limited, retrying after ${retryAfter}`,
+        );
+        throw new RetryableError("PostHog rate limited", { retryAfter });
+      }
 
       if (!groupResponse.ok) {
         const error = new Error(
