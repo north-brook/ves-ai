@@ -49,7 +49,18 @@ Evaluate the organization's relationship with the product:
 - Consider whether successful users are helping struggling users
 - Identify if there are department or role-based usage patterns
 - Note if certain features are critical for the organization while others are ignored
-- Track whether the organization is expanding or reducing their product usage`;
+- Track whether the organization is expanding or reducing their product usage
+
+# Handling Incomplete Data
+
+Some users may not yet have AI analysis available (status != "analyzed"). When this occurs:
+- **Base your analysis primarily on users with complete analysis** (those with story, health, and score)
+- Users without analysis still provide valuable context (join date, session timing, duration patterns)
+- **Explicitly acknowledge data limitations** when a significant portion of users lack analysis
+- **Qualify your confidence** based on the ratio of analyzed to unanalyzed users
+- If many recent or active users are unanalyzed, note that the group's current state may be uncertain
+- Use session timing and duration of unanalyzed users to form early intuition (frequent recent sessions suggest engagement)
+- Be transparent about what you can and cannot confidently assess given the available data`;
 
 export const ANALYZE_GROUP_PROMPT = ({
   projectGroup,
@@ -57,7 +68,15 @@ export const ANALYZE_GROUP_PROMPT = ({
 }: {
   projectGroup: ProjectGroup;
   projectUsers: ProjectUser[];
-}) => `Analyze this group/organization's collective journey with the product across all their users.
+}) => {
+  const analyzedUsers = projectUsers.filter(
+    (u) => u.status === "analyzed" && u.story,
+  );
+  const unanalyzedUsers = projectUsers.filter(
+    (u) => u.status !== "analyzed" || !u.story,
+  );
+
+  return `Analyze this group/organization's collective journey with the product across all their users.
 
 # Group Information
 - Group ID: ${projectGroup.id}
@@ -65,6 +84,11 @@ export const ANALYZE_GROUP_PROMPT = ({
 - First Activity: ${projectGroup.created_at}
 - Total Users: ${projectUsers.length}
 ${projectGroup.properties ? `- Group Properties: ${JSON.stringify(projectGroup.properties, null, 2)}` : ""}
+
+# Data Completeness
+- **Analyzed Users**: ${analyzedUsers.length} (with full AI analysis available)
+- **Unanalyzed Users**: ${unanalyzedUsers.length} (analysis pending or in progress)
+${unanalyzedUsers.length > 0 ? `- **Note**: Base your assessment primarily on the ${analyzedUsers.length} analyzed user(s). Use session timing/duration of unanalyzed users for early intuition, but acknowledge uncertainty in your health assessment.` : ""}
 
 # Individual User Stories
 Here are the individual user analyses for all users in this group:
@@ -78,7 +102,9 @@ ${projectUsers
     (user, index) => `
 ## User ${index + 1}: ${user.name || "Unknown"} (Joined ${new Date(user.created_at).toLocaleDateString()})
 - User ID: ${user.id}
-${user.story ? `\n### User Story\n${user.story}` : "- No story available"}
+- Analysis Status: ${user.status === "analyzed" && user.story ? "Complete" : "Pending"}
+${user.session_at ? `- Last Session: ${new Date(user.session_at).toLocaleDateString()}` : ""}
+${user.story ? `\n### User Story\n${user.story}` : "- No story available yet (analysis pending)"}
 ${user.health ? `\n### User Health\n${user.health}` : ""}
 ${user.score !== null && user.score !== undefined ? `\n### User Score: ${user.score}/100` : ""}
 `,
@@ -86,6 +112,7 @@ ${user.score !== null && user.score !== undefined ? `\n### User Score: ${user.sc
   .join("\n")}
 
 Based on all these individual user journeys, provide your analysis of this group's collective story, health, and score.`;
+};
 
 export const ANALYZE_GROUP_SCHEMA = z.object({
   story: z
