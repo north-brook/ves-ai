@@ -1,9 +1,9 @@
+import { Storage } from "@google-cloud/storage";
+import { gunzipSync, strFromU8, strToU8 } from "fflate";
+import { promises as fs } from "node:fs";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { promises as fs } from "node:fs";
-import { gunzipSync, strFromU8, strToU8 } from "fflate";
-import { Storage } from "@google-cloud/storage";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 
@@ -36,13 +36,13 @@ type RrwebEvent = {
   [k: string]: any;
 };
 
-type Segment = {
-  startTime: number;
-  endTime: number;
+type RecordingSegment = {
+  kind: "window" | "gap" | "buffer";
+  startTimestamp: number;
+  endTimestamp: number;
   duration: number;
   isActive: boolean;
-  startIndex: number;
-  endIndex: number;
+  windowId?: string;
 };
 
 type EncodedSnapshot = {
@@ -387,7 +387,9 @@ function patchMetaEvents(
           }
           href = snapshot.data?.href || "";
         } catch (e) {
-          console.warn(`Failed to extract viewport for session ${sessionId}, using defaults: ${width}x${height}`);
+          console.warn(
+            `Failed to extract viewport for session ${sessionId}, using defaults: ${width}x${height}`,
+          );
         }
 
         const metaEvent: RrwebEvent = {
@@ -415,107 +417,220 @@ function patchMetaEvents(
 // --------------------------------------------------------
 // Segment creation for activity tracking
 // --------------------------------------------------------
-function createSegments(events: RrwebEvent[]): Segment[] {
-  const ACTIVITY_THRESHOLD_MS = 5000;
 
+const ACTIVE_SOURCES = [
+  IncrementalSource.MouseMove,
+  IncrementalSource.MouseInteraction,
+  IncrementalSource.Scroll,
+  IncrementalSource.ViewportResize,
+  IncrementalSource.Input,
+  IncrementalSource.TouchMove,
+  IncrementalSource.MediaInteraction,
+  IncrementalSource.Drag,
+];
+
+const ACTIVITY_THRESHOLD_MS = 5000;
+
+function isActiveEvent(event: RrwebEvent): boolean {
+  return (
+    event.type === EventType.FullSnapshot ||
+    event.type === EventType.Meta ||
+    (event.type === EventType.IncrementalSnapshot &&
+      event.data?.source !== undefined &&
+      ACTIVE_SOURCES.includes(event.data.source))
+  );
+}
+
+function mapSnapshotsToWindowId(
+  snapshots: RrwebEvent[],
+): Record<string, RrwebEvent[]> {
+  const snapshotsByWindowId: Record<string, RrwebEvent[]> = {};
+  snapshots.forEach((snapshot) => {
+    const windowId = snapshot.windowId || "main"; // Fallback to main if undefined
+    if (!snapshotsByWindowId[windowId]) {
+      snapshotsByWindowId[windowId] = [];
+    }
+    snapshotsByWindowId[windowId].push(snapshot);
+  });
+  return snapshotsByWindowId;
+}
+
+function createSegments(events: RrwebEvent[]): RecordingSegment[] {
   console.log(`🔍 [SEGMENTS] Creating segments for ${events.length} events`);
-  console.log(`  First event timestamp: ${events[0]?.timestamp}`);
-  console.log(
-    `  Last event timestamp: ${events[events.length - 1]?.timestamp}`,
-  );
-  console.log(
-    `  Total duration: ${((events[events.length - 1]?.timestamp - events[0]?.timestamp) / 1000).toFixed(1)}s`,
-  );
 
-  // Active sources match PostHog's definition
-  // These are IncrementalSnapshot sources that indicate user activity
-  const activeSources = [
-    1, // MouseMove
-    2, // MouseInteraction (click, dblclick, etc.)
-    3, // Scroll
-    4, // ViewportResize
-    5, // Input
-    6, // TouchMove
-    7, // MediaInteraction
-    12, // Drag
-  ];
+  if (events.length === 0) {
+    return [];
+  }
 
-  const segments: Segment[] = [];
-  let currentSegment: {
-    startTime: number;
-    startIndex: number;
-    isActive: boolean;
-    endTime?: number;
-    endIndex?: number;
-    duration?: number;
-  } | null = null;
-  // Initialize to first event timestamp to avoid massive time gaps
-  let lastActiveTime = events[0]?.timestamp || 0;
+  const start = events[0].timestamp;
+  const end = events[events.length - 1].timestamp;
+  const snapshotsByWindowId = mapSnapshotsToWindowId(events);
 
-  for (let index = 0; index < events.length; index++) {
-    const event = events[index];
-    // Determine if this is an active event
-    const isActiveEvent =
-      event.type === EventType.FullSnapshot ||
-      event.type === EventType.Meta ||
-      (event.type === EventType.IncrementalSnapshot &&
-        event.data?.source !== undefined &&
-        activeSources.includes(event.data.source));
+  let segments: RecordingSegment[] = [];
+  let activeSegment: Partial<RecordingSegment> | undefined;
+  let lastActiveEventTimestamp = 0;
 
-    const timeSinceLastActive = event.timestamp - lastActiveTime;
+  events.forEach((snapshot, index) => {
+    const eventIsActive = isActiveEvent(snapshot);
+    const previousSnapshot = events[index - 1];
 
-    // Determine if we should start a new segment
-    const shouldStartNewSegment =
-      !currentSegment || // No segment yet
-      (currentSegment.isActive &&
-        timeSinceLastActive > ACTIVITY_THRESHOLD_MS) || // Active -> Inactive
-      (!currentSegment.isActive && isActiveEvent); // Inactive -> Active
+    // Fallback to 'main' if windowId is missing
+    const currentWindowId = snapshot.windowId || "main";
+    const previousWindowId = previousSnapshot?.windowId || "main";
 
-    if (shouldStartNewSegment) {
-      // Close previous segment
-      if (currentSegment && index > 0) {
-        currentSegment.endTime = events[index - 1].timestamp;
-        currentSegment.endIndex = index - 1;
-        currentSegment.duration =
-          currentSegment.endTime - currentSegment.startTime;
-        segments.push(currentSegment as Segment);
-        console.log(
-          `  [SEGMENT CLOSED] ${segments.length}: ${currentSegment.isActive ? "Active" : "Inactive"} - ${(currentSegment.duration / 1000).toFixed(1)}s (events ${currentSegment.startIndex}-${currentSegment.endIndex})`,
-        );
+    const previousWindowSnapshots = snapshotsByWindowId[previousWindowId] || [];
+    const isPreviousSnapshotLastForWindow =
+      previousSnapshot &&
+      previousWindowSnapshots.length > 0 &&
+      previousWindowSnapshots[previousWindowSnapshots.length - 1] ===
+        previousSnapshot;
+
+    // When do we create a new segment?
+    // 1. If we don't have one yet
+    let isNewSegment = !activeSegment;
+
+    // 2. If it is currently inactive but a new "active" event comes in
+    if (eventIsActive && !activeSegment?.isActive) {
+      isNewSegment = true;
+    }
+
+    // 3. If it is currently active but no new active event has been seen for the activity threshold
+    if (
+      activeSegment?.isActive &&
+      lastActiveEventTimestamp + ACTIVITY_THRESHOLD_MS < snapshot.timestamp
+    ) {
+      isNewSegment = true;
+    }
+
+    // 4. If windowId changes we create a new segment
+    if (activeSegment?.windowId !== currentWindowId) {
+      isNewSegment = true;
+    }
+
+    // 5. If there are no more snapshots for this windowId
+    if (isPreviousSnapshotLastForWindow) {
+      isNewSegment = true;
+    }
+
+    // NOTE: We have to make sure that we set this _after_ we use it
+    lastActiveEventTimestamp = eventIsActive
+      ? snapshot.timestamp
+      : lastActiveEventTimestamp;
+
+    if (isNewSegment) {
+      if (activeSegment && activeSegment.startTimestamp !== undefined) {
+        segments.push(activeSegment as RecordingSegment);
       }
 
-      // Start new segment
-      const newIsActive =
-        isActiveEvent || timeSinceLastActive < ACTIVITY_THRESHOLD_MS;
-      console.log(
-        `  [SEGMENT START] New segment at event ${index}, active=${newIsActive}, timeSinceLastActive=${(timeSinceLastActive / 1000).toFixed(1)}s`,
-      );
-
-      currentSegment = {
-        startTime: event.timestamp,
-        startIndex: index,
-        isActive: newIsActive,
+      activeSegment = {
+        kind: "window",
+        startTimestamp: snapshot.timestamp,
+        windowId: currentWindowId,
+        isActive: eventIsActive,
       };
     }
 
-    // Update last active time
-    if (isActiveEvent) {
-      lastActiveTime = event.timestamp;
+    if (activeSegment) {
+      activeSegment.endTimestamp = snapshot.timestamp;
     }
+  });
+
+  if (activeSegment && activeSegment.startTimestamp !== undefined) {
+    segments.push(activeSegment as RecordingSegment);
   }
 
-  // Close final segment
-  if (currentSegment && events.length > 0) {
-    const finalSegment: Segment = {
-      startTime: currentSegment.startTime,
-      endTime: events[events.length - 1].timestamp,
-      startIndex: currentSegment.startIndex,
-      endIndex: events.length - 1,
-      duration: events[events.length - 1].timestamp - currentSegment.startTime,
-      isActive: currentSegment.isActive,
-    };
-    segments.push(finalSegment);
+  // We've built the segments, but this might not account for "gaps" in them
+  // To account for this we build up a new segment list filling in gaps with
+  // either the tracked window if the viewing window is fixed
+  // or whatever window is available (preferably the previous one)
+  // Or a "null" window if there is nothing (like if they navigated away to a different site)
+  const findWindowIdForTimestamp = (
+    timestamp: number,
+    preferredWindowId?: string,
+  ): string | undefined => {
+    // Check all the snapshotsByWindowId to see if the timestamp is within its range
+    // prefer the preferredWindowId if it is within its range
+    let windowIds = Object.keys(snapshotsByWindowId);
+    if (preferredWindowId) {
+      windowIds = [
+        preferredWindowId,
+        ...windowIds.filter((id) => id !== preferredWindowId),
+      ];
+    }
+
+    for (const windowId of windowIds) {
+      const snapshots = snapshotsByWindowId[windowId];
+      if (
+        snapshots.length > 0 &&
+        snapshots[0].timestamp <= timestamp &&
+        snapshots[snapshots.length - 1].timestamp >= timestamp
+      ) {
+        return windowId;
+      }
+    }
+    return undefined;
+  };
+
+  segments = segments.reduce((acc, segment, index) => {
+    const previousSegment = segments[index - 1];
+    const list = [...acc];
+
+    if (
+      previousSegment &&
+      segment.startTimestamp !== previousSegment.endTimestamp
+    ) {
+      // If the segments do not immediately follow each other, then we add a "gap" segment
+      const startTimestamp = previousSegment.endTimestamp;
+      const endTimestamp = segment.startTimestamp;
+
+      // Offset the window ID check so we look for a subsequent segment
+      const windowId = findWindowIdForTimestamp(
+        startTimestamp + 1,
+        previousSegment.windowId,
+      );
+
+      const gapSegment: Partial<RecordingSegment> = {
+        kind: "gap",
+        startTimestamp,
+        endTimestamp,
+        windowId,
+        isActive: false,
+      };
+      list.push(gapSegment as RecordingSegment);
+    }
+
+    list.push(segment);
+    return list;
+  }, [] as RecordingSegment[]);
+
+  // As we don't necessarily have all the segments at once, we add a final segment to fill the gap between the last segment and the end of the recording
+  const latestTimestamp = segments[segments.length - 1]?.endTimestamp;
+
+  if (!latestTimestamp || latestTimestamp < end) {
+    segments.push({
+      kind: "buffer",
+      startTimestamp: latestTimestamp ? latestTimestamp + 1 : start,
+      endTimestamp: end,
+      isActive: false,
+    } as RecordingSegment);
   }
+
+  // if the first segment starts after the start of the session, add a gap segment at the beginning
+  const firstTimestamp = segments[0]?.startTimestamp;
+  if (firstTimestamp && firstTimestamp > start) {
+    segments.unshift({
+      kind: "gap",
+      startTimestamp: start,
+      endTimestamp: firstTimestamp,
+      isActive: false,
+    } as RecordingSegment);
+  }
+
+  segments = segments.map((segment) => {
+    // These can all be done in a loop at the end...
+    segment.duration = segment.endTimestamp - segment.startTimestamp;
+    return segment;
+  });
 
   console.log(`📊 [SEGMENTS] Created ${segments.length} segments:`);
   let totalActiveTime = 0;
@@ -528,7 +643,7 @@ function createSegments(events: RrwebEvent[]): Segment[] {
       totalInactiveTime += seg.duration;
     }
     console.log(
-      `  Segment ${i + 1}: ${seg.isActive ? "✅ Active" : "⏸️ Inactive"} - ${durationSec.toFixed(1)}s (${seg.startTime}-${seg.endTime}, events ${seg.startIndex}-${seg.endIndex})`,
+      `  Segment ${i + 1} (${seg.kind}): ${seg.isActive ? "✅ Active" : "⏸️ Inactive"} - ${durationSec.toFixed(1)}s (${seg.startTimestamp}-${seg.endTimestamp})`,
     );
   });
 
@@ -830,13 +945,18 @@ export default async function constructEvents(
         maxViewportHeight = Math.max(maxViewportHeight, height);
       }
     }
-    
+
     // Check FullSnapshot events for viewport info
     if (event.type === EventType.FullSnapshot && event.data) {
       // Try to extract from node attributes
       try {
-        if (event.data.node?.childNodes?.[1]?.childNodes?.[1]?.childNodes?.[0]?.attributes) {
-          const attrs = event.data.node.childNodes[1].childNodes[1].childNodes[0].attributes;
+        if (
+          event.data.node?.childNodes?.[1]?.childNodes?.[1]?.childNodes?.[0]
+            ?.attributes
+        ) {
+          const attrs =
+            event.data.node.childNodes[1].childNodes[1].childNodes[0]
+              .attributes;
           const width = parseInt(attrs.width, 10);
           const height = parseInt(attrs.height, 10);
           if (Number.isFinite(width) && width > 0) {
@@ -850,11 +970,14 @@ export default async function constructEvents(
         // Silent fail - not all snapshots have this structure
       }
     }
-    
+
     // Check IncrementalSnapshot ViewportResize events
-    if (event.type === EventType.IncrementalSnapshot && 
-        event.data?.source === 4 && // ViewportResize
-        event.data?.width && event.data?.height) {
+    if (
+      event.type === EventType.IncrementalSnapshot &&
+      event.data?.source === 4 && // ViewportResize
+      event.data?.width &&
+      event.data?.height
+    ) {
       const width = Number(event.data.width);
       const height = Number(event.data.height);
       if (Number.isFinite(width) && width > 0) {
@@ -865,14 +988,18 @@ export default async function constructEvents(
       }
     }
   }
-  
+
   // Use reasonable defaults if we couldn't find viewport info
   if (maxViewportWidth === 0) {
-    console.warn(`⚠️ [VIEWPORT] No width detected for session ${session_id}, using default: 1920`);
+    console.warn(
+      `⚠️ [VIEWPORT] No width detected for session ${session_id}, using default: 1920`,
+    );
     maxViewportWidth = 1920;
   }
   if (maxViewportHeight === 0) {
-    console.warn(`⚠️ [VIEWPORT] No height detected for session ${session_id}, using default: 1080`);
+    console.warn(
+      `⚠️ [VIEWPORT] No height detected for session ${session_id}, using default: 1080`,
+    );
     maxViewportHeight = 1080;
   }
 

@@ -7,7 +7,7 @@ export type ProcessReplayRequest = {
   active_duration: number; // The active duration of the recording in seconds
   project_id: string; // The project ID to render
   session_id: string; // The session ID to render
-  callback: string; // URL to POST final result to
+  callback?: string | null; // URL to POST final result to
 };
 
 export type ReplaySuccess = {
