@@ -1,8 +1,17 @@
 import adminSupabase from "@/lib/supabase/admin";
 import { Json } from "@/schema";
 import * as Sentry from "@sentry/nextjs";
-import { FatalError } from "workflow";
+import { FatalError, RetryableError } from "workflow";
 import { GroupNames, GroupProperties, PostHogRecording } from "./types";
+
+function parseRetryAfter(response: Response): number {
+  const retryAfter = response.headers.get("Retry-After");
+  if (retryAfter) {
+    const seconds = parseInt(retryAfter, 10);
+    if (!isNaN(seconds)) return seconds;
+  }
+  return 60; // Default fallback
+}
 
 export async function processRecording({
   sourceId,
@@ -54,6 +63,22 @@ export async function processRecording({
         }),
       },
     );
+
+    if (personResponse.status === 429) {
+      const retryAfter = parseRetryAfter(personResponse);
+      console.warn(
+        `⏳ [PROCESS RECORDING] PostHog rate limited, retrying after ${retryAfter}`,
+      );
+      throw new RetryableError("PostHog rate limited", { retryAfter });
+    }
+
+    if (!personResponse.ok) {
+      const errorText = await personResponse.text();
+      console.error(
+        `❌ [PROCESS RECORDING] PostHog API error: ${personResponse.status} - ${errorText}`,
+      );
+      throw new Error(`PostHog API error: ${personResponse.status}`);
+    }
 
     const data = (await personResponse.json()) as {
       results: (number | string | null)[][];

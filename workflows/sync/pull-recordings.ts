@@ -1,9 +1,18 @@
 import adminSupabase from "@/lib/supabase/admin";
-import { FatalError } from "workflow";
-import { PostHogRecording, PostHogRecordingsResponse } from "./types";
 import * as Sentry from "@sentry/nextjs";
+import { FatalError, RetryableError } from "workflow";
+import { PostHogRecording, PostHogRecordingsResponse } from "./types";
 
 const ACTIVE_SECONDS_THRESHOLD = 5;
+
+function parseRetryAfter(response: Response): number {
+  const retryAfter = response.headers.get("Retry-After");
+  if (retryAfter) {
+    const seconds = parseInt(retryAfter, 10);
+    if (!isNaN(seconds)) return seconds;
+  }
+  return 60; // Default fallback
+}
 
 export async function pullRecordings(
   sourceId: string,
@@ -55,6 +64,14 @@ export async function pullRecordings(
       },
     );
 
+    if (response.status === 429) {
+      const retryAfter = parseRetryAfter(response);
+      console.warn(
+        `⏳ [PULL RECORDINGS] PostHog rate limited, retrying after ${retryAfter}`,
+      );
+      throw new RetryableError("PostHog rate limited", { retryAfter });
+    }
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error(
@@ -89,9 +106,7 @@ export async function pullRecordings(
 
   const pageRecordings: PostHogRecording[] = data.results || [];
 
-  console.log(
-    `📹 [PULL RECORDINGS] Found ${pageRecordings.length} recordings`,
-  );
+  console.log(`📹 [PULL RECORDINGS] Found ${pageRecordings.length} recordings`);
   console.log(`   Has next page: ${data.has_next ? "yes" : "no"}`);
 
   const recordings: PostHogRecording[] = [];

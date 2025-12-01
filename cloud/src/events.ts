@@ -659,6 +659,17 @@ function createSegments(events: RrwebEvent[]): RecordingSegment[] {
 // --------------------------------------------------------
 // HTTP fetching utilities
 // --------------------------------------------------------
+function parseRetryAfterSeconds(response: Response): number {
+  const retryAfter = response.headers.get("Retry-After");
+  if (retryAfter) {
+    const seconds = parseInt(retryAfter, 10);
+    if (!isNaN(seconds) && seconds > 0) {
+      return seconds;
+    }
+  }
+  return 60; // Default to 60 seconds if header is missing or invalid
+}
+
 async function fetchJSON<T>(
   url: string,
   headers: Record<string, string>,
@@ -669,6 +680,24 @@ async function fetchJSON<T>(
   for (let i = 0; i < retries; i++) {
     try {
       const response = await fetch(url, { headers });
+
+      // Handle rate limiting with Retry-After header
+      if (response.status === 429) {
+        const retryAfterSeconds = parseRetryAfterSeconds(response);
+        console.warn(
+          `⏳ [FETCH] PostHog rate limited (429), waiting ${retryAfterSeconds}s before retry ${i + 1}/${retries}`,
+        );
+        if (i < retries - 1) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, retryAfterSeconds * 1000),
+          );
+          continue;
+        }
+        throw new Error(
+          `PostHog rate limited (429) after ${retries} retries. Retry-After: ${retryAfterSeconds}s`,
+        );
+      }
+
       if (!response.ok) {
         const text = await response.text().catch(() => "");
         throw new Error(
