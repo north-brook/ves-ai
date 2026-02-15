@@ -1,340 +1,218 @@
 # VES AI
 
-AI-powered session analysis that watches every user session and identifies bugs, UX issues, and product opportunities.
+Make product analytics actionable for AI agents.
 
-## Overview
+**Core differentiator:** VES AI closes the product improvement loop by making product analytics data actionable for AI agents.
 
-VES AI connects to your PostHog instance to analyze session replays using AI, automatically identifying bugs, UX issues, and product opportunities. Issues can be exported as prioritized, well-documented tickets to Linear.
+VES AI is local-first:
+- You run the CLI on your machine.
+- You use your own PostHog + Google Cloud.
+- You keep outputs in `~/.vesai/workspace` as durable, git-friendly artifacts.
 
-## Features
-
-- **Automated Session Analysis** - AI watches every PostHog session replay
-- **Bug Detection** - Catches errors, broken flows, and technical issues
-- **UX Insights** - Identifies friction points and user confusion
-- **Linear Integration** - Export issues as detailed tickets with context and replay links
-- **Video Processing** - Converts session replays to shareable video format
-- **Real-time Dashboard** - View analysis results and metrics
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 22+
-- Supabase CLI
-- PostHog account with session recording enabled
-- Linear account
-- Google Cloud Storage (for video processing)
-
-### Installation
+## Install
 
 ```bash
-# Clone the repository
-git clone https://github.com/steppable/vesai.git
-cd vesai
-
-# Install dependencies
-bun i
-
-# Pull .env.local from vercel
-vercel env pull
-
-# Add local supabase environment variables to .env
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+curl -fsSL https://ves.ai/install | bash
 ```
+
+Installer flow:
+1. Clone/update repo at `~/.vesai/app/vesai`
+2. Install dependencies with Bun
+3. Install Playwright Chromium
+4. Link `vesai` at `~/.local/bin/vesai`
+5. Start `vesai quickstart`
+
+## Prerequisites
+
+- `git`
+- `bun`
+- `gcloud`
+- `ffmpeg`
+
+Before quickstart:
 
 ```bash
-# Start Supabase locally
-supabase start
-
-# Init the local database
-supabase db reset
+gcloud auth login
+gcloud auth application-default login
+gcloud config set project <project-id>
 ```
 
-### Development
+If `gcloud` throws `unsupported hash type blake2b` / `blake2s`:
 
 ```bash
-# Start the development server
-bun run dev
-
-# Start email preview server (in separate terminal)
-bun run email
-
-# Open http://localhost:3000
+export CLOUDSDK_PYTHON=/usr/bin/python3
 ```
 
-## Project Structure
-
-```
-vesai/
-├── app/                    # Next.js app directory
-│   ├── (marketing)/       # Landing pages
-│   ├── (onboarding)/      # User onboarding flow
-│   ├── (platform)/        # Main application
-│   └── api/               # API endpoints
-├── workflows/             # Vercel Workflow definitions
-│   ├── analysis/          # Session analysis workflow
-│   └── sync/              # PostHog sync workflow
-├── cloud/                 # Cloud Run service for video processing
-├── components/            # Shared React components
-├── lib/                   # Utilities and configurations
-├── supabase/             # Database migrations
-└── tests/                # Playwright tests
-```
-
-## Workflow Architecture
-
-VES AI uses [**Vercel Workflow**](https://useworkflow.dev) for durable, long-running job orchestration. Workflows survive server restarts, provide step-level retries, and offer full observability of the session analysis pipeline.
-
-### Data Flow
-
-The system operates using two separate, coordinated workflows:
-
-1. **Sync Workflow** (`/workflows/sync/`)
-   - Triggered by cron every 30 minutes OR when user visits the platform
-   - Pulls new session recordings from PostHog
-   - Creates session, user, and group records in database
-   - Kicks off analysis workflows for each new session
-
-2. **Analysis Workflow** (`/workflows/analysis/`)
-   - Processes individual session (one workflow per session)
-   - Converts replay to video format via cloud service
-   - AI analyzes video and events to generate insights
-   - Creates and updates issues
-   - Chains to next pending session
-
-**Flow Overview:**
-
-```
-Cron/User Visit → /api/sync → sync workflow → analysis workflow (per session)
-```
-
-### Key Concepts
-
-**Workflow Directives:**
-
-- `"use workflow"` - Marks the entry point of a workflow (the root function)
-- `"use step"` - Marks individual steps that can be retried independently
-
-**Workflow APIs:**
-
-- `start(workflow, args)` - Initiates a new workflow instance
-- `createWebhook()` - Creates a webhook URL for async callbacks (returns promise that resolves with Request)
-- `sleep(duration)` - Pauses workflow execution for a specified duration
-- `FatalError` - Throws non-retryable errors that stop workflow execution
-
-### Sync Workflow
-
-The sync workflow pulls new session recordings from PostHog using an incremental pagination pattern. See [`/workflows/sync/index.ts`](/workflows/sync/index.ts)
-
-**Steps:**
-
-1. **since** - Queries database for last sync timestamp, returns ISO date string (7 days ago for first sync)
-2. **pullGroups** - Fetches organization/group data from PostHog and creates/updates group records
-3. **pullRecordings** (paginated) - Pulls ONE page of recordings (100 per page) with given offset
-   - Returns `{ recordings, hasNext, nextOffset }`
-   - Called repeatedly in workflow loop until all pages fetched
-   - Prevents payload size errors by processing incrementally
-4. **processRecording** - Creates/updates session, user, and group database records (called per recording)
-5. **kickoff** - Initiates analysis workflow for the session via `start(analysis, [sessionId])` (called per recording)
-6. **finish** - Updates source's `last_synced_at` timestamp
-
-**Pagination Flow:**
-
-The workflow orchestrates pagination at the workflow level (not within steps):
-
-```typescript
-// Get since date and groups in parallel
-const [sinceDate, { groupNames, groupProperties }] = await Promise.all([
-  since(sourceId),
-  pullGroups(sourceId),
-]);
-
-// Paginate through recordings
-let hasNext = true;
-let offset = 0;
-let pageCount = 0;
-
-while (hasNext && pageCount < MAX_PAGES) {
-  // Pull one page
-  const { recordings, hasNext: hasNextPage, nextOffset } =
-    await pullRecordings(sourceId, sinceDate, offset);
-
-  // Process this page's recordings
-  for (const recording of recordings) {
-    const sessionId = await processRecording({...});
-    await kickoff(sessionId);
-  }
-
-  // Move to next page
-  hasNext = hasNextPage;
-  offset = nextOffset;
-  pageCount++;
-}
-```
-
-This approach:
-- Keeps step payloads small (max 100 recordings per step)
-- Enables workflow resumption mid-pagination on failure
-- Provides better observability (see which page failed)
-- Processes recordings incrementally (better for rate limits)
-
-### Analysis Workflow
-
-The analysis workflow processes individual sessions (one workflow per session). See [`/workflows/analysis/index.ts`](/workflows/analysis/index.ts)
-
-### Analysis Workflow Steps
-
-Each step uses the `"use step"` directive, making it independently retryable:
-
-1. **processReplay** - Converts session replay to video format
-   - Creates webhook URL via `createWebhook()`
-   - Triggers cloud service with webhook URL (fire-and-forget HTTP request)
-   - Waits for cloud service to POST video data back to webhook
-   - **Status progression**: `pending` → `processing` → `processed`
-
-2. **analyzeSession** - AI-powered session analysis
-   - Uses **Google Gemini 2.5 Pro** (via Vertex AI) with extended thinking budget (32,768 tokens)
-   - Analyzes video frames and event data to generate session insights
-   - Generates: name, story, features used, detected issues, health score
-   - Creates embeddings for similarity matching
-   - **Status**: `processed` → `analyzing` → `analyzed`
-
-3. **analyzeUser** - Maintains user-level insights
-   - Aggregates all sessions for a specific user
-   - Uses hash-based caching to skip redundant analysis
-   - Generates: user story, health score
-
-4. **analyzeGroup** - Organization-level analysis
-   - Aggregates all users within a group/organization
-   - Generates: group story, collective usage patterns
-
-5. **reconcileIssues** - Intelligent issue deduplication
-   - For each detected issue, finds similar issues via embedding search
-   - Uses **Google Gemini 2.5 Pro** with extended thinking budget to decide: merge with existing or create new
-   - Returns issue IDs for further analysis
-
-6. **analyzeIssue** - Issue-level analysis (runs in parallel for all issues)
-   - Analyzes all sessions linked to an issue
-   - Generates: name, story, type, severity, priority, confidence
-   - Uses hash-based caching to prevent redundant analysis
-
-7. **next** - Chain processing
-   - Kicks off analysis workflow for next pending session
-   - Maintains continuous processing throughput
-
-### Workflow Triggers
-
-**Sync Workflow Triggers**
-
-The sync workflow is triggered in two ways:
-
-1. **Cron Job (Every 30 Minutes)** - Configured in `vercel.json`:
-
-   ```json
-   {
-     "crons": [
-       {
-         "path": "/api/sync",
-         "schedule": "*/30 * * * *"
-       }
-     ]
-   }
-   ```
-
-2. **User Visit** - When a user visits the platform, sync is triggered for their project
-
-**Flow:**
-
-1. Trigger hits [`/app/api/sync/route.ts`](/app/api/sync/route.ts)
-2. Calls `kickoff()` for each project to start sync workflow
-3. Sync workflow pulls recordings from PostHog and kicks off analysis workflows
-
-**Webhook Callbacks**
-
-The cloud video processing service receives a webhook URL from the analysis workflow and POSTs video data back to it when processing is complete. The webhook promise resolves with the video data, allowing the workflow to continue.
-
-### Workflow Coordination
-
-The Vercel Workflow system provides:
-
-- **Durable Execution** - Workflows survive server restarts and infrastructure failures
-- **Step-Level Retries** - Each `"use step"` can retry independently on failure
-- **Worker Limits** - Projects have concurrent worker limits based on plan tier
-- **Hook Pattern** - Elegant async coordination (webhooks resume workflows)
-- **Timeout Management** - Built-in `sleep()` for timeout protection
-- **Observability** - Full logging and progress tracking for each workflow
-- **Parallel Execution** - Native support for concurrent step execution
-- **Error Handling** - `FatalError` class for non-retryable failures
-- **Hash-Based Caching** - Prevents redundant AI analysis of unchanged data
-
-### Workflow Observability
-
-#### Local
-
-- `bunx workflow inspect runs`
-- Use the `--web` flag to open the browser interface
-
-#### Production
-
-- Ensure you have a Vercel auth token from [https://vercel.com/account/settings/tokens](https://vercel.com/account/settings/tokens) set in your environment
-- `bunx workflow inspect runs --backend=vercel --env=production --project=vesai --team=steppable`
-- Use the `--web` flag to open the browser interface
-- Prefix the command with `WORKFLOW_LOCAL_UI=1` to use the local UI
-
-## Available Scripts
-
-- `bun run dev` - Start development server with Turbopack
-- `bun run build` - Build for production
-- `bun run lint` - Run ESLint
-- `bun run test` - Run Playwright tests
-- `bun run supatype` - Generate TypeScript types from database
-- `bun run email` - Start email preview server
-
-## Cloud Video Processing Service
-
-The `/cloud` directory contains a separate service for converting PostHog recordings to video:
+## Quickstart
 
 ```bash
-cd cloud
-
-# Using Docker (recommended)
-docker build -t vesai-cloud .
-docker run -p 8080:8080 vesai-cloud
-
-# Using Node.js
-npm install
-npm run build
-npm start
+vesai quickstart
 ```
 
-See [cloud/README.md](cloud/README.md) for detailed setup instructions.
+Quickstart configures:
+- PostHog host + User API key
+- PostHog project selection
+- PostHog group key
+- Replay domain filter
+- GCP project + Vertex region
+- GCS bucket create/select
+- Render concurrency (defaults to ~50% of available RAM, ~512MB per renderer)
+- Product description context for analysis prompts
 
-## Testing
+PostHog API key requirements:
+- Key type: User API key
+- Scope: `All access + MCP server scope`
+- URL: `https://app.posthog.com/settings/user-api-keys`
+
+Non-interactive usage:
 
 ```bash
-# Run all tests
+vesai quickstart \
+  --non-interactive \
+  --posthog-api-key phx_... \
+  --posthog-project-id 123 \
+  --posthog-group-key organization \
+  --domain-filter app.example.com \
+  --product-description "B2B SaaS for support teams"
+```
+
+## CLI Surface
+
+Replay intelligence:
+
+```bash
+vesai replays session <session_id>
+vesai replays user <email>
+vesai replays group <group_id>
+vesai replays query "<text>"
+vesai replays list
+```
+
+PostHog analytics intelligence:
+
+```bash
+vesai events
+vesai properties
+vesai schema data
+vesai schema warehouse
+vesai insights hogql "<question>"
+vesai insights sql "<query>"
+vesai errors list
+vesai logs query --from ... --to ...
+```
+
+Agent mode patterns:
+
+```bash
+vesai replays query --group acme --min-active 30 --dry-run
+vesai replays query --group acme --min-active 30
+vesai insights sql "SELECT event, count() FROM events GROUP BY event LIMIT 20"
+```
+
+JSON is default for data commands. Use `--no-json` for human-readable summaries.
+
+## Replay Querying Notes
+
+`vesai replays query "checkout friction"` is **literal metadata search** plus filters. It does not infer intent from language on its own.
+
+For strong signal, pair text with structured filters:
+
+```bash
+vesai replays query "checkout" --url /checkout --min-active 30 --from 2026-02-01 --to 2026-02-15
+vesai replays query --group acme --where plan=enterprise --url /checkout
+```
+
+## User Analysis Contract
+
+`vesai replays user <email>` does:
+1. Find all matching sessions for the user
+2. Ensure every session is rendered to video
+3. Analyze each session individually
+4. Run one aggregate Gemini call across all session analyses + metadata
+5. Write comprehensive user story markdown to workspace
+
+## Filesystem Layout
+
+```text
+~/.vesai/
+  vesai.json
+  cache/
+  logs/
+  tmp/
+  workspace/
+    sessions/
+    users/
+    groups/
+  app/
+    vesai/
+```
+
+## Daemon Commands
+
+```bash
+vesai daemon start   # background
+vesai daemon watch   # foreground (Ctrl+C to stop)
+vesai daemon status
+vesai daemon stop
+```
+
+## Troubleshooting
+
+### Bucket location errors
+
+If bucket creation fails with invalid location constraint, use a valid location:
+- Multi-region: `US`, `EU`, `ASIA`
+- Or supported region like `us-central1`
+
+### Permission mismatch (`storage.objects.create` denied)
+
+Common cause: ADC identity differs from `gcloud auth list` active account.
+
+Reset ADC:
+
+```bash
+gcloud auth application-default revoke
+gcloud auth application-default login
+gcloud auth application-default set-quota-project <project-id>
+```
+
+### Missing Playwright executable
+
+```bash
+bunx playwright install chromium
+```
+
+### Vertex model access errors (`gemini-3-pro-preview` not found)
+
+- Verify Vertex AI API is enabled on the selected project
+- Verify selected region supports the configured model
+- Update config if needed:
+
+```bash
+vesai config set vertex.model gemini-3-pro-preview
+vesai config set vertex.location us-central1
+```
+
+Run `vesai doctor` to confirm local setup state.
+
+## Development
+
+```bash
+bun install
+bun run lint
+bun run typecheck
 bun run test
-
-# Run tests with UI
-bun playwright test --ui
+bun run vesai -- --help
 ```
 
-## Deployment
+Website:
 
-### Vercel (Main App)
+```bash
+bun run website:dev
+bun run website:build
+bun run website:start
+```
 
-The application is configured for automatic deployment on Vercel:
-
-1. Connect your GitHub repository to Vercel
-2. Set environment variables in Vercel dashboard
-3. Deploy
-
-### Cloud Run (Video Service)
-
-The video processing service auto-deploys to Google Cloud Run on push to main branch.
-
-## License
-
-Private repository - All rights reserved
+Quality gates:
+- Husky pre-commit: `bun run precommit`
+- CI: `.github/workflows/ci.yml` runs the same `lint + typecheck + test`
