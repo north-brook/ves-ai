@@ -69,7 +69,7 @@ export function Hero() {
             </CopyButton>
             <a
               className="inline-flex items-center gap-2 rounded-lg border border-border-subtle px-5 py-2.5 text-sm text-text-secondary transition-colors hover:border-border-emphasis hover:text-text-primary"
-              href="https://github.com/north-brook/vesai"
+              href="https://github.com/north-brook/ves-ai"
               rel="noreferrer"
               target="_blank"
             >

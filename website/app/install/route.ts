@@ -1,6 +1,6 @@
 const INSTALL_SCRIPT = `#!/usr/bin/env bash
 set -euo pipefail
-curl -fsSL https://raw.githubusercontent.com/north-brook/vesai/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/north-brook/ves-ai/main/scripts/install.sh | bash
 `;
 
 export const runtime = "nodejs";
