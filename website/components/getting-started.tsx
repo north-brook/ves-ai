@@ -17,13 +17,18 @@ const steps = [
   },
   {
     step: "2",
-    label: "Run quickstart",
-    code: "vesai quickstart",
+    label: "Set up global runtime",
+    code: "vesai quickstart --max-render-memory-mb 8192",
   },
   {
     step: "3",
-    label: "Analyze your first session",
-    code: "vesai replays session <session_id>",
+    label: "Initialize this project",
+    code: "vesai init --lookback-days 180",
+  },
+  {
+    step: "4",
+    label: "Run replay intelligence",
+    code: "vesai user <useremail>",
   },
 ];
 
@@ -57,15 +62,20 @@ export function GettingStarted() {
           <div className="mt-6">
             <p className="mb-2 text-sm text-text-muted">Authenticate gcloud:</p>
             <CodeBlock
-              code={"gcloud auth login\ngcloud auth application-default login"}
+              code={
+                "gcloud auth login\ngcloud auth application-default login\ngcloud config set project <project-id>"
+              }
             />
           </div>
         </div>
 
         <div>
           <h3 className="font-semibold text-lg text-text-primary">
-            Three Steps
+            Four Steps
           </h3>
+          <p className="mt-2 text-sm text-text-muted">
+            Every command auto-syncs VES AI to latest main before execution.
+          </p>
           <ol className="mt-4 space-y-6">
             {steps.map((s) => (
               <li key={s.step}>

@@ -11,19 +11,19 @@ const cards = [
   {
     title: "Durable Workspace Artifacts",
     description:
-      "Session, user, and query analyses persist as git-friendly markdown in ~/.vesai/workspace/ for long-lived agent context.",
+      "Session, user, group, and research artifacts persist as git-friendly markdown in .vesai/workspace/ for long-lived agent context.",
     icon: FolderOpen,
   },
   {
     title: "Local-First, Self-Hosted",
     description:
-      "Your PostHog keys, your GCP project, your machine. No data leaves your infrastructure.",
+      "Global machine config stays in ~/.vesai while project credentials and artifacts stay in each repo's .vesai directory.",
     icon: Server,
   },
   {
     title: "Ships with a SKILL.md",
     description:
-      "A comprehensive skill file teaches Claude Code, Codex, and other coding agents how to use every vesai command, workflow, and HogQL pattern out of the box.",
+      "A comprehensive skill file teaches Claude Code, Codex, and other coding agents how to run quickstart/init plus user, group, and research workflows out of the box.",
     icon: BookOpen,
   },
 ];

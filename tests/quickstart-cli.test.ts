@@ -1,12 +1,16 @@
 import { describe, expect, it } from "bun:test";
 import {
-  computeDefaultRenderConcurrency,
   defaultBucketLocationFromVertex,
-  formatGiB,
   normalizeBucket,
   normalizeConcurrencyValue,
   parseProjectSelectionIndex,
 } from "../cli/commands/quickstart";
+import {
+  computeDefaultRenderMemoryMb,
+  estimateRenderServiceCapacity,
+  formatGiB,
+  normalizeRenderMemoryMbValue,
+} from "../config/runtime";
 
 describe("quickstart cli helpers", () => {
   it("normalizes bucket values", () => {
@@ -37,33 +41,41 @@ describe("quickstart cli helpers", () => {
     );
   });
 
-  it("normalizes valid concurrency values and rejects invalid ones", () => {
-    expect(
-      normalizeConcurrencyValue(undefined, 2, "--max-concurrent-renders")
-    ).toBe(2);
-    expect(normalizeConcurrencyValue("4", 2, "--max-concurrent-renders")).toBe(
-      4
-    );
-    expect(normalizeConcurrencyValue(16, 2, "--max-concurrent-renders")).toBe(
-      16
-    );
+  it("normalizes positive integer values", () => {
+    expect(normalizeConcurrencyValue(undefined, 2, "--lookback-days")).toBe(2);
+    expect(normalizeConcurrencyValue("4", 2, "--lookback-days")).toBe(4);
+    expect(normalizeConcurrencyValue(16, 2, "--lookback-days")).toBe(16);
 
+    expect(() => normalizeConcurrencyValue("0", 2, "--lookback-days")).toThrow(
+      "Must be a positive integer"
+    );
     expect(() =>
-      normalizeConcurrencyValue("0", 2, "--max-concurrent-renders")
+      normalizeConcurrencyValue("1.5", 2, "--lookback-days")
     ).toThrow("Must be a positive integer");
-    expect(() =>
-      normalizeConcurrencyValue("1.5", 2, "--max-concurrent-renders")
-    ).toThrow("Must be a positive integer");
-    expect(() =>
-      normalizeConcurrencyValue("x", 2, "--max-concurrent-renders")
-    ).toThrow("Must be a positive integer");
+    expect(() => normalizeConcurrencyValue("x", 2, "--lookback-days")).toThrow(
+      "Must be a positive integer"
+    );
   });
 
-  it("computes RAM-based default render concurrency", () => {
-    // 8 GiB available -> 4 GiB budget -> 8 render workers at 512MB each
-    expect(computeDefaultRenderConcurrency(8 * 1024 * 1024 * 1024)).toBe(8);
-    // Always at least one
-    expect(computeDefaultRenderConcurrency(0)).toBe(1);
+  it("normalizes max render memory values", () => {
+    expect(
+      normalizeRenderMemoryMbValue(undefined, 4096, "--max-render-memory-mb")
+    ).toBe(4096);
+    expect(
+      normalizeRenderMemoryMbValue("8192", 4096, "--max-render-memory-mb")
+    ).toBe(8192);
+
+    expect(() =>
+      normalizeRenderMemoryMbValue("256", 4096, "--max-render-memory-mb")
+    ).toThrow("Must be at least 512 MiB");
+  });
+
+  it("computes RAM-based default render memory and capacity", () => {
+    // 8 GiB available -> 4 GiB budget
+    expect(computeDefaultRenderMemoryMb(8 * 1024 * 1024 * 1024)).toBe(4096);
+    expect(estimateRenderServiceCapacity(4096)).toBe(8);
+    // Always at least one 512 MiB renderer budget
+    expect(computeDefaultRenderMemoryMb(0)).toBe(512);
     expect(formatGiB(8 * 1024 * 1024 * 1024)).toBe("8.0");
   });
 });

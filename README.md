@@ -1,13 +1,6 @@
 # VES AI
 
-Make product analytics actionable for AI agents.
-
-**Core differentiator:** VES AI closes the product improvement loop by making product analytics data actionable for AI agents.
-
-VES AI is local-first:
-- You run the CLI on your machine.
-- You use your own PostHog + Google Cloud.
-- You keep outputs in `~/.vesai/workspace` as durable, git-friendly artifacts.
+VES AI is a local-first session replay analysis runtime for agent workflows.
 
 ## Install
 
@@ -15,12 +8,11 @@ VES AI is local-first:
 curl -fsSL https://ves.ai/install | bash
 ```
 
-Installer flow:
-1. Clone/update repo at `~/.vesai/app/vesai`
-2. Install dependencies with Bun
-3. Install Playwright Chromium
-4. Link `vesai` at `~/.local/bin/vesai`
-5. Start `vesai quickstart`
+The installer clones VES AI to `~/.vesai/app/vesai`, installs dependencies, links `vesai`, and runs `vesai quickstart`.
+
+## Auto Update
+
+Every `vesai` command syncs the installed CLI with the latest `origin/main` before execution.
 
 ## Prerequisites
 
@@ -29,7 +21,7 @@ Installer flow:
 - `gcloud`
 - `ffmpeg`
 
-Before quickstart:
+Before `quickstart`:
 
 ```bash
 gcloud auth login
@@ -37,163 +29,149 @@ gcloud auth application-default login
 gcloud config set project <project-id>
 ```
 
-If `gcloud` throws `unsupported hash type blake2b` / `blake2s`:
+## Setup Model
 
-```bash
-export CLOUDSDK_PYTHON=/usr/bin/python3
-```
+VES AI now has two setup steps:
 
-## Quickstart
+1. `vesai quickstart` configures global machine-level runtime.
+2. `vesai init` configures the current repository as a VES AI project.
+
+### 1) Global setup (`vesai quickstart`)
 
 ```bash
 vesai quickstart
 ```
 
-Quickstart configures:
-- PostHog host + User API key
-- PostHog project selection
-- PostHog group key
-- Replay domain filter
-- GCP project + Vertex region
-- GCS bucket create/select
-- Render concurrency (defaults to ~50% of available RAM, ~512MB per renderer)
-- Product description context for analysis prompts
+This sets:
+- Global Google Cloud + Vertex config
+- Global bucket config for rendered artifacts
+- Global machine render memory budget (`runtime.maxRenderMemoryMb`)
+- Local render runtime dependencies (Chromium)
 
-PostHog API key requirements:
-- Key type: User API key
-- Scope: `All access + MCP server scope`
-- URL: `https://app.posthog.com/settings/user-api-keys`
+Render services scale dynamically up/down based on current free RAM, capped by your configured memory budget.
 
-Non-interactive usage:
+Example:
 
 ```bash
-vesai quickstart \
-  --non-interactive \
-  --posthog-api-key phx_... \
-  --posthog-project-id 123 \
-  --posthog-group-key organization \
-  --domain-filter app.example.com \
-  --product-description "B2B SaaS for support teams"
+vesai quickstart --max-render-memory-mb 8192
+```
+
+Global config is stored in `~/.vesai/core.json`.
+
+### 2) Project setup (`vesai init`)
+
+Run this inside your product repo:
+
+```bash
+vesai init
+```
+
+This creates and configures project-local artifacts:
+- `.vesai/project.json`
+- `.vesai/workspace/{sessions,users,groups,research}`
+- `.vesai/jobs`, `.vesai/cache`, `.vesai/logs`
+
+`vesai init` also:
+- Generates a UUID `projectId` by default (or uses `--project-id`)
+- Prompts for PostHog project settings
+- Prompts for `lookbackDays` (default `180`)
+- Adds `.vesai/` to repository `.gitignore`
+- Throws a descriptive error if `.gitignore` cannot be updated (locked/read-only)
+
+Example:
+
+```bash
+vesai init --lookback-days 180
 ```
 
 ## CLI Surface
 
-Replay intelligence:
-
 ```bash
-vesai replays session <session_id>
-vesai replays user <email>
-vesai replays group <group_id>
-vesai replays query "<text>"
-vesai replays list
-```
+vesai user <useremail>
+vesai group <group_id>
+vesai research "<question>"
 
-PostHog analytics intelligence:
-
-```bash
-vesai events
-vesai properties
-vesai schema data
-vesai schema warehouse
-vesai insights hogql "<question>"
-vesai insights sql "<query>"
-vesai errors list
-vesai logs query --from ... --to ...
-```
-
-Agent mode patterns:
-
-```bash
-vesai replays query --group acme --min-active 30 --dry-run
-vesai replays query --group acme --min-active 30
-vesai insights sql "SELECT event, count() FROM events GROUP BY event LIMIT 20"
-```
-
-JSON is default for data commands. Use `--no-json` for human-readable summaries.
-
-## Replay Querying Notes
-
-`vesai replays query "checkout friction"` is **literal metadata search** plus filters. It does not infer intent from language on its own.
-
-For strong signal, pair text with structured filters:
-
-```bash
-vesai replays query "checkout" --url /checkout --min-active 30 --from 2026-02-01 --to 2026-02-15
-vesai replays query --group acme --where plan=enterprise --url /checkout
-```
-
-## User Analysis Contract
-
-`vesai replays user <email>` does:
-1. Find all matching sessions for the user
-2. Ensure every session is rendered to video
-3. Analyze each session individually
-4. Run one aggregate Gemini call across all session analyses + metadata
-5. Write comprehensive user story markdown to workspace
-
-## Filesystem Layout
-
-```text
-~/.vesai/
-  vesai.json
-  cache/
-  logs/
-  tmp/
-  workspace/
-    sessions/
-    users/
-    groups/
-  app/
-    vesai/
-```
-
-## Daemon Commands
-
-```bash
-vesai daemon start   # background
-vesai daemon watch   # foreground (Ctrl+C to stop)
+vesai daemon start
+vesai daemon watch
 vesai daemon status
 vesai daemon stop
+
+vesai quickstart
+vesai init
+vesai config show
+vesai doctor
 ```
 
-## Troubleshooting
+Data commands return JSON by default. Use `--no-json` for readable text.
 
-### Bucket location errors
-
-If bucket creation fails with invalid location constraint, use a valid location:
-- Multi-region: `US`, `EU`, `ASIA`
-- Or supported region like `us-central1`
-
-### Permission mismatch (`storage.objects.create` denied)
-
-Common cause: ADC identity differs from `gcloud auth list` active account.
-
-Reset ADC:
+Examples:
 
 ```bash
-gcloud auth application-default revoke
-gcloud auth application-default login
-gcloud auth application-default set-quota-project <project-id>
+vesai user bryce@company.com
+vesai group acme-co
+vesai research "What drives checkout abandonment?"
 ```
 
-### Missing Playwright executable
+## Command Behavior
+
+### `vesai user <useremail>`
+- Finds all sessions for the user
+- Ensures those sessions are rendered and analyzed
+- Produces one aggregate user story
+
+### `vesai group <group_id>`
+- Resolves users under the group ID (PostHog group key mapping)
+- Builds each user story from all their sessions
+- Produces one aggregate group story
+
+### `vesai research "<question>"`
+- Uses only already analyzed sessions in `.vesai/workspace/sessions`
+- Selects relevant sessions as context
+- Sends context to Gemini and returns a research answer
+
+## Daemon Model
+
+`vesai daemon` is project-scoped and runs against the current repo’s `.vesai` directory.
+
+Behavior:
+- First run performs backfill from `now - lookbackDays` to now.
+- Heartbeat then continuously pulls sessions from `lastPulledAt` to now.
+- New sessions are queued for render + analysis.
+- After session jobs complete, affected user and group stories are re-run.
+
+## Global vs Project Separation
+
+### Global core (`~/.vesai`)
+- Machine-level memory budget (`maxRenderMemoryMb`)
+- Render service/runtime dependencies
+- GCloud bucket/project/model settings
+- Shared cross-process render slot locks (`~/.vesai/render-locks`)
+
+### Project-local (`<repo>/.vesai`)
+- Project UUID
+- PostHog API key/project/domain/group config
+- Session/user/group/research markdown artifacts
+- Daemon state, job queue, cache, logs
+
+## Storage Layout in GCS
+
+Rendered artifacts are prefixed by VES AI project UUID:
+
+- `projects/<project-uuid>/events/<session-id>.json`
+- `projects/<project-uuid>/videos/<session-id>.webm`
+
+This keeps all project artifacts isolated under top-level project folders in one bucket.
+
+## Config Commands
 
 ```bash
-bunx playwright install chromium
+vesai config show
+vesai config validate
+vesai config set core.runtime.maxRenderMemoryMb 8192
+vesai config set project.daemon.lookbackDays 180
 ```
 
-### Vertex model access errors (`gemini-3-pro-preview` not found)
-
-- Verify Vertex AI API is enabled on the selected project
-- Verify selected region supports the configured model
-- Update config if needed:
-
-```bash
-vesai config set vertex.model gemini-3-pro-preview
-vesai config set vertex.location us-central1
-```
-
-Run `vesai doctor` to confirm local setup state.
+Use `core.` paths for global config and `project.` paths for repo-local config.
 
 ## Development
 
@@ -202,17 +180,4 @@ bun install
 bun run lint
 bun run typecheck
 bun run test
-bun run vesai -- --help
 ```
-
-Website:
-
-```bash
-bun run website:dev
-bun run website:build
-bun run website:start
-```
-
-Quality gates:
-- Husky pre-commit: `bun run precommit`
-- CI: `.github/workflows/ci.yml` runs the same `lint + typecheck + test`

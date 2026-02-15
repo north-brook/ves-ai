@@ -45,7 +45,7 @@ export function Hero() {
       <div className="grid gap-12 lg:grid-cols-[55%_45%] lg:items-center">
         <div>
           <div className="mb-6 inline-flex items-center rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-accent text-sm">
-            AI-ready product analytics CLI
+            Session replay intelligence CLI
           </div>
 
           <h1 className="font-bold text-[48px] text-text-primary leading-[1.05] tracking-[-0.02em] sm:text-[72px]">
@@ -53,8 +53,11 @@ export function Hero() {
           </h1>
 
           <p className="mt-6 max-w-xl text-base text-text-secondary leading-[1.7] sm:text-lg">
-            Connect PostHog. Render session recordings. Analyze with Gemini
-            vision. Output structured markdown your agents can act on.
+            Run global quickstart once, initialize each repo with{" "}
+            <code className="font-mono text-sm">vesai init</code>, then use
+            replay evidence to generate user stories, group stories, and
+            research answers your agents can execute. Commands auto-sync the CLI
+            to latest main before running.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-3">

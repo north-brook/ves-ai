@@ -1,10 +1,63 @@
 import type { Command } from "commander";
-import { loadConfig, requireConfig, updateConfig } from "../../config";
-import { printJson, redactConfigSecrets } from "./helpers";
+import {
+  loadCoreConfig,
+  loadProjectConfig,
+  requireCoreConfig,
+  updateCoreConfig,
+  updateProjectConfig,
+} from "../../config";
+import { printJson } from "./helpers";
 
 type ConfigShowOptions = {
   showSecrets?: boolean;
 };
+
+function setNestedValue(
+  root: Record<string, unknown>,
+  path: string,
+  value: unknown
+): void {
+  const keys = path.split(".").filter(Boolean);
+  if (!keys.length) {
+    throw new Error("Invalid config path");
+  }
+
+  let current = root;
+  for (let i = 0; i < keys.length - 1; i++) {
+    const key = keys[i]!;
+    const existing = current[key];
+    if (!existing || typeof existing !== "object") {
+      current[key] = {};
+    }
+    current = current[key] as Record<string, unknown>;
+  }
+
+  current[keys[keys.length - 1]!] = value;
+}
+
+function parseScalarValue(raw: string): unknown {
+  if (raw === "true") {
+    return true;
+  }
+  if (raw === "false") {
+    return false;
+  }
+  if (!Number.isNaN(Number(raw))) {
+    return Number(raw);
+  }
+  return raw;
+}
+
+function maskSecret(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+  if (trimmed.length <= 8) {
+    return "*".repeat(Math.max(4, trimmed.length));
+  }
+  return `${trimmed.slice(0, 4)}...${trimmed.slice(-4)}`;
+}
 
 export function registerConfigCommand(program: Command): void {
   const configCmd = program.command("config").description("Config commands");
@@ -16,93 +69,116 @@ Examples:
   $ vesai config show
   $ vesai config show --show-secrets
   $ vesai config validate
-  $ vesai config set runtime.maxConcurrentRenders 6
+  $ vesai config set core.runtime.maxRenderMemoryMb 8192
+  $ vesai config set project.daemon.lookbackDays 180
 `
   );
 
   configCmd
     .command("show")
-    .description("Show current config")
+    .description("Show current core and project config")
     .option(
       "--show-secrets",
       "Show sensitive values (default redacts credentials)"
     )
-    .addHelpText(
-      "after",
-      `
-By default, sensitive keys are redacted.
-Use --show-secrets only in trusted local terminals.
-`
-    )
     .action(async (options: ConfigShowOptions) => {
-      const config = await loadConfig();
-      printJson(options.showSecrets ? config : redactConfigSecrets(config));
+      const core = await loadCoreConfig();
+      const project = await loadProjectConfig().catch(() => null);
+      let projectOutput: typeof project | null = null;
+
+      if (project) {
+        if (options.showSecrets) {
+          projectOutput = project;
+        } else {
+          projectOutput = {
+            ...project,
+            posthog: {
+              ...project.posthog,
+              apiKey: maskSecret(project.posthog.apiKey),
+            },
+          };
+        }
+      }
+
+      const output = {
+        core,
+        project: projectOutput,
+      };
+
+      printJson(output);
     });
 
   configCmd
     .command("validate")
     .description("Validate current config")
-    .addHelpText(
-      "after",
-      `
-Use this after quickstart or manual config edits.
-`
-    )
     .action(async () => {
-      const config = await requireConfig();
-      printJson({ valid: true, project: config.gcloud.projectId });
+      const core = await requireCoreConfig();
+      const project = await loadProjectConfig().catch(() => null);
+      printJson({
+        core: { valid: true, gcloudProject: core.gcloud.projectId },
+        project: project
+          ? { valid: true, projectId: project.projectId }
+          : {
+              valid: false,
+              reason: "Project config missing. Run `vesai init` in your repo.",
+            },
+      });
     });
 
   configCmd
     .command("set <path> <value>")
-    .description("Set a config value using dot path")
+    .description(
+      "Set config value using dot path prefixed with core. or project."
+    )
     .addHelpText(
       "after",
       `
 Examples:
-  $ vesai config set posthog.groupKey organization
-  $ vesai config set runtime.maxConcurrentRenders 6
-  $ vesai config set vertex.location us-central1
+  $ vesai config set core.runtime.maxRenderMemoryMb 8192
+  $ vesai config set core.vertex.location us-central1
+  $ vesai config set project.daemon.lookbackDays 180
+  $ vesai config set project.posthog.groupKey organization
 `
     )
     .action(async (path: string, value: string) => {
-      const next = await updateConfig({
-        updater: (config) => {
-          const clone = structuredClone(config);
-          const keys = path.split(".").filter(Boolean);
-          if (!keys.length) {
-            throw new Error("Invalid config path");
-          }
+      const parsed = parseScalarValue(value);
 
-          let current: Record<string, unknown> = clone as unknown as Record<
-            string,
-            unknown
-          >;
+      if (path.startsWith("core.")) {
+        const keyPath = path.slice("core.".length);
+        const next = await updateCoreConfig({
+          updater: (config) => {
+            const clone = structuredClone(config) as unknown as Record<
+              string,
+              unknown
+            >;
+            setNestedValue(clone, keyPath, parsed);
+            return clone as never;
+          },
+        });
+        printJson({ updated: true, scope: "core", updatedAt: next.updatedAt });
+        return;
+      }
 
-          for (let i = 0; i < keys.length - 1; i++) {
-            const key = keys[i]!;
-            const existing = current[key];
-            if (!existing || typeof existing !== "object") {
-              current[key] = {};
-            }
-            current = current[key] as Record<string, unknown>;
-          }
+      if (path.startsWith("project.")) {
+        const keyPath = path.slice("project.".length);
+        const next = await updateProjectConfig({
+          updater: (config) => {
+            const clone = structuredClone(config) as unknown as Record<
+              string,
+              unknown
+            >;
+            setNestedValue(clone, keyPath, parsed);
+            return clone as never;
+          },
+        });
+        printJson({
+          updated: true,
+          scope: "project",
+          updatedAt: next.updatedAt,
+        });
+        return;
+      }
 
-          const finalKey = keys[keys.length - 1]!;
-          let parsed: unknown = value;
-          if (value === "true") {
-            parsed = true;
-          } else if (value === "false") {
-            parsed = false;
-          } else if (!Number.isNaN(Number(value))) {
-            parsed = Number(value);
-          }
-
-          current[finalKey] = parsed;
-          return clone;
-        },
-      });
-
-      printJson({ updated: true, updatedAt: next.updatedAt });
+      throw new Error("Config path must start with core. or project.");
     });
 }

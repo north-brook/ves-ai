@@ -845,7 +845,7 @@ export default async function constructVideo(params: {
     const fileName = `${params.sessionId}.webm`;
     const bucketName =
       params.bucketName || process.env.VESAI_GCS_BUCKET || "ves.ai";
-    const filePath = `${params.projectId}/${fileName}`;
+    const filePath = `projects/${params.projectId}/videos/${fileName}`;
 
     console.log(`  🗂️ Bucket: ${bucketName}`);
     console.log(`  📁 File path: ${filePath}`);

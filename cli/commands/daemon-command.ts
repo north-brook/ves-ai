@@ -5,7 +5,8 @@ import { kill } from "node:process";
 import { fileURLToPath } from "node:url";
 import type { Command } from "commander";
 import {
-  ensureVesaiDirectories,
+  ensureCoreDirectories,
+  ensureProjectDirectories,
   getVesaiPaths,
   requireConfig,
 } from "../../config";
@@ -51,7 +52,10 @@ async function startDaemonInBackground(): Promise<{
     const child = spawn(process.execPath, [DAEMON_ENTRYPOINT], {
       cwd: REPO_ROOT,
       detached: true,
-      env: process.env,
+      env: {
+        ...process.env,
+        VESAI_PROJECT_ROOT: paths.projectRoot,
+      },
       stdio: ["ignore", logHandle.fd, logHandle.fd],
     });
     child.unref();
@@ -78,6 +82,10 @@ Examples:
   $ vesai daemon watch
   $ vesai daemon status
   $ vesai daemon stop
+
+Behavior:
+  - First run backfills replay analysis from init lookbackDays.
+  - Ongoing heartbeat pulls sessions from last cursor to now and queues analysis.
 `
   );
 
@@ -87,12 +95,13 @@ Examples:
     .addHelpText(
       "after",
       `
-Runs daemon detached from the terminal and writes logs under ~/.vesai/logs.
+Runs daemon detached from the terminal and writes logs under .vesai/logs.
 Use \`vesai daemon status\` to confirm pid and \`vesai daemon stop\` to shut down.
 `
     )
     .action(async () => {
-      await ensureVesaiDirectories();
+      await ensureCoreDirectories();
+      await ensureProjectDirectories();
       await requireConfig();
       await ensurePlaywrightChromiumInstalled();
 
@@ -119,7 +128,8 @@ Process exits on Ctrl+C or shell exit.
 `
     )
     .action(async () => {
-      await ensureVesaiDirectories();
+      await ensureCoreDirectories();
+      await ensureProjectDirectories();
       await requireConfig();
       await ensurePlaywrightChromiumInstalled();
 

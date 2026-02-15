@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { ensureVesaiDirectories } from "../config";
+import { ensureProjectDirectories } from "../config";
 import {
   writeGroupMarkdown,
   writeSessionMarkdown,
@@ -12,7 +12,7 @@ import {
 async function withTempHome(run: (homeDir: string) => Promise<void>) {
   const homeDir = await mkdtemp(join(tmpdir(), "vesai-workspace-test-"));
   try {
-    await ensureVesaiDirectories(homeDir);
+    await ensureProjectDirectories(homeDir);
     await run(homeDir);
   } finally {
     await rm(homeDir, { recursive: true, force: true });

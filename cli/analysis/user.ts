@@ -16,6 +16,8 @@ export type UserAnalysisResult = {
   sessionCount: number;
   averageSessionScore: number;
   userScore: number;
+  story: string;
+  health: string;
   markdownPath: string;
 };
 
@@ -166,6 +168,8 @@ export async function analyzeUserByEmailWithDeps(params: {
     sessionCount: sessionResults.length,
     averageSessionScore: summary.averageScore,
     userScore: aggregate.score,
+    story: aggregate.story,
+    health: aggregate.health,
     markdownPath,
   };
 }

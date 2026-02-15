@@ -3,6 +3,7 @@ import {
   analyzeGroupAggregate,
   analyzeSessionVideo,
   analyzeUserAggregate,
+  answerResearchQuestion,
 } from "../connectors/gemini";
 
 describe("gemini connector", () => {
@@ -139,5 +140,45 @@ describe("gemini connector", () => {
     }
 
     expect(thrown).toBe(true);
+  });
+
+  it("parses research answer JSON", async () => {
+    const generateContent = mock(async () => ({
+      text: JSON.stringify({
+        answer: "Most drop-off follows payment errors.",
+        findings: [
+          "Card validation loops appear repeatedly",
+          "Users abandon after 2-3 retries",
+        ],
+        confidence: "medium",
+        supportingSessionIds: ["s1", "s2"],
+      }),
+    }));
+
+    const ai = {
+      models: {
+        generateContent,
+      },
+    } as never;
+
+    const result = await answerResearchQuestion({
+      ai,
+      model: "gemini-3-pro-preview",
+      productDescription: "Demo product",
+      question: "Why do users drop at payment?",
+      sessions: [
+        {
+          sessionId: "s1",
+          startTime: "2026-01-01T00:00:00.000Z",
+          score: 60,
+          markdownPath: "/tmp/s1.md",
+          summary: "Payment validation errors observed.",
+        },
+      ],
+    });
+
+    expect(result.confidence).toBe("medium");
+    expect(result.supportingSessionIds).toEqual(["s1", "s2"]);
+    expect(generateContent).toHaveBeenCalledTimes(1);
   });
 });

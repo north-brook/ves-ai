@@ -32,6 +32,13 @@ export type AggregateAnalysis = {
   score: number;
 };
 
+export type ResearchAnswer = {
+  answer: string;
+  findings: string[];
+  confidence: "low" | "medium" | "high";
+  supportingSessionIds: string[];
+};
+
 function getSessionSchema() {
   return {
     type: Type.OBJECT,
@@ -107,6 +114,28 @@ function getAggregateSchema() {
       score: { type: Type.NUMBER },
     },
     required: ["story", "health", "score"],
+  };
+}
+
+function getResearchSchema() {
+  return {
+    type: Type.OBJECT,
+    properties: {
+      answer: { type: Type.STRING },
+      findings: {
+        type: Type.ARRAY,
+        items: { type: Type.STRING },
+      },
+      confidence: {
+        type: Type.STRING,
+        enum: ["low", "medium", "high"],
+      },
+      supportingSessionIds: {
+        type: Type.ARRAY,
+        items: { type: Type.STRING },
+      },
+    },
+    required: ["answer", "findings", "confidence", "supportingSessionIds"],
   };
 }
 
@@ -249,4 +278,44 @@ export async function analyzeGroupAggregate(params: {
   });
 
   return parseJsonText<AggregateAnalysis>(response.text);
+}
+
+export async function answerResearchQuestion(params: {
+  ai: GoogleGenAI;
+  model: string;
+  productDescription: string;
+  question: string;
+  sessions: Array<{
+    sessionId: string;
+    startTime: string | null;
+    score: number | null;
+    markdownPath: string;
+    summary: string;
+  }>;
+}): Promise<ResearchAnswer> {
+  const prompt = {
+    productDescription: params.productDescription,
+    question: params.question,
+    availableSessionIds: params.sessions.map((session) => session.sessionId),
+    sessions: params.sessions,
+    instructions:
+      "Answer the question using only provided sessions. Cite only session IDs from availableSessionIds. If evidence is weak, say so.",
+  };
+
+  const response = await params.ai.models.generateContent({
+    model: params.model,
+    contents: [
+      createUserContent(
+        "You are a replay research analyst. Use only supplied evidence. Return JSON only."
+      ),
+      createUserContent(JSON.stringify(prompt)),
+    ],
+    config: {
+      thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH },
+      responseMimeType: "application/json",
+      responseSchema: getResearchSchema(),
+    },
+  });
+
+  return parseJsonText<ResearchAnswer>(response.text);
 }

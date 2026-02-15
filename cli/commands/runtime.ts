@@ -1,9 +1,10 @@
 import {
-  ensureVesaiDirectories,
+  ensureCoreDirectories,
+  ensureProjectDirectories,
   requireConfig,
   type VesaiConfig,
 } from "../../config";
-import { printJson } from "./helpers";
+import { computeDynamicRenderServiceCapacity } from "../../config/runtime";
 
 export type ReplayRunOptions = {
   json?: boolean;
@@ -55,7 +56,8 @@ export async function withRenderLogMode<T>(
 }
 
 export async function ensureReplayContext(): Promise<{ config: VesaiConfig }> {
-  await ensureVesaiDirectories();
+  await ensureCoreDirectories();
+  await ensureProjectDirectories();
   const config = await requireConfig();
   return { config };
 }
@@ -65,43 +67,14 @@ export function resolveSessionConcurrency(
   config: VesaiConfig
 ): number {
   const override = toPositiveInt(options.maxConcurrent, "--max-concurrent");
-  return override ?? config.runtime.maxConcurrentRenders;
+  return (
+    override ??
+    computeDynamicRenderServiceCapacity({
+      maxRenderMemoryMb: config.runtime.maxRenderMemoryMb,
+    })
+  );
 }
 
 export function shouldEmitJson(value: boolean | undefined): boolean {
   return value !== false;
-}
-
-export function printResult(value: unknown, json = true): void {
-  if (json) {
-    printJson(value);
-    return;
-  }
-
-  if (typeof value === "string") {
-    console.log(value);
-    return;
-  }
-
-  console.log(JSON.stringify(value, null, 2));
-}
-
-function toNumberIfFinite(value: string): number | string {
-  const parsed = Number(value);
-  if (Number.isFinite(parsed)) {
-    return parsed;
-  }
-  return value;
-}
-
-export function mapRowToObject(
-  columns: string[],
-  row: string[]
-): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  for (let i = 0; i < columns.length; i++) {
-    const key = columns[i] || `column_${i + 1}`;
-    out[key] = toNumberIfFinite(row[i] ?? "");
-  }
-  return out;
 }

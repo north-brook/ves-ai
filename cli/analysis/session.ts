@@ -2,12 +2,17 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { DEFAULT_VERTEX_MODEL, getVesaiPaths } from "../../config";
 import {
+  computeDynamicRenderServiceCapacity,
+  estimateRenderServiceCapacity,
+} from "../../config/runtime";
+import {
   analyzeSessionVideo,
   createVertexClient,
   getRecordingUserEmail,
   type PostHogRecording,
 } from "../../connectors";
 import constructEvents from "../../render/events";
+import { withGlobalRenderSlot } from "../../render/global-render-slot";
 import constructVideo from "../../render/replay";
 import { writeSessionMarkdown } from "../../workspace";
 import type {
@@ -178,7 +183,7 @@ export async function ensureSessionRendered(
   }
 
   const semaphore = getRenderSemaphore(
-    context.config.runtime.maxConcurrentRenders
+    estimateRenderServiceCapacity(context.config.runtime.maxRenderMemoryMb)
   );
   const release = await semaphore.acquire();
   try {
@@ -190,49 +195,62 @@ export async function ensureSessionRendered(
       return cachedAfterWait;
     }
 
-    process.env.VESAI_GCS_BUCKET = context.config.gcloud.bucket;
+    return withGlobalRenderSlot({
+      maxRenderMemoryMb: context.config.runtime.maxRenderMemoryMb,
+      task: async () => {
+        const cachedWithGlobalLock = await readRenderCache(
+          recording.id,
+          context.homeDir
+        );
+        if (cachedWithGlobalLock) {
+          return cachedWithGlobalLock;
+        }
 
-    const { events, video } = await withSuppressedRenderLogs(async () => {
-      const events = await constructEvents({
-        source_type: "posthog",
-        source_host: context.config.posthog.host,
-        source_key: context.config.posthog.apiKey,
-        source_project: context.config.posthog.projectId,
-        external_id: recording.id,
-        project_id: context.config.posthog.projectId,
-        session_id: recording.id,
-        bucket_name: context.config.gcloud.bucket,
-      });
+        process.env.VESAI_GCS_BUCKET = context.config.gcloud.bucket;
 
-      const video = await constructVideo({
-        projectId: context.config.posthog.projectId,
-        sessionId: recording.id,
-        eventsPath: events.eventsPath,
-        bucketName: context.config.gcloud.bucket,
-        config: {
-          speed: 1,
-          skipInactive: true,
-          mouseTail: {
-            strokeStyle: "red",
-            lineWidth: 2,
-            lineCap: "round",
-          },
-        },
-      });
+        const { events, video } = await withSuppressedRenderLogs(async () => {
+          const events = await constructEvents({
+            source_type: "posthog",
+            source_host: context.config.posthog.host,
+            source_key: context.config.posthog.apiKey,
+            source_project: context.config.posthog.projectId,
+            external_id: recording.id,
+            project_id: context.config.projectId,
+            session_id: recording.id,
+            bucket_name: context.config.gcloud.bucket,
+          });
 
-      return { events, video };
+          const video = await constructVideo({
+            projectId: context.config.projectId,
+            sessionId: recording.id,
+            eventsPath: events.eventsPath,
+            bucketName: context.config.gcloud.bucket,
+            config: {
+              speed: 1,
+              skipInactive: true,
+              mouseTail: {
+                strokeStyle: "red",
+                lineWidth: 2,
+                lineCap: "round",
+              },
+            },
+          });
+
+          return { events, video };
+        });
+
+        const render: RenderedSession = {
+          sessionId: recording.id,
+          eventsUri: events.eventsUri,
+          videoUri: video.videoUri,
+          videoDuration: Math.round(video.videoDuration),
+          renderedAt: new Date().toISOString(),
+        };
+
+        await writeRenderCache(recording.id, render, context.homeDir);
+        return render;
+      },
     });
-
-    const render: RenderedSession = {
-      sessionId: recording.id,
-      eventsUri: events.eventsUri,
-      videoUri: video.videoUri,
-      videoDuration: Math.round(video.videoDuration),
-      renderedAt: new Date().toISOString(),
-    };
-
-    await writeRenderCache(recording.id, render, context.homeDir);
-    return render;
   } finally {
     release();
   }
@@ -317,7 +335,10 @@ export async function renderAndAnalyzeSessions(params: {
   const concurrency = Math.max(
     1,
     Math.floor(
-      params.concurrency ?? params.context.config.runtime.maxConcurrentRenders
+      params.concurrency ??
+        computeDynamicRenderServiceCapacity({
+          maxRenderMemoryMb: params.context.config.runtime.maxRenderMemoryMb,
+        })
     )
   );
   const effectiveConcurrency = Math.min(concurrency, recordings.length);

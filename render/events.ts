@@ -1075,7 +1075,7 @@ async function uploadEventsToGCS(params: {
 }): Promise<string> {
   const { projectId, sessionId, eventsJson, eventsCount, bucketName } = params;
   const fileName = `${sessionId}.json`;
-  const filePath = `${projectId}/${fileName}`;
+  const filePath = `projects/${projectId}/events/${fileName}`;
 
   console.log(`  🗂️ Bucket: ${bucketName}`);
   console.log(`  📁 File path: ${filePath}`);

@@ -3,10 +3,18 @@ import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
 import {
   DEFAULT_VERTEX_MODEL,
-  ensureVesaiDirectories,
-  ensureWorkspaceGitRepo,
-  saveConfig,
+  ensureCoreDirectories,
+  saveCoreConfig,
 } from "../../config";
+import {
+  BYTES_PER_MIB,
+  computeDefaultRenderMemoryMb,
+  estimateRenderServiceCapacity,
+  formatGiB,
+  normalizePositiveIntegerValue,
+  normalizeRenderMemoryMbValue,
+  RENDER_MEMORY_PER_SERVICE_MB,
+} from "../../config/runtime";
 import {
   ensureBucket,
   ensurePlaywrightChromiumInstalled,
@@ -15,27 +23,15 @@ import {
   getActiveGcloudProject,
   hasApplicationDefaultCredentials,
   isGcloudInstalled,
-  listProjects,
   normalizeBucketLocation,
-  type PostHogProject,
 } from "../../connectors";
 
-const POSTHOG_API_KEY_SCOPE_TEXT = "All access + MCP server scope";
-const POSTHOG_API_KEY_SETTINGS_URL =
-  "https://app.posthog.com/settings/user-api-keys";
-
 export type QuickstartCommandOptions = {
-  posthogHost?: string;
-  posthogApiKey?: string;
-  posthogProjectId?: string;
-  posthogGroupKey?: string;
-  domainFilter?: string;
   gcloudProjectId?: string;
   vertexLocation?: string;
   bucketLocation?: string;
   bucket?: string;
-  maxConcurrentRenders?: number;
-  productDescription?: string;
+  maxRenderMemoryMb?: number;
   yes?: boolean;
   nonInteractive?: boolean;
 };
@@ -60,49 +56,12 @@ export function defaultBucketLocationFromVertex(location: string): string {
   return "US";
 }
 
-const BYTES_PER_GIB = 1024 * 1024 * 1024;
-const BYTES_PER_RENDER_INSTANCE = 512 * 1024 * 1024;
-
-export function computeDefaultRenderConcurrency(
-  availableRamBytes: number = freemem()
-): number {
-  if (!Number.isFinite(availableRamBytes) || availableRamBytes <= 0) {
-    return 1;
-  }
-  const budget = availableRamBytes * 0.5;
-  return Math.max(1, Math.floor(budget / BYTES_PER_RENDER_INSTANCE));
-}
-
-export function formatGiB(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes <= 0) {
-    return "0.0";
-  }
-  return (bytes / BYTES_PER_GIB).toFixed(1);
-}
-
 export function normalizeConcurrencyValue(
   value: string | number | undefined,
   fallback: number,
   flag: string
 ): number {
-  if (value === undefined || value === null || String(value).trim() === "") {
-    return fallback;
-  }
-
-  const parsed = Number(value);
-  if (!(Number.isFinite(parsed) && Number.isInteger(parsed))) {
-    throw new Error(
-      `Invalid ${flag} value "${value}". Must be a positive integer.`
-    );
-  }
-
-  if (parsed < 1) {
-    throw new Error(
-      `Invalid ${flag} value "${value}". Must be a positive integer.`
-    );
-  }
-
-  return parsed;
+  return normalizePositiveIntegerValue(value, fallback, flag);
 }
 
 export function parseProjectSelectionIndex(
@@ -162,74 +121,11 @@ async function resolveValue(params: {
     const raw = await params.promptClient.ask(`${params.label}${suffix}: `);
     const picked = raw.trim() || params.defaultValue || "";
 
-    if (!required) {
-      return picked;
-    }
-
-    if (picked) {
+    if (!required || picked) {
       return picked;
     }
 
     console.log(`${params.label} is required.`);
-  }
-}
-
-async function choosePostHogProjectId(params: {
-  projects: PostHogProject[];
-  optionValue: string | undefined;
-  nonInteractive: boolean;
-  promptClient: PromptClient | null;
-  useDefaultsWithoutPrompt: boolean;
-}): Promise<string> {
-  const normalizedOption = params.optionValue?.trim();
-  if (normalizedOption) {
-    const exists = params.projects.some(
-      (project) => String(project.id) === normalizedOption
-    );
-    if (!exists) {
-      const available = params.projects
-        .map((project) => `${project.name} (${project.id})`)
-        .join(", ");
-      throw new Error(
-        `Unknown PostHog project id "${normalizedOption}". Available projects: ${available}`
-      );
-    }
-    return normalizedOption;
-  }
-
-  if (params.useDefaultsWithoutPrompt) {
-    return String(params.projects[0]!.id);
-  }
-
-  if (params.nonInteractive) {
-    throw new Error(
-      "Missing required option --posthog-project-id in non-interactive mode."
-    );
-  }
-
-  if (!params.promptClient) {
-    throw new Error("Prompt client unavailable for project selection.");
-  }
-
-  console.log("");
-  console.log("Available PostHog projects:");
-  for (let i = 0; i < params.projects.length; i++) {
-    const project = params.projects[i]!;
-    console.log(`  ${i + 1}. ${project.name} (${project.id})`);
-  }
-
-  while (true) {
-    const raw = await params.promptClient.ask("Select project number [1]: ");
-    const selection = raw.trim() || "1";
-    try {
-      const index = parseProjectSelectionIndex(
-        selection,
-        params.projects.length
-      );
-      return String(params.projects[index]!.id);
-    } catch (error) {
-      console.log(error instanceof Error ? error.message : String(error));
-    }
   }
 }
 
@@ -243,16 +139,14 @@ export async function runQuickstartCli(
   const promptClient = nonInteractive ? null : createPromptClient();
 
   try {
-    console.log("VES AI quickstart (CLI)");
+    console.log("VES AI quickstart (global core setup)");
     console.log("Running preflight checks...");
 
-    const gcloudInstalled = await isGcloudInstalled();
-    if (!gcloudInstalled) {
+    if (!(await isGcloudInstalled())) {
       throw new Error("gcloud CLI is required but not installed.");
     }
 
-    const account = await getActiveGcloudAccount();
-    if (!account) {
+    if (!(await getActiveGcloudAccount())) {
       throw new Error(
         "No active gcloud account. Run `gcloud auth login` before quickstart."
       );
@@ -265,8 +159,7 @@ export async function runQuickstartCli(
       );
     }
 
-    const hasAdc = await hasApplicationDefaultCredentials();
-    if (!hasAdc) {
+    if (!(await hasApplicationDefaultCredentials())) {
       throw new Error(
         "Application default credentials are missing. Run `gcloud auth application-default login`."
       );
@@ -278,71 +171,14 @@ export async function runQuickstartCli(
     const gcloudProjectId =
       options.gcloudProjectId?.trim() || activeProjectId || "";
     const availableRamBytes = freemem();
-    const defaultRenderConcurrency =
-      computeDefaultRenderConcurrency(availableRamBytes);
-    console.log(
-      `Render concurrency default: ${defaultRenderConcurrency} (~50% of ${formatGiB(availableRamBytes)} GiB available RAM at ~512MB per renderer).`
+    const defaultRenderMemoryMb =
+      computeDefaultRenderMemoryMb(availableRamBytes);
+    const defaultRenderCapacity = estimateRenderServiceCapacity(
+      defaultRenderMemoryMb
     );
-
-    const posthogHost = await resolveValue({
-      promptClient,
-      label: "PostHog host URL",
-      flag: "posthog-host",
-      value: options.posthogHost,
-      defaultValue: "https://us.posthog.com",
-      nonInteractive,
-      useDefaultsWithoutPrompt,
-    });
-
-    console.log("");
-    console.log(`PostHog API key requirements: ${POSTHOG_API_KEY_SCOPE_TEXT}`);
-    console.log(`Create key: ${POSTHOG_API_KEY_SETTINGS_URL}`);
-
-    const posthogApiKey = await resolveValue({
-      promptClient,
-      label: "PostHog API key",
-      flag: "posthog-api-key",
-      value: options.posthogApiKey,
-      nonInteractive,
-      useDefaultsWithoutPrompt,
-    });
-
-    console.log("Loading PostHog projects...");
-    const projects = await listProjects({
-      host: posthogHost,
-      apiKey: posthogApiKey,
-    });
-
-    if (!projects.length) {
-      throw new Error("No PostHog projects found with this key.");
-    }
-
-    const posthogProjectId = await choosePostHogProjectId({
-      projects,
-      optionValue: options.posthogProjectId,
-      nonInteractive,
-      promptClient,
-      useDefaultsWithoutPrompt,
-    });
-
-    const posthogGroupKey = await resolveValue({
-      promptClient,
-      label: "PostHog group key",
-      flag: "posthog-group-key",
-      value: options.posthogGroupKey,
-      defaultValue: "company_id",
-      nonInteractive,
-      useDefaultsWithoutPrompt,
-    });
-
-    const domainFilter = await resolveValue({
-      promptClient,
-      label: "Domain filter for session replays",
-      flag: "domain-filter",
-      value: options.domainFilter,
-      nonInteractive,
-      useDefaultsWithoutPrompt,
-    });
+    console.log(
+      `Render memory budget default: ${defaultRenderMemoryMb} MiB (~${formatGiB(defaultRenderMemoryMb * BYTES_PER_MIB)} GiB, ~${defaultRenderCapacity} render services at ${RENDER_MEMORY_PER_SERVICE_MB} MiB each).`
+    );
 
     const vertexLocation = await resolveValue({
       promptClient,
@@ -379,36 +215,26 @@ export async function runQuickstartCli(
       })
     );
 
-    const maxConcurrentRendersInput = await resolveValue({
+    const maxRenderMemoryInput = await resolveValue({
       promptClient,
-      label: "Max concurrent renders (>=1)",
-      flag: "max-concurrent-renders",
+      label: `Max render memory budget in MiB (>=${RENDER_MEMORY_PER_SERVICE_MB})`,
+      flag: "max-render-memory-mb",
       value:
-        options.maxConcurrentRenders === undefined
+        options.maxRenderMemoryMb === undefined
           ? undefined
-          : String(options.maxConcurrentRenders),
-      defaultValue: String(defaultRenderConcurrency),
+          : String(options.maxRenderMemoryMb),
+      defaultValue: String(defaultRenderMemoryMb),
       nonInteractive,
       useDefaultsWithoutPrompt,
     });
-    const maxConcurrentRenders = normalizeConcurrencyValue(
-      maxConcurrentRendersInput,
-      2,
-      "--max-concurrent-renders"
+    const maxRenderMemoryMb = normalizeRenderMemoryMbValue(
+      maxRenderMemoryInput,
+      defaultRenderMemoryMb,
+      "--max-render-memory-mb"
     );
 
-    const productDescription = await resolveValue({
-      promptClient,
-      label: "Describe your product for better analysis",
-      flag: "product-description",
-      value: options.productDescription,
-      nonInteractive,
-      useDefaultsWithoutPrompt,
-    });
-
-    console.log("Provisioning local config and cloud resources...");
-    await ensureVesaiDirectories();
-    await ensureWorkspaceGitRepo();
+    console.log("Provisioning core config and cloud resources...");
+    await ensureCoreDirectories();
     await ensureRequiredApis(gcloudProjectId);
     await ensureBucket({
       bucket,
@@ -416,15 +242,8 @@ export async function runQuickstartCli(
       location: bucketLocation,
     });
 
-    await saveConfig({
+    await saveCoreConfig({
       version: 1,
-      posthog: {
-        host: posthogHost,
-        apiKey: posthogApiKey,
-        projectId: posthogProjectId,
-        groupKey: posthogGroupKey,
-        domainFilter,
-      },
       gcloud: {
         projectId: gcloudProjectId,
         region: bucketLocation,
@@ -435,17 +254,15 @@ export async function runQuickstartCli(
         location: vertexLocation,
       },
       runtime: {
-        maxConcurrentRenders,
-      },
-      product: {
-        description: productDescription,
+        maxRenderMemoryMb,
       },
     });
 
-    console.log("Quickstart complete.");
+    console.log("Global quickstart complete.");
     console.log("Next steps:");
-    console.log("  vesai daemon start");
-    console.log("  vesai replays user you@example.com");
+    console.log("  1) cd <your-project>");
+    console.log("  2) vesai init");
+    console.log("  3) vesai daemon start");
   } finally {
     promptClient?.close();
   }

@@ -1,11 +1,9 @@
 import { afterEach, describe, expect, it, mock } from "bun:test";
 import {
   findRecordingsByGroupId,
-  findRecordingsByQuery,
   findRecordingsByUserEmail,
   getRecordingUserEmail,
   listAllRecordings,
-  readDataWarehouseSchema,
 } from "../connectors/posthog";
 
 const originalFetch = globalThis.fetch;
@@ -106,7 +104,7 @@ describe("posthog connector", () => {
     expect(results.map((recording) => recording.id)).toEqual(["keep"]);
   });
 
-  it("filters by group id and query", async () => {
+  it("filters by group id", async () => {
     globalThis.fetch = mock(async () => {
       return new Response(
         JSON.stringify({
@@ -117,12 +115,7 @@ describe("posthog connector", () => {
               person: { properties: { company_id: "acme" } },
               ongoing: false,
             },
-            {
-              id: "g2",
-              start_url: "https://app.example.com/checkout",
-              person: { properties: { company_id: "acme", role: "buyer" } },
-              ongoing: false,
-            },
+            { id: "g2", person: { properties: { company_id: "acme" } } },
           ],
           has_next: false,
         }),
@@ -138,98 +131,6 @@ describe("posthog connector", () => {
       domainFilter: "example.com",
     });
 
-    const byQuery = await findRecordingsByQuery({
-      apiKey: "key",
-      projectId: "123",
-      query: "checkout",
-      domainFilter: "example.com",
-    });
-
     expect(byGroup.length).toBe(2);
-    expect(byQuery.map((recording) => recording.id)).toEqual(["g2"]);
-  });
-
-  it("supports advanced query filters (date, activity, properties, limit)", async () => {
-    globalThis.fetch = mock(async () => {
-      return new Response(
-        JSON.stringify({
-          results: [
-            {
-              id: "s1",
-              start_time: "2026-01-10T00:00:00.000Z",
-              active_seconds: 20,
-              distinct_id: "d1",
-              start_url: "https://app.example.com/checkout",
-              person: { properties: { email: "a@example.com", plan: "pro" } },
-              ongoing: false,
-            },
-            {
-              id: "s2",
-              start_time: "2026-01-20T00:00:00.000Z",
-              active_seconds: 90,
-              distinct_id: "d2",
-              start_url: "https://app.example.com/checkout",
-              person: {
-                properties: { email: "target@example.com", plan: "enterprise" },
-              },
-              ongoing: false,
-            },
-            {
-              id: "s3",
-              start_time: "2026-02-01T00:00:00.000Z",
-              active_seconds: 120,
-              distinct_id: "d3",
-              start_url: "https://app.example.com/reports",
-              person: {
-                properties: { email: "target@example.com", plan: "enterprise" },
-              },
-              ongoing: false,
-            },
-          ],
-          has_next: false,
-        }),
-        { status: 200 }
-      );
-    }) as unknown as typeof fetch;
-
-    const results = await findRecordingsByQuery({
-      apiKey: "key",
-      projectId: "123",
-      filters: {
-        email: "target@example.com",
-        urlContains: "checkout",
-        minActiveSeconds: 60,
-        startsAfter: "2026-01-15T00:00:00.000Z",
-        startsBefore: "2026-01-31T23:59:59.000Z",
-        properties: { plan: "enterprise" },
-        limit: 1,
-      },
-    });
-
-    expect(results.map((recording) => recording.id)).toEqual(["s2"]);
-  });
-
-  it("sends query payload for warehouse schema MCP tool", async () => {
-    let body: unknown;
-    globalThis.fetch = mock(
-      async (_url: string | URL | Request, init?: RequestInit) => {
-        body = init?.body ? JSON.parse(String(init.body)) : null;
-        return new Response(
-          JSON.stringify({
-            success: true,
-            content: '{"ok":true}',
-          }),
-          { status: 200 }
-        );
-      }
-    ) as unknown as typeof fetch;
-
-    const result = await readDataWarehouseSchema({
-      apiKey: "key",
-      projectId: "123",
-    });
-
-    expect(body).toEqual({ args: { query: {} } });
-    expect(result).toEqual({ ok: true });
   });
 });

@@ -3,23 +3,23 @@ import { Section } from "./section";
 
 const steps = [
   {
-    name: "Capture",
-    detail: "Pull replays & events from PostHog",
+    name: "Quickstart",
+    detail: "Configure global runtime + render memory budget",
     icon: Download,
   },
   {
-    name: "Render",
-    detail: "Replay sessions in Playwright",
+    name: "Init",
+    detail: "Create project-scoped .vesai config and workspace",
     icon: Play,
   },
   {
-    name: "Analyze",
-    detail: "Extract insights with Gemini Vision",
+    name: "Heartbeat",
+    detail: "Daemon backfills and continuously analyzes new sessions",
     icon: BrainCircuit,
   },
   {
-    name: "Act",
-    detail: "Output markdown agents can use",
+    name: "Ask",
+    detail: "Use user, group, and research commands for decisions",
     icon: Rocket,
   },
 ];
@@ -31,8 +31,7 @@ export function Pipeline() {
         How It Works
       </h2>
       <p className="mx-auto mt-4 max-w-2xl text-center text-text-secondary">
-        From raw PostHog data to structured, agent-ready workspace artifacts in
-        four steps.
+        From machine setup to project intelligence artifacts in four steps.
       </p>
 
       <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

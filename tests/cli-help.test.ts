@@ -2,101 +2,65 @@ import { describe, expect, it } from "bun:test";
 import { runCommandOrThrow } from "../connectors/shell";
 
 describe("cli help", () => {
-  it("shows rich top-level help", async () => {
+  it("shows replay-focused top-level help", async () => {
     const result = await runCommandOrThrow("bun", ["cli/index.ts", "--help"]);
 
-    expect(result.stdout).toContain("VES AI: AI-ready product analytics");
-    expect(result.stdout).toContain("Replay Workflows");
-    expect(result.stdout).toContain("Agent Workflows");
-    expect(result.stdout).toContain("JSON is default for data commands");
-    expect(result.stdout).toContain("replays query");
-    expect(result.stdout).toContain("insights sql");
-    expect(result.stdout).not.toContain("tui");
+    expect(result.stdout).toContain(
+      "VES AI: session replay intelligence for agents"
+    );
+    expect(result.stdout).toContain("vesai init");
+    expect(result.stdout).toContain("Replay Story Workflows");
+    expect(result.stdout).toContain("vesai user");
+    expect(result.stdout).toContain("vesai group");
+    expect(result.stdout).toContain("vesai research");
+    expect(result.stdout).not.toContain("vesai events");
+    expect(result.stdout).not.toContain("vesai insights");
   });
 
-  it("shows robust query filter help", async () => {
+  it("shows user command help", async () => {
     const result = await runCommandOrThrow("bun", [
       "cli/index.ts",
-      "replays",
-      "query",
-      "--help",
-    ]);
-
-    expect(result.stdout).toContain("--email <email>");
-    expect(result.stdout).toContain("--from <isoDate>");
-    expect(result.stdout).toContain("--where <key=value>");
-    expect(result.stdout).toContain("--dry-run");
-    expect(result.stdout).toContain("--no-json");
-    expect(result.stdout).toContain(
-      "literal search over replay/session metadata"
-    );
-    expect(result.stdout).toContain("Examples:");
-  });
-
-  it("teaches in-context learning for replay entity subcommands", async () => {
-    const userHelp = await runCommandOrThrow("bun", [
-      "cli/index.ts",
-      "replays",
       "user",
       "--help",
     ]);
-    const listHelp = await runCommandOrThrow("bun", [
-      "cli/index.ts",
-      "replays",
-      "list",
-      "--help",
-    ]);
 
-    expect(userHelp.stdout).toContain("User analysis contract");
-    expect(userHelp.stdout).toContain("Learning flow");
-    expect(listHelp.stdout).toContain("discover candidates");
-    expect(listHelp.stdout).toContain("Next step");
+    expect(result.stdout).toContain("Analyze one user story");
+    expect(result.stdout).toContain("--max-concurrent <n>");
   });
 
-  it("shows PostHog analytics help surfaces", async () => {
-    const events = await runCommandOrThrow("bun", [
-      "cli/index.ts",
-      "events",
-      "--help",
-    ]);
-    const insights = await runCommandOrThrow("bun", [
-      "cli/index.ts",
-      "insights",
-      "--help",
-    ]);
-
-    expect(events.stdout).toContain("event definitions");
-    expect(insights.stdout).toContain("hogql");
-    expect(insights.stdout).toContain("sql");
-  });
-
-  it("teaches logs query workflow in help output", async () => {
+  it("shows group command help", async () => {
     const result = await runCommandOrThrow("bun", [
       "cli/index.ts",
-      "logs",
-      "query",
+      "group",
       "--help",
     ]);
 
-    expect(result.stdout).toContain("vesai logs attributes");
-    expect(result.stdout).toContain("vesai logs values <key>");
+    expect(result.stdout).toContain("Analyze one group story");
+    expect(result.stdout).toContain("<groupId>");
   });
 
-  it("shows robust quickstart help", async () => {
+  it("shows research command help", async () => {
     const result = await runCommandOrThrow("bun", [
       "cli/index.ts",
-      "quickstart",
+      "research",
       "--help",
     ]);
 
-    expect(result.stdout).toContain("--posthog-api-key <key>");
-    expect(result.stdout).toContain("--non-interactive");
-    expect(result.stdout).toContain("--max-concurrent-renders <n>");
-    expect(result.stdout).toContain("All access + MCP server scope");
-    expect(result.stdout).toContain("Examples:");
+    expect(result.stdout).toContain("already analyzed sessions");
+    expect(result.stdout).toContain("--limit <n>");
   });
 
-  it("shows daemon lifecycle help for background and foreground modes", async () => {
+  it("shows init lookback option", async () => {
+    const result = await runCommandOrThrow("bun", [
+      "cli/index.ts",
+      "init",
+      "--help",
+    ]);
+
+    expect(result.stdout).toContain("--lookback-days <n>");
+  });
+
+  it("shows daemon lifecycle help", async () => {
     const result = await runCommandOrThrow("bun", [
       "cli/index.ts",
       "daemon",
@@ -105,18 +69,6 @@ describe("cli help", () => {
 
     expect(result.stdout).toContain("start");
     expect(result.stdout).toContain("watch");
-    expect(result.stdout).toContain("background");
-    expect(result.stdout).toContain("foreground");
-  });
-
-  it("shows safe config display options", async () => {
-    const result = await runCommandOrThrow("bun", [
-      "cli/index.ts",
-      "config",
-      "show",
-      "--help",
-    ]);
-
-    expect(result.stdout).toContain("--show-secrets");
+    expect(result.stdout).toContain("stop");
   });
 });

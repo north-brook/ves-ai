@@ -1,5 +1,67 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$ROOT_DIR"
-exec bun cli/index.ts "$@"
+
+resolve_realpath_or_empty() {
+  local path="$1"
+  if [ -d "$path" ]; then
+    (cd "$path" && pwd -P)
+  else
+    echo ""
+  fi
+}
+
+sync_latest_main() {
+  if ! command -v git >/dev/null 2>&1; then
+    echo "VES AI auto-update requires git." >&2
+    return 1
+  fi
+
+  if ! git -C "$ROOT_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    return 0
+  fi
+
+  local vesai_home="${VESAI_HOME:-$HOME/.vesai}"
+  local installed_root
+  installed_root="$(resolve_realpath_or_empty "$vesai_home/app/vesai")"
+  local repo_root
+  repo_root="$(resolve_realpath_or_empty "$ROOT_DIR")"
+  local is_installed_repo="0"
+  if [ -n "$installed_root" ] && [ "$repo_root" = "$installed_root" ]; then
+    is_installed_repo="1"
+  fi
+
+  local lock_dir="$ROOT_DIR/.git/vesai-auto-update.lock"
+  local lock_wait_attempts=0
+  until mkdir "$lock_dir" 2>/dev/null; do
+    lock_wait_attempts=$((lock_wait_attempts + 1))
+    if [ "$lock_wait_attempts" -ge 300 ]; then
+      echo "VES AI auto-update lock timed out." >&2
+      return 1
+    fi
+    sleep 0.1
+  done
+
+  trap 'rmdir "$lock_dir" >/dev/null 2>&1 || true' RETURN
+
+  git -C "$ROOT_DIR" fetch --quiet --depth 1 origin main
+
+  if [ "$is_installed_repo" = "1" ]; then
+    git -C "$ROOT_DIR" checkout --quiet main
+    git -C "$ROOT_DIR" reset --quiet --hard origin/main
+  else
+    local current_branch
+    current_branch="$(git -C "$ROOT_DIR" symbolic-ref --short -q HEAD || true)"
+    if [ "$current_branch" = "main" ] &&
+      git -C "$ROOT_DIR" diff --quiet &&
+      git -C "$ROOT_DIR" diff --cached --quiet; then
+      git -C "$ROOT_DIR" merge --quiet --ff-only origin/main
+    fi
+  fi
+
+  trap - RETURN
+  rmdir "$lock_dir" >/dev/null 2>&1 || true
+}
+
+sync_latest_main
+exec bun "$ROOT_DIR/cli/index.ts" "$@"
