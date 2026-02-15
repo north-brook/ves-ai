@@ -14,7 +14,7 @@ export function Nav() {
   }, []);
 
   useEffect(() => {
-    fetch("https://api.github.com/repos/north-brook/vesai", {
+    fetch("https://api.github.com/repos/north-brook/ves-ai", {
       headers: { Accept: "application/vnd.github.v3+json" },
     })
       .then((r) => r.json())
@@ -44,7 +44,7 @@ export function Nav() {
         <div className="flex items-center gap-4">
           <a
             className="flex items-center gap-1.5 rounded-lg border border-border-subtle px-3 py-1.5 text-sm text-text-secondary transition-colors hover:border-border-emphasis hover:text-text-primary"
-            href="https://github.com/north-brook/vesai"
+            href="https://github.com/north-brook/ves-ai"
             rel="noreferrer"
             target="_blank"
           >

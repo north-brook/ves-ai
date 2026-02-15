@@ -35,7 +35,7 @@ export function Footer() {
         <div className="flex items-center gap-5 text-sm text-text-muted">
           <a
             className="flex items-center gap-1.5 transition-colors hover:text-text-secondary"
-            href="https://github.com/north-brook/vesai"
+            href="https://github.com/north-brook/ves-ai"
             rel="noreferrer"
             target="_blank"
           >
