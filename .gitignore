@@ -1,53 +1,21 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
-
-# testing
-/coverage
-
-# next.js
-/.next/
-/out/
-
-# production
-/build
-
-# misc
-.DS_Store
-*.pem
-
-# env files (can opt-in for committing if needed)
-.env
-.env.development
-.env.local
-.env.keys
-
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-
-# Sentry Config File
-.env.sentry-build-plugin
-.env*.local
-
-# Playwright
 node_modules/
-/test-results/
-/playwright-report/
-/blob-report/
-/playwright/.cache/
+.DS_Store
+*.tsbuildinfo
+.env
+.env.local
+.env.*.local
+coverage/
 
-# Debug files
-debug-*.txt
+# Local runtime artifacts
+.vesai/
+
+# Debug and temp files
 debug-*.json
+debug-*.txt
+*.log
+
+# Legacy hosted app moved out of runtime path
+legacy-hosted/.next/
+legacy-hosted/node_modules/
+website/.next/
+website/node_modules/
