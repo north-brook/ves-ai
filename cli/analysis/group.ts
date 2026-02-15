@@ -18,6 +18,8 @@ export async function analyzeGroupById(params: {
   groupId: string;
   usersAnalyzed: number;
   score: number;
+  story: string;
+  health: string;
   markdownPath: string;
 }> {
   const recordings = await findRecordingsByGroupId({
@@ -72,8 +74,8 @@ export async function analyzeGroupById(params: {
     users: userResults.map((user) => ({
       email: user.email,
       sessions: user.sessionCount,
-      story: `User ${user.email} comprehensive story generated.`,
-      health: `Average session score ${user.averageSessionScore}`,
+      story: user.story,
+      health: user.health,
       score: user.userScore,
     })),
   });
@@ -97,6 +99,8 @@ export async function analyzeGroupById(params: {
     groupId: params.groupId,
     usersAnalyzed: userResults.length,
     score: aggregate.score,
+    story: aggregate.story,
+    health: aggregate.health,
     markdownPath,
   };
 }

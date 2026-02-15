@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { ensureVesaiDirectories } from "../config";
+import { ensureProjectDirectories } from "../config";
 import {
   appendJobLog,
   createJob,
@@ -15,7 +15,7 @@ import {
 async function withTempHome(run: (homeDir: string) => Promise<void>) {
   const homeDir = await mkdtemp(join(tmpdir(), "vesai-jobs-test-"));
   try {
-    await ensureVesaiDirectories(homeDir);
+    await ensureProjectDirectories(homeDir);
     await run(homeDir);
   } finally {
     await rm(homeDir, { recursive: true, force: true });
@@ -26,8 +26,8 @@ describe("job store", () => {
   it("creates and reads jobs", async () => {
     await withTempHome(async (homeDir) => {
       const job = await createJob({
-        type: "analyze_user",
-        payload: { email: "user@example.com" },
+        type: "analyze_session",
+        payload: { sessionId: "session_123" },
         homeDir,
       });
 
@@ -41,8 +41,8 @@ describe("job store", () => {
   it("tracks running and completion lifecycle", async () => {
     await withTempHome(async (homeDir) => {
       const job = await createJob({
-        type: "analyze_query",
-        payload: { query: "checkout" },
+        type: "analyze_session",
+        payload: { sessionId: "session_abc" },
         homeDir,
       });
 
@@ -67,13 +67,13 @@ describe("job store", () => {
   it("lists queued jobs and appends logs", async () => {
     await withTempHome(async (homeDir) => {
       const queued = await createJob({
-        type: "analyze_group",
-        payload: { groupId: "acme" },
+        type: "analyze_session",
+        payload: { sessionId: "s1" },
         homeDir,
       });
       const notQueued = await createJob({
         type: "analyze_session",
-        payload: { sessionId: "s1" },
+        payload: { sessionId: "s2" },
         homeDir,
       });
       await updateJobStatus({ id: notQueued.id, status: "running", homeDir });

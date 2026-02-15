@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { getVesaiPaths, resolveVesaiHome } from "../config";
+import { getVesaiPaths } from "../config";
 
 export type SessionMarkdown = {
   id: string;
@@ -39,7 +39,7 @@ async function writeMarkdown(params: {
   body: string;
   homeDir?: string;
 }): Promise<string> {
-  const paths = getVesaiPaths(params.homeDir ?? resolveVesaiHome());
+  const paths = getVesaiPaths(params.homeDir);
   const targetDir = join(paths.workspace, params.folder);
   await mkdir(targetDir, { recursive: true });
 

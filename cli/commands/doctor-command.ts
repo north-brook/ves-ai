@@ -1,5 +1,5 @@
 import type { Command } from "commander";
-import { requireConfig, resolveVesaiHome } from "../../config";
+import { getVesaiPaths, requireConfig, resolveVesaiHome } from "../../config";
 import {
   getPlaywrightChromiumExecutablePath,
   isPlaywrightChromiumInstalled,
@@ -20,6 +20,7 @@ Examples:
     )
     .action(async () => {
       const home = resolveVesaiHome();
+      const projectPaths = getVesaiPaths();
       const status = await getDaemonStatus();
       const config = await requireConfig();
       const playwrightExecutable = getPlaywrightChromiumExecutablePath();
@@ -27,7 +28,9 @@ Examples:
         isPlaywrightChromiumInstalled(playwrightExecutable);
 
       printJson({
-        home,
+        coreHome: home,
+        projectRoot: projectPaths.projectRoot,
+        projectConfig: projectPaths.configFile,
         daemon: status,
         posthogProject: config.posthog.projectId,
         gcloudProject: config.gcloud.projectId,

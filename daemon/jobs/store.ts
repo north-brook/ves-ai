@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { getVesaiPaths, resolveVesaiHome } from "../../config";
+import { getVesaiPaths } from "../../config";
 import type { JobRecord, JobStatus, JobType } from "./types";
 
 function jobPath(id: string, homeDir?: string): string {
-  const paths = getVesaiPaths(homeDir ?? resolveVesaiHome());
+  const paths = getVesaiPaths(homeDir);
   return join(paths.jobsDir, `${id}.json`);
 }
 
@@ -111,7 +111,7 @@ export async function updateJobStatus(params: {
 }
 
 export async function listJobs(homeDir?: string): Promise<JobRecord[]> {
-  const paths = getVesaiPaths(homeDir ?? resolveVesaiHome());
+  const paths = getVesaiPaths(homeDir);
   const files = await readdir(paths.jobsDir).catch(() => []);
 
   const jobs = await Promise.all(

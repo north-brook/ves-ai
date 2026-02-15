@@ -1,8 +1,9 @@
-import { ensureVesaiDirectories } from "../config";
+import { ensureCoreDirectories, ensureProjectDirectories } from "../config";
 import { startDaemon } from "./runner";
 
 async function main() {
-  await ensureVesaiDirectories();
+  await ensureCoreDirectories();
+  await ensureProjectDirectories();
   console.log("Starting VES AI daemon...");
   await startDaemon();
 }
