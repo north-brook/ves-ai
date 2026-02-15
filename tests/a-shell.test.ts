@@ -12,9 +12,7 @@ afterEach(() => {
 });
 
 async function loadShellConnector() {
-  return import(
-    `../packages/connectors/src/shell?cachebust=${Date.now()}-${Math.random()}`
-  );
+  return import(`../connectors/shell?cachebust=${Date.now()}-${Math.random()}`);
 }
 
 describe("shell connector", () => {

@@ -44,12 +44,12 @@ describe("gcloud connector", () => {
       return { stdout: "", stderr: "", exitCode: 0 };
     });
 
-    mock.module("../packages/connectors/src/shell", () => ({
+    mock.module("../connectors/shell", () => ({
       runCommand,
       runCommandOrThrow,
     }));
 
-    const gcloud = await import("../packages/connectors/src/gcloud");
+    const gcloud = await import("../connectors/gcloud");
 
     expect(await gcloud.isGcloudInstalled()).toBe(true);
     expect(await gcloud.getActiveGcloudAccount()).toBe("dev@example.com");
@@ -98,12 +98,12 @@ describe("gcloud connector", () => {
       );
     });
 
-    mock.module("../packages/connectors/src/shell", () => ({
+    mock.module("../connectors/shell", () => ({
       runCommand,
       runCommandOrThrow,
     }));
 
-    const gcloud = await import("../packages/connectors/src/gcloud");
+    const gcloud = await import("../connectors/gcloud");
 
     await expect(
       gcloud.ensureBucket({

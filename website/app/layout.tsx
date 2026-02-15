@@ -1,22 +1,28 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const spaceGrotesk = Space_Grotesk({
+const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-space-grotesk",
+  variable: "--font-inter",
 });
 
-const ibmPlexMono = IBM_Plex_Mono({
+const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   weight: ["400", "500"],
-  variable: "--font-ibm-plex-mono",
+  variable: "--font-jetbrains-mono",
 });
 
 export const metadata: Metadata = {
-  title: "VESAI | Local-First Session Replay Analysis",
+  title: "VES AI — AI-ready product analytics CLI",
   description:
-    "Open source, self-hosted replay analysis for PostHog + Vertex AI. Own your keys, data, and infrastructure.",
+    "Connect PostHog. Render session recordings. Analyze with Gemini vision. Output structured markdown your agents can act on.",
+  openGraph: {
+    title: "VES AI — AI-ready product analytics CLI",
+    description:
+      "Connect PostHog. Render session recordings. Analyze with Gemini vision. Output structured markdown your agents can act on.",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
@@ -25,8 +31,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${spaceGrotesk.variable} ${ibmPlexMono.variable}`}>
+    <html className="dark" lang="en">
+      <body
+        className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}
+      >
         {children}
       </body>
     </html>

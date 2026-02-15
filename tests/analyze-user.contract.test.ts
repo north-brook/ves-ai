@@ -1,11 +1,11 @@
 import { describe, expect, it, mock } from "bun:test";
-import type { SessionAnalysis } from "../packages/connectors/src";
-import type { SessionAnalysisResult } from "../packages/core/src/analysis/types";
+import type { SessionAnalysisResult } from "../cli/analysis/types";
 import {
   type AnalyzeUserDeps,
   analyzeUserByEmailWithDeps,
   buildUserAggregateSessions,
-} from "../packages/core/src/analysis/user";
+} from "../cli/analysis/user";
+import type { SessionAnalysis } from "../connectors";
 import { makeConfig } from "./helpers";
 
 const sessionAnalysis: SessionAnalysis = {

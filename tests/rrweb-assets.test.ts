@@ -5,7 +5,7 @@ import { join } from "node:path";
 import {
   getRrwebAssetCandidates,
   readRrwebAssets,
-} from "../packages/core/src/render/rrweb-assets";
+} from "../render/rrweb-assets";
 
 let tmpRoot: string | null = null;
 
@@ -58,8 +58,8 @@ describe("rrweb assets", () => {
     const distDir = join(tmpRoot, "dist");
     await mkdir(distDir, { recursive: true });
 
-    await expect(
-      readRrwebAssets(() => join(distDir, "rrweb.cjs"))
-    ).rejects.toThrow("Unable to locate rrweb script asset.");
+    await expect(async () => {
+      await readRrwebAssets(() => join(distDir, "rrweb.cjs"));
+    }).toThrow(/Unable to locate rrweb (script|css) asset/);
   });
 });

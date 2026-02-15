@@ -1,4 +1,4 @@
-import type { VesaiConfig } from "../packages/config/src";
+import type { VesaiConfig } from "../config";
 
 type DeepPartial<T> = {
   [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
@@ -20,7 +20,7 @@ export function makeConfig(overrides?: DeepPartial<VesaiConfig>): VesaiConfig {
       bucket: "test-bucket",
     },
     vertex: {
-      model: "gemini-3-pro",
+      model: "gemini-3-pro-preview",
       location: "us-central1",
     },
     runtime: {

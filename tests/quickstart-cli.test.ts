@@ -6,7 +6,7 @@ import {
   normalizeBucket,
   normalizeConcurrencyValue,
   parseProjectSelectionIndex,
-} from "../cli/src/commands/quickstart";
+} from "../cli/commands/quickstart";
 
 describe("quickstart cli helpers", () => {
   it("normalizes bucket values", () => {

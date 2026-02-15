@@ -5,7 +5,8 @@ import {
   findRecordingsByUserEmail,
   getRecordingUserEmail,
   listAllRecordings,
-} from "../packages/connectors/src/posthog";
+  readDataWarehouseSchema,
+} from "../connectors/posthog";
 
 const originalFetch = globalThis.fetch;
 
@@ -206,5 +207,29 @@ describe("posthog connector", () => {
     });
 
     expect(results.map((recording) => recording.id)).toEqual(["s2"]);
+  });
+
+  it("sends query payload for warehouse schema MCP tool", async () => {
+    let body: unknown;
+    globalThis.fetch = mock(
+      async (_url: string | URL | Request, init?: RequestInit) => {
+        body = init?.body ? JSON.parse(String(init.body)) : null;
+        return new Response(
+          JSON.stringify({
+            success: true,
+            content: '{"ok":true}',
+          }),
+          { status: 200 }
+        );
+      }
+    ) as unknown as typeof fetch;
+
+    const result = await readDataWarehouseSchema({
+      apiKey: "key",
+      projectId: "123",
+    });
+
+    expect(body).toEqual({ args: { query: {} } });
+    expect(result).toEqual({ ok: true });
   });
 });

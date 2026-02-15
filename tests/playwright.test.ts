@@ -2,7 +2,7 @@ import { describe, expect, it, mock } from "bun:test";
 import {
   ensurePlaywrightChromiumInstalled,
   isPlaywrightChromiumInstalled,
-} from "../packages/connectors/src/playwright";
+} from "../connectors/playwright";
 
 describe("playwright connector", () => {
   it("returns installed path when browser executable already exists", async () => {

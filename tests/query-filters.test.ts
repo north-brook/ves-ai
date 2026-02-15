@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   buildQueryFilters,
   parseWhereAssignments,
-} from "../cli/src/commands/query-filters";
+} from "../cli/commands/query-filters";
 import { makeConfig } from "./helpers";
 
 describe("query filter parser", () => {

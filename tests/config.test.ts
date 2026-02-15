@@ -9,7 +9,7 @@ import {
   loadConfig,
   saveConfig,
   updateConfig,
-} from "../packages/config/src";
+} from "../config";
 import { makeConfig } from "./helpers";
 
 async function withTempHome(run: (homeDir: string) => Promise<void>) {

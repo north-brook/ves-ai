@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { ensureVesaiDirectories } from "../packages/config/src";
+import { ensureVesaiDirectories } from "../config";
 import {
   appendJobLog,
   createJob,
@@ -10,7 +10,7 @@ import {
   listQueuedJobs,
   readJob,
   updateJobStatus,
-} from "../packages/core/src/jobs/store";
+} from "../daemon/jobs/store";
 
 async function withTempHome(run: (homeDir: string) => Promise<void>) {
   const homeDir = await mkdtemp(join(tmpdir(), "vesai-jobs-test-"));

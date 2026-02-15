@@ -3,7 +3,7 @@ import {
   analyzeGroupAggregate,
   analyzeSessionVideo,
   analyzeUserAggregate,
-} from "../packages/connectors/src/gemini";
+} from "../connectors/gemini";
 
 describe("gemini connector", () => {
   it("parses aggregate user analysis JSON", async () => {
@@ -23,7 +23,7 @@ describe("gemini connector", () => {
 
     const result = await analyzeUserAggregate({
       ai,
-      model: "gemini-3-pro",
+      model: "gemini-3-pro-preview",
       productDescription: "Demo product",
       email: "test@example.com",
       sessions: [
@@ -69,7 +69,7 @@ describe("gemini connector", () => {
 
     const result = await analyzeGroupAggregate({
       ai,
-      model: "gemini-3-pro",
+      model: "gemini-3-pro-preview",
       productDescription: "Demo product",
       groupId: "acme",
       users: [
@@ -107,7 +107,7 @@ describe("gemini connector", () => {
 
     const analysis = await analyzeSessionVideo({
       ai: successAi,
-      model: "gemini-3-pro",
+      model: "gemini-3-pro-preview",
       productDescription: "Demo product",
       videoUri: "gs://bucket/s1.webm",
       eventUri: "gs://bucket/s1.json",
@@ -128,7 +128,7 @@ describe("gemini connector", () => {
     try {
       await analyzeSessionVideo({
         ai: failingAi,
-        model: "gemini-3-pro",
+        model: "gemini-3-pro-preview",
         productDescription: "Demo product",
         videoUri: "gs://bucket/s2.webm",
         metadata: { sessionId: "s2" },

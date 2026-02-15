@@ -6,18 +6,17 @@
   "workspaces": [
     "website"
   ],
-  "description": "VESAI local-first open source analyzer",
+  "description": "VES AI — AI-ready product analytics",
   "bin": {
     "vesai": "./bin/vesai"
   },
   "scripts": {
-    "vesai": "bun cli/src/index.ts",
-    "quickstart": "bun cli/src/index.ts quickstart",
-    "daemon": "bun daemon/src/index.ts",
-    "doctor": "bun cli/src/index.ts doctor",
-    "jobs": "bun cli/src/index.ts jobs",
-    "lint": "ultracite check bin cli daemon packages scripts tests website .github docs README.md package.json tsconfig.local.json",
-    "lint:fix": "ultracite fix bin cli daemon packages scripts tests website .github docs README.md package.json tsconfig.local.json",
+    "vesai": "bun cli/index.ts",
+    "quickstart": "bun cli/index.ts quickstart",
+    "daemon": "bun daemon/index.ts",
+    "doctor": "bun cli/index.ts doctor",
+    "lint": "ultracite check bin cli daemon config connectors render workspace scripts tests website .github README.md package.json tsconfig.local.json",
+    "lint:fix": "ultracite fix bin cli daemon config connectors render workspace scripts tests website .github README.md package.json tsconfig.local.json",
     "website:dev": "bun run --cwd website dev",
     "website:build": "bun run --cwd website build",
     "website:start": "bun run --cwd website start",
@@ -32,6 +31,7 @@
     "@google/genai": "^1.30.0",
     "commander": "^14.0.1",
     "fflate": "^0.8.2",
+    "lucide-react": "^0.564.0",
     "playwright": "^1.55.1",
     "rrweb": "^2.0.0-alpha.18",
     "zod": "^4.0.17"

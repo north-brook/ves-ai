@@ -2,13 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --paper: #f3efe7;
-  --ink: #181a19;
-  --card: #fffdf8;
-  --sea: #0f766e;
-}
-
 * {
   box-sizing: border-box;
 }
@@ -20,35 +13,102 @@ body {
 }
 
 body {
-  font-family: var(--font-space-grotesk), "Avenir Next", "Segoe UI", sans-serif;
-  color: var(--ink);
-  background:
-    radial-gradient(65rem 65rem at -15% -15%, #f7e88b 0%, transparent 58%),
-    radial-gradient(42rem 42rem at 115% 10%, #afe9ff 0%, transparent 60%),
-    radial-gradient(48rem 48rem at 50% 120%, #d5f5e2 0%, transparent 58%),
-    var(--paper);
+  font-family: var(--font-inter), system-ui, sans-serif;
+  color: #fafafa;
+  background-color: #0a0a0b;
+  background-image:
+    radial-gradient(
+      circle at 50% 0%,
+      rgba(16, 185, 129, 0.06) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      circle 1px at center,
+      rgba(255, 255, 255, 0.03) 1px,
+      transparent 1px
+    );
+  background-size:
+    100% 100%,
+    24px 24px;
 }
 
 code,
 pre {
-  font-family: var(--font-ibm-plex-mono), "SFMono-Regular", Menlo, monospace;
+  font-family: var(--font-jetbrains-mono), "SFMono-Regular", Menlo, monospace;
 }
 
 ::selection {
   color: #fff;
-  background: var(--sea);
+  background: #10b981;
 }
 
-.card-frame {
-  border: 2px solid var(--ink);
-  border-radius: 1rem;
-  background: var(--card);
-  box-shadow: 8px 8px 0 0 var(--ink);
+/* Terminal chrome */
+.terminal-window {
+  background: #0d1117;
+  border: 1px solid #27272a;
+  border-radius: 0.75rem;
+  overflow: hidden;
 }
 
-.grid-wash {
-  background-image:
-    linear-gradient(to right, rgba(24, 26, 25, 0.05) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(24, 26, 25, 0.05) 1px, transparent 1px);
-  background-size: 24px 24px;
+.terminal-chrome {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 16px;
+  background: #161b22;
+  border-bottom: 1px solid #27272a;
+}
+
+.terminal-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.terminal-dot-red {
+  background: #ff5f57;
+}
+.terminal-dot-yellow {
+  background: #febc2e;
+}
+.terminal-dot-green {
+  background: #28c840;
+}
+
+.terminal-body {
+  padding: 20px;
+  font-size: 14px;
+  line-height: 1.7;
+  overflow-x: auto;
+}
+
+/* Scroll fade-in */
+.fade-section {
+  opacity: 0;
+  transform: translateY(20px);
+  transition:
+    opacity 0.6s ease-out,
+    transform 0.6s ease-out;
+}
+
+.fade-section.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Copy button toast */
+.copy-toast {
+  animation: toast-fade 2s ease-out forwards;
+}
+
+@keyframes toast-fade {
+  0% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }

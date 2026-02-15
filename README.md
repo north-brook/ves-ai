@@ -1,12 +1,13 @@
 # VES AI
 
-VES AI is open source, self-hosted, and local-first.
+Make product analytics actionable for AI agents.
 
-The default product is a terminal experience with:
-- CLI quickstart wizard
-- Synchronous replay analysis commands
-- Local daemon for rendering + inference execution
-- Local markdown workspace under `~/.vesai/workspace`
+**Core differentiator:** VES AI closes the product improvement loop by making product analytics data actionable for AI agents.
+
+VES AI is local-first:
+- You run the CLI on your machine.
+- You use your own PostHog + Google Cloud.
+- You keep outputs in `~/.vesai/workspace` as durable, git-friendly artifacts.
 
 ## Install
 
@@ -14,21 +15,21 @@ The default product is a terminal experience with:
 curl -fsSL https://ves.ai/install | bash
 ```
 
-This installer:
-1. Clones the repo to `~/.vesai/app/vesai`
-2. Installs dependencies
-3. Installs Playwright Chromium
-4. Links `vesai` to `~/.local/bin/vesai`
-5. Starts `vesai quickstart`
+Installer flow:
+1. Clone/update repo at `~/.vesai/app/vesai`
+2. Install dependencies with Bun
+3. Install Playwright Chromium
+4. Link `vesai` at `~/.local/bin/vesai`
+5. Start `vesai quickstart`
 
 ## Prerequisites
 
 - `git`
+- `bun`
 - `gcloud`
 - `ffmpeg`
-- `bun`
 
-Before running quickstart:
+Before quickstart:
 
 ```bash
 gcloud auth login
@@ -36,7 +37,7 @@ gcloud auth application-default login
 gcloud config set project <project-id>
 ```
 
-If `gcloud` prints `unsupported hash type blake2b/blake2s`, pin Cloud SDK to system Python:
+If `gcloud` throws `unsupported hash type blake2b` / `blake2s`:
 
 ```bash
 export CLOUDSDK_PYTHON=/usr/bin/python3
@@ -48,110 +49,93 @@ export CLOUDSDK_PYTHON=/usr/bin/python3
 vesai quickstart
 ```
 
-For power users and automation:
-
-```bash
-vesai quickstart --help
-vesai quickstart --non-interactive --posthog-api-key phx_... --posthog-project-id 123 --posthog-group-key company_id --domain-filter app.example.com --product-description "B2B SaaS for..."
-```
-
-Quickstart collects and provisions:
-- PostHog API key (User API key with `All access + MCP server scope`)
+Quickstart configures:
+- PostHog host + User API key
 - PostHog project selection
 - PostHog group key
-- Domain filter for replay inclusion
-- Vertex AI location
-- GCS bucket + bucket location
-- Render concurrency (default is RAM-aware: ~50% of currently available RAM at ~512MB per renderer)
-- Analysis parallelism is not hard-capped by quickstart defaults
-- Product description context
+- Replay domain filter
+- GCP project + Vertex region
+- GCS bucket create/select
+- Render concurrency (defaults to ~50% of available RAM, ~512MB per renderer)
+- Product description context for analysis prompts
 
-Config is saved to `~/.vesai/vesai.json`.
+PostHog API key requirements:
+- Key type: User API key
+- Scope: `All access + MCP server scope`
+- URL: `https://app.posthog.com/settings/user-api-keys`
 
-Create your PostHog key at `https://app.posthog.com/settings/user-api-keys`.
-
-## Daemon
-
-Start daemon in background:
+Non-interactive usage:
 
 ```bash
-vesai daemon start
+vesai quickstart \
+  --non-interactive \
+  --posthog-api-key phx_... \
+  --posthog-project-id 123 \
+  --posthog-group-key organization \
+  --domain-filter app.example.com \
+  --product-description "B2B SaaS for support teams"
 ```
 
-Run daemon in foreground (stops on Ctrl+C or shell exit):
+## CLI Surface
 
-```bash
-vesai daemon watch
-```
-
-Check daemon status:
-
-```bash
-vesai daemon status
-```
-
-Stop daemon:
-
-```bash
-vesai daemon stop
-```
-
-## Replays Flows
-
-Run synchronous replay analysis:
+Replay intelligence:
 
 ```bash
 vesai replays session <session_id>
 vesai replays user <email>
 vesai replays group <group_id>
 vesai replays query "<text>"
-vesai replays list --limit 50
+vesai replays list
 ```
 
-Powerful replay filter examples:
+PostHog analytics intelligence:
 
 ```bash
-vesai replays query "checkout friction" --from 2026-01-01 --to 2026-01-31
-vesai replays query --email user@example.com --min-active 30 --url /checkout
-vesai replays query --group acme --group-key company_id --where plan=enterprise
-vesai replays query --session-contains ph_ --limit 25
-```
-
-Use `vesai replays query --help` for the full filter set.
-
-`vesai replays user`, `vesai replays group`, and `vesai replays query` show progressive terminal progress with estimated completion time based on concurrency and session durations.
-
-## Analytics Flows
-
-PostHog MCP-style analytics from CLI:
-
-```bash
-vesai events --search checkout
-vesai properties --type event --event-name '$pageview'
-vesai schema data checkout
+vesai events
+vesai properties
+vesai schema data
 vesai schema warehouse
-vesai insights hogql "weekly active users by plan"
-vesai insights sql "SELECT event, count() FROM events GROUP BY event LIMIT 20"
-vesai insights run --hogql "SELECT distinct_id, count() FROM events GROUP BY distinct_id LIMIT 10"
+vesai insights hogql "<question>"
+vesai insights sql "<query>"
 vesai errors list
-vesai logs query --from 2026-01-01T00:00:00Z --to 2026-01-02T00:00:00Z --severity error
+vesai logs query --from ... --to ...
+```
+
+Agent mode patterns:
+
+```bash
+vesai replays query --group acme --min-active 30 --dry-run
+vesai replays query --group acme --min-active 30
+vesai insights sql "SELECT event, count() FROM events GROUP BY event LIMIT 20"
+```
+
+JSON is default for data commands. Use `--no-json` for human-readable summaries.
+
+## Replay Querying Notes
+
+`vesai replays query "checkout friction"` is **literal metadata search** plus filters. It does not infer intent from language on its own.
+
+For strong signal, pair text with structured filters:
+
+```bash
+vesai replays query "checkout" --url /checkout --min-active 30 --from 2026-02-01 --to 2026-02-15
+vesai replays query --group acme --where plan=enterprise --url /checkout
 ```
 
 ## User Analysis Contract
 
-`vesai replays user <email>` performs:
-1. Find all matching user sessions in PostHog
-2. Ensure every session is rendered to video and uploaded
+`vesai replays user <email>` does:
+1. Find all matching sessions for the user
+2. Ensure every session is rendered to video
 3. Analyze each session individually
-4. Run a single aggregate Gemini inference with all session analyses + metadata
-5. Write comprehensive user markdown output
+4. Run one aggregate Gemini call across all session analyses + metadata
+5. Write comprehensive user story markdown to workspace
 
 ## Filesystem Layout
 
 ```text
 ~/.vesai/
   vesai.json
-  jobs/
   cache/
   logs/
   tmp/
@@ -163,38 +147,72 @@ vesai logs query --from 2026-01-01T00:00:00Z --to 2026-01-02T00:00:00Z --severit
     vesai/
 ```
 
-`workspace` is git-ready and optimized for human-readable markdown diffs.
+## Daemon Commands
 
-## Local Development
+```bash
+vesai daemon start   # background
+vesai daemon watch   # foreground (Ctrl+C to stop)
+vesai daemon status
+vesai daemon stop
+```
+
+## Troubleshooting
+
+### Bucket location errors
+
+If bucket creation fails with invalid location constraint, use a valid location:
+- Multi-region: `US`, `EU`, `ASIA`
+- Or supported region like `us-central1`
+
+### Permission mismatch (`storage.objects.create` denied)
+
+Common cause: ADC identity differs from `gcloud auth list` active account.
+
+Reset ADC:
+
+```bash
+gcloud auth application-default revoke
+gcloud auth application-default login
+gcloud auth application-default set-quota-project <project-id>
+```
+
+### Missing Playwright executable
+
+```bash
+bunx playwright install chromium
+```
+
+### Vertex model access errors (`gemini-3-pro-preview` not found)
+
+- Verify Vertex AI API is enabled on the selected project
+- Verify selected region supports the configured model
+- Update config if needed:
+
+```bash
+vesai config set vertex.model gemini-3-pro-preview
+vesai config set vertex.location us-central1
+```
+
+Run `vesai doctor` to confirm local setup state.
+
+## Development
 
 ```bash
 bun install
-bunx playwright install chromium
 bun run lint
 bun run typecheck
+bun run test
 bun run vesai -- --help
 ```
 
-Run the marketing website (Next.js App Router + Tailwind):
+Website:
 
 ```bash
 bun run website:dev
-```
-
-Build the website:
-
-```bash
 bun run website:build
+bun run website:start
 ```
 
-Run tests:
-
-```bash
-bun test
-bun run test:coverage
-```
-
-Git hooks:
-
-- Husky is enabled via `prepare` on install.
-- Pre-commit runs `bun run precommit` (`lint`, `typecheck`, `test`).
+Quality gates:
+- Husky pre-commit: `bun run precommit`
+- CI: `.github/workflows/ci.yml` runs the same `lint + typecheck + test`

@@ -8,26 +8,35 @@ const config = {
   theme: {
     extend: {
       colors: {
-        paper: "#f3efe7",
-        ink: "#181a19",
-        card: "#fffdf8",
-        sea: {
-          300: "#5ad6ca",
-          500: "#0f766e",
-          700: "#0b4f4a",
-        },
+        "bg-primary": "#0a0a0b",
+        "bg-elevated": "#141416",
+        "bg-surface": "#1c1c1f",
+        "border-subtle": "#27272a",
+        "border-emphasis": "#3f3f46",
+        "text-primary": "#fafafa",
+        "text-secondary": "#a1a1aa",
+        "text-muted": "#71717a",
+        accent: "#10b981",
+        "accent-secondary": "#6366f1",
+        terminal: "#0d1117",
       },
-      boxShadow: {
-        block: "8px 8px 0 0 #181a19",
+      fontFamily: {
+        sans: ["var(--font-inter)", "system-ui", "sans-serif"],
+        mono: [
+          "var(--font-jetbrains-mono)",
+          "SFMono-Regular",
+          "Menlo",
+          "monospace",
+        ],
       },
       keyframes: {
-        float: {
-          "0%, 100%": { transform: "translateY(0px)" },
-          "50%": { transform: "translateY(-8px)" },
+        "fade-in": {
+          from: { opacity: "0", transform: "translateY(20px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
         },
       },
       animation: {
-        float: "float 6s ease-in-out infinite",
+        "fade-in": "fade-in 0.6s ease-out forwards",
       },
     },
   },

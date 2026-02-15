@@ -1,106 +1,201 @@
 ---
 name: vesai
-description: Operate the VESAI local-first CLI to configure local setup, queue replay analysis jobs, inspect job state, and troubleshoot common PostHog/GCP/Playwright issues. Use when working in this repository or on machines where `vesai` is installed and tasks involve `vesai quickstart`, `vesai analyze ...`, daemon lifecycle, workspace artifacts, or job debugging.
+description: Power-user guide for VES AI CLI. Use for replay analysis, PostHog analytics querying, HogQL authoring, and troubleshooting local-first PostHog/GCP workflows.
 ---
 
-# VESAI Skill
+# VES AI Skill
 
-Use VESAI through CLI commands only.
+Use VES AI as a local-first CLI for AI-ready product analytics.
 
-## Core Workflow
+## Core Objective
 
-1. Validate local runtime:
+Make product analytics actionable for AI agents by:
+1. Discovering high-signal replay sessions.
+2. Running replay analysis for session/user/group/query scopes.
+3. Pulling supporting evidence from events, schema, insights, errors, and logs.
+4. Producing machine-readable outputs (JSON default) and durable workspace artifacts.
+
+## Fast Environment Check
+
+Run before any investigation:
 
 ```bash
 vesai doctor
+vesai config validate
 ```
 
-2. Run setup wizard (interactive):
+If config is missing:
 
 ```bash
 vesai quickstart
 ```
 
-3. Start daemon:
+Quickstart prerequisites:
 
 ```bash
-vesai daemon start
+gcloud auth login
+gcloud auth application-default login
+gcloud config set project <project-id>
 ```
 
-4. Queue analysis:
+PostHog key requirements:
+- User API key from `https://app.posthog.com/settings/user-api-keys`
+- Scope: `All access + MCP server scope`
+
+## Command Map
+
+Replay intelligence:
 
 ```bash
-vesai analyze user user@example.com
-vesai analyze group <group_id>
-vesai analyze session <session_id>
-vesai analyze query "checkout friction" --from 2026-01-01 --to 2026-01-31
+vesai replays session <session-id>
+vesai replays user <email>
+vesai replays group <group-id>
+vesai replays query [text] [filters]
+vesai replays list [text] [filters]
 ```
 
-5. Poll status:
+Analytics intelligence:
 
 ```bash
-vesai jobs
-vesai job <job_id>
+vesai events
+vesai properties
+vesai schema data
+vesai insights hogql
+vesai insights sql
+vesai errors list
+vesai errors details
+vesai logs query
+vesai logs attributes
+vesai logs values
 ```
 
-## Quickstart (Automation)
-
-Use non-interactive setup in scripts:
+Config and runtime:
 
 ```bash
-vesai quickstart \
-  --non-interactive \
-  --posthog-api-key phx_... \
-  --posthog-project-id 123 \
-  --posthog-group-key company_id \
-  --domain-filter app.example.com \
-  --product-description "B2B SaaS for ..."
+vesai config show
+vesai config set <path> <value>
+vesai daemon start|watch|status|stop
 ```
 
-Show all quickstart flags:
+## High-Signal Investigation Workflows
+
+### Workflow 1: Replay-first triage
 
 ```bash
-vesai quickstart --help
+vesai replays list "checkout" --url /checkout --min-active 30 --limit 25
+vesai replays query "checkout" --url /checkout --min-active 30 --dry-run
+vesai replays query "checkout" --url /checkout --min-active 30
 ```
 
-## Query Analysis Patterns
-
-Use text plus structured filters:
+### Workflow 2: Deep user story
 
 ```bash
-vesai analyze query "checkout friction" --email user@example.com --min-active 45 --url /checkout
-vesai analyze query --group acme --group-key company_id --where plan=enterprise
-vesai analyze query --session-contains ph_ --limit 25
+vesai replays list --email user@example.com --limit 20
+vesai replays user user@example.com
 ```
 
-Use full filter help:
+`vesai replays user` contract:
+1. Resolve all user sessions.
+2. Render each session.
+3. Analyze each session.
+4. Run one aggregate user inference using all sessions + metadata.
+
+### Workflow 3: Group diagnosis + supporting analytics
 
 ```bash
-vesai analyze query --help
+vesai replays group acme
+vesai insights sql "SELECT event, count() AS c FROM events GROUP BY event ORDER BY c DESC LIMIT 20"
+vesai errors list --status active
 ```
 
-## Operational Facts
+## Replay Query Strategy
 
-- Config file: `~/.vesai/vesai.json`
-- Markdown outputs:
+`vesai replays query "<text>"` is literal metadata text matching, not semantic understanding.
+
+Use structured filters to make intent explicit:
+- `--url /checkout`
+- `--email user@example.com`
+- `--group acme --group-key organization`
+- `--where plan=enterprise`
+- `--from <iso> --to <iso>`
+- `--min-active 30`
+- `--limit 50`
+
+Always run `--dry-run` before expensive replay runs when scope is unclear.
+
+## HogQL Power-User Guide
+
+### How to work
+
+1. Use `vesai insights hogql "<question>"` to get a generated starting query.
+2. Refine with `vesai insights sql "<query>"` for deterministic iteration.
+3. Use `vesai schema data --kind events` and `vesai properties ...` to verify field names before complex queries.
+4. Keep queries paginated. PostHog MCP SQL results are capped at 100 rows.
+
+### Reliable query patterns
+
+Top events:
+
+```bash
+vesai insights sql "SELECT event, count() AS c FROM events GROUP BY event ORDER BY c DESC LIMIT 20"
+```
+
+Daily activity trend (last 7 days):
+
+```bash
+vesai insights sql "SELECT toDate(timestamp) AS day, count() AS c FROM events WHERE timestamp >= now() - INTERVAL 7 DAY GROUP BY day ORDER BY day ASC LIMIT 100"
+```
+
+Top pageview URLs:
+
+```bash
+vesai insights sql "SELECT properties.\$current_url AS url, count() AS c FROM events WHERE event = '\$pageview' GROUP BY url ORDER BY c DESC LIMIT 20"
+```
+
+Enterprise segment example:
+
+```bash
+vesai insights sql "SELECT event, count() AS c FROM events WHERE person.properties.plan = 'enterprise' GROUP BY event ORDER BY c DESC LIMIT 20"
+```
+
+### Key HogQL context for agents
+
+- Base event table is typically `events`.
+- Common columns: `event`, `timestamp`, `distinct_id`.
+- Event properties are commonly referenced via `properties.<property_key>` (example: `properties.$current_url`).
+- Person properties are commonly referenced via `person.properties.<property_key>` (example: `person.properties.email`).
+- When passing queries in double quotes, escape `$` as `\$` in shell strings.
+- Use `LIMIT` and `OFFSET` to paginate if you need more than 100 rows.
+- Use `--raw` on `insights sql` and `insights hogql` when debugging raw PostHog payloads.
+
+## Agent Output Rules
+
+- JSON is default for data commands. Use `--no-json` for human-readable output.
+- Treat non-JSON output as operator-facing summaries.
+- Log exact command + output for each conclusion.
+- If output is empty, test adjacent scopes (wider time range, lower filters, remove `domain` filter) before concluding no signal.
+
+## Artifacts and Paths
+
+- Config: `~/.vesai/vesai.json`
+- Workspace markdown:
   - `~/.vesai/workspace/sessions/`
   - `~/.vesai/workspace/users/`
   - `~/.vesai/workspace/groups/`
-- Job files: `~/.vesai/jobs/*.json`
-- Render concurrency is limited by `runtime.maxConcurrentRenders` in config.
-- Analysis parallelism is not hard-capped by quickstart defaults.
+- Runtime:
+  - `~/.vesai/cache/`
+  - `~/.vesai/logs/`
+  - `~/.vesai/tmp/`
 
 ## Troubleshooting
 
-- If `gcloud` shows `unsupported hash type blake2b`:
+`gcloud` hash errors (`blake2b`, `blake2s`):
 
 ```bash
 export CLOUDSDK_PYTHON=/usr/bin/python3
 ```
 
-- If job fails with `storage.objects.create` denied:
-  - Verify ADC identity, not just active `gcloud auth list` account.
-  - Re-run:
+`storage.objects.create` permission denied (ADC mismatch):
 
 ```bash
 gcloud auth application-default revoke
@@ -108,18 +203,17 @@ gcloud auth application-default login
 gcloud auth application-default set-quota-project <project-id>
 ```
 
-- If job fails with missing Playwright executable:
+Missing Playwright executable:
 
 ```bash
 bunx playwright install chromium
 ```
 
-- If bucket creation fails due invalid location:
-  - Use `US`, `EU`, `ASIA`, or a valid regional location (for example `us-central1`).
+Vertex model access errors:
+- Verify Vertex AI API is enabled.
+- Verify model availability in selected region.
+- Confirm project permissions and configured model in `vesai.json` (`gemini-3-pro-preview`).
 
-## Expectations for Agent Runs
-
-- Run `vesai doctor` before changing runtime config.
-- Prefer explicit CLI commands over direct file edits for setup.
-- Report exact job ids and statuses after queueing work.
-- When debugging failures, inspect `vesai job <job_id>` first, then fix root cause and re-queue a new job.
+If a schema/analytics tool returns validation errors, fall back to:
+1. `events` and `properties` for field discovery.
+2. `insights sql` for direct controlled queries.

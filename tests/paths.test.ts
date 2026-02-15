@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { getVesaiPaths, resolveVesaiHome } from "../packages/config/src/paths";
+import { getVesaiPaths, resolveVesaiHome } from "../config/paths";
 
 describe("paths", () => {
   it("resolves VESAI_HOME override", () => {
