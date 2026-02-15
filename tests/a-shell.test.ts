@@ -18,7 +18,10 @@ async function loadShellConnector() {
 describe("shell connector", () => {
   it("executes commands and returns output", async () => {
     const { runCommand } = await loadShellConnector();
-    const result = await runCommand("zsh", ["-lc", "echo ok"]);
+    const result = await runCommand(process.execPath, [
+      "-e",
+      "console.log('ok')",
+    ]);
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toBe("ok");
   });
@@ -28,7 +31,7 @@ describe("shell connector", () => {
     let thrown = false;
 
     try {
-      await runCommandOrThrow("zsh", ["-lc", "exit 2"]);
+      await runCommandOrThrow(process.execPath, ["-e", "process.exit(2)"]);
     } catch (error) {
       thrown = true;
       expect(String(error)).toContain("failed with code 2");
