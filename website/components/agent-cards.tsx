@@ -18,7 +18,7 @@ const cards = [
   {
     title: "Durable markdown artifacts",
     description:
-      "Session, user, and group analyses persist as git-friendly markdown files in ~/.vesai/workspace/ — greppable, portable, version-controlled.",
+      "User stories, group analyses, and research answers persist as markdown in your project\u2019s .vesai/workspace/ — greppable, portable, version-controlled.",
     icon: FolderOpen,
   },
   {

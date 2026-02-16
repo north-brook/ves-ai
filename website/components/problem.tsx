@@ -4,18 +4,18 @@ import { Section } from "./section";
 const cards = [
   {
     icon: Video,
-    stat: "< 1%",
-    text: "Your team records thousands of sessions. They watch less than one percent.",
+    stat: "<1% watched",
+    text: "Your team records thousands of sessions. Almost none get reviewed.",
   },
   {
     icon: Bug,
-    stat: "Hidden",
-    text: "Bugs hide in replays nobody has time to review.",
+    stat: "Hidden bugs",
+    text: "Real issues hide in replays nobody has time to watch.",
   },
   {
     icon: BarChart3,
-    stat: "Vibes",
-    text: "Product decisions get made on vibes, not evidence.",
+    stat: "Vibes-based decisions",
+    text: "Product decisions get made on gut feel, not evidence from real user behavior.",
   },
 ];
 
@@ -38,7 +38,7 @@ export function Problem() {
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-bg-surface text-accent">
               <card.icon size={24} strokeWidth={1.5} />
             </div>
-            <div className="mt-4 font-bold text-2xl text-accent">
+            <div className="mt-4 font-bold text-lg text-text-primary">
               {card.stat}
             </div>
             <p className="mt-2 text-sm text-text-secondary leading-relaxed">

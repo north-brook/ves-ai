@@ -3,14 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-const HOLD_AFTER_DONE_MS = 2500;
+const HOLD_AFTER_DONE_MS = 3000;
 const PROGRESS_TICK_MS = 50;
 
 interface CommandConfig {
   name: string;
   command: string;
   steps: { label: string; delay: number }[];
-  summary: { lines: { label: string; value: string }[] };
+  output: string;
 }
 
 const COMMANDS: CommandConfig[] = [
@@ -18,83 +18,75 @@ const COMMANDS: CommandConfig[] = [
     name: "User",
     command: "vesai user bryce@company.com",
     steps: [
-      { label: "Find 8 sessions for bryce@company.com", delay: 700 },
-      { label: "Render and analyze sessions", delay: 2200 },
-      { label: "Aggregate user story", delay: 1600 },
+      { label: "Found 8 sessions for bryce@company.com", delay: 600 },
+      { label: "Rendering session 1/8", delay: 400 },
+      { label: "Rendering session 2/8", delay: 350 },
+      { label: "Rendering session 3/8", delay: 400 },
+      { label: "Analyzing 8 sessions with Gemini", delay: 1800 },
+      { label: "Aggregating user story", delay: 1200 },
     ],
-    summary: {
-      lines: [
-        { label: "User", value: "bryce@company.com" },
-        { label: "Sessions", value: "8 analyzed" },
-        { label: "Score", value: "65 / 100" },
-        {
-          label: "Pattern",
-          value: "Recurring export friction in 3/8 sessions",
-        },
-        {
-          label: "Artifact",
-          value: ".vesai/workspace/users/bryce_company_com.md",
-        },
-      ],
-    },
+    output: `{
+  "email": "bryce@company.com",
+  "sessionCount": 8,
+  "averageSessionScore": 71,
+  "userScore": 65,
+  "health": "At risk — recurring friction in core workflow",
+  "story": "Power user with increasing engagement over 7 days. However, 3 of 8 sessions ended at the same CSV export timeout on datasets over 10k rows. Filter state also resets after back-navigation, forcing repeated setup. Despite friction, session duration grew 40% week-over-week — this user is invested but hitting real walls.",
+  "markdownPath": ".vesai/workspace/users/bryce-company-com.md"
+}`,
   },
   {
     name: "Group",
     command: "vesai group acme-inc",
     steps: [
-      { label: "Find 4 users in acme-inc", delay: 600 },
-      { label: "Analyze user journeys", delay: 2400 },
-      { label: "Aggregate group story", delay: 1400 },
+      { label: "Resolved 4 users in acme-inc", delay: 500 },
+      {
+        label: "Building user story: sarah@acme.com (12 sessions)",
+        delay: 1200,
+      },
+      { label: "Building user story: mike@acme.com (6 sessions)", delay: 900 },
+      { label: "Building user story: chen@acme.com (3 sessions)", delay: 600 },
+      { label: "Building user story: priya@acme.com (1 session)", delay: 400 },
+      { label: "Aggregating group story", delay: 1000 },
     ],
-    summary: {
-      lines: [
-        { label: "Group", value: "Acme Inc" },
-        { label: "Users", value: "4 analyzed" },
-        { label: "Score", value: "58 / 100" },
-        {
-          label: "Risk",
-          value: "Adoption declining — 2 users inactive 14+ days",
-        },
-        {
-          label: "Artifact",
-          value: ".vesai/workspace/groups/acme-inc.md",
-        },
-      ],
-    },
+    output: `{
+  "groupId": "acme-inc",
+  "usersAnalyzed": 4,
+  "score": 58,
+  "health": "Adoption declining — intervention recommended",
+  "story": "Acme Inc onboarded 4 users 3 weeks ago. Initial engagement was strong across all users. Since then, chen@acme.com and priya@acme.com have gone inactive (14+ days). The two active users show narrowing feature usage — primarily dashboard views only. No user has completed the integration setup flow, which appears to be the critical adoption gate.",
+  "markdownPath": ".vesai/workspace/groups/acme-inc.md"
+}`,
   },
   {
     name: "Research",
-    command: 'vesai research "checkout abandonment"',
+    command: 'vesai research "why are users abandoning checkout?"',
     steps: [
-      { label: "Search analyzed sessions", delay: 800 },
-      { label: "Synthesize findings with Gemini", delay: 2000 },
+      { label: "Scanning 47 analyzed sessions in workspace", delay: 600 },
+      { label: "Selected 14 relevant sessions as context", delay: 500 },
+      { label: "Synthesizing research answer with Gemini", delay: 1800 },
     ],
-    summary: {
-      lines: [
-        {
-          label: "Question",
-          value: "What causes checkout abandonment?",
-        },
-        { label: "Sessions", value: "14 matched" },
-        {
-          label: "Finding",
-          value: "62% drop off at shipping — mobile 3x worse",
-        },
-        {
-          label: "Artifact",
-          value: ".vesai/workspace/research/checkout-abandonment.md",
-        },
-      ],
-    },
+    output: `{
+  "question": "why are users abandoning checkout?",
+  "answer": "Checkout abandonment is driven by three compounding factors: shipping cost surprise, mobile form friction, and a distracting promo code field. 62% of users who reach checkout complete it, but mobile users are 3x more likely to abandon than desktop.",
+  "findings": [
+    "Address autocomplete fails silently on mobile Safari, forcing manual entry",
+    "Shipping cost appears only after address entry — users back-navigate on sticker shock",
+    "Promo code field positioned above the CTA draws attention away from completing purchase",
+    "Desktop users who encounter errors recover 80% of the time; mobile users recover 27%"
+  ],
+  "confidence": "high",
+  "supportingSessionIds": ["s_a8f2c", "s_b91d0", "s_c43e7", "s_d67f1"],
+  "sessionsConsidered": 47,
+  "sessionsUsed": 14
+}`,
   },
 ];
 
 function getTotalDuration(cfg: CommandConfig): number {
-  const typingMs = cfg.command.length * 45;
-  const bannerPause = 600;
+  const typingMs = cfg.command.length * 40;
   const stepsMs = cfg.steps.reduce((sum, s) => sum + s.delay, 0);
-  const summaryPause = 600;
-  return typingMs + bannerPause + stepsMs + summaryPause + HOLD_AFTER_DONE_MS;
+  return typingMs + 400 + stepsMs + 500 + HOLD_AFTER_DONE_MS;
 }
 
 type StepStatus = "hidden" | "running" | "done";
@@ -112,10 +104,11 @@ export function AnimatedTerminal() {
     []
   );
   const [spinnerFrame, setSpinnerFrame] = useState(0);
-  const [showSummary, setShowSummary] = useState(false);
+  const [showOutput, setShowOutput] = useState(false);
   const [stepsComplete, setStepsComplete] = useState(false);
   const [progress, setProgress] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
   const hasStarted = useRef(false);
   const abortRef = useRef(false);
   const progressStart = useRef(0);
@@ -131,7 +124,7 @@ export function AnimatedTerminal() {
       setTypedChars(0);
       setSteps(cfg.steps.map((s) => ({ label: s.label, status: "hidden" })));
       setSpinnerFrame(0);
-      setShowSummary(false);
+      setShowOutput(false);
       setStepsComplete(false);
       setProgress(0);
       abortRef.current = false;
@@ -146,7 +139,6 @@ export function AnimatedTerminal() {
     startAnimation(next);
   }, [activeTab, startAnimation]);
 
-  // Intersection observer
   useEffect(() => {
     const el = containerRef.current;
     if (!el) {
@@ -164,7 +156,6 @@ export function AnimatedTerminal() {
     return () => observer.disconnect();
   }, [startAnimation]);
 
-  // Progress bar
   useEffect(() => {
     if (phase === "idle") {
       return;
@@ -177,7 +168,6 @@ export function AnimatedTerminal() {
     return () => clearInterval(interval);
   }, [phase, config]);
 
-  // Typewriter
   useEffect(() => {
     if (phase !== "typing") {
       return;
@@ -188,12 +178,11 @@ export function AnimatedTerminal() {
     }
     const timeout = setTimeout(
       () => setTypedChars((c) => c + 1),
-      30 + Math.random() * 30
+      25 + Math.random() * 30
     );
     return () => clearTimeout(timeout);
   }, [phase, typedChars, config.command.length]);
 
-  // Step progression
   useEffect(() => {
     if (phase !== "steps") {
       return;
@@ -226,20 +215,22 @@ export function AnimatedTerminal() {
     runSteps();
   }, [phase, config.steps]);
 
-  // Summary transition
   useEffect(() => {
     if (phase !== "summary") {
       return;
     }
     setStepsComplete(true);
     const timeout = setTimeout(() => {
-      setShowSummary(true);
+      setShowOutput(true);
       setPhase("done");
+      // Scroll to top of output
+      setTimeout(() => {
+        bodyRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+      }, 100);
     }, 500);
     return () => clearTimeout(timeout);
   }, [phase]);
 
-  // Auto-advance
   useEffect(() => {
     if (phase !== "done") {
       return;
@@ -248,7 +239,6 @@ export function AnimatedTerminal() {
     return () => clearTimeout(timeout);
   }, [phase, advanceToNext]);
 
-  // Spinner
   useEffect(() => {
     const hasRunning = steps.some((s) => s.status === "running");
     if (!hasRunning) {
@@ -265,14 +255,12 @@ export function AnimatedTerminal() {
       className="terminal-window shadow-[0_0_80px_-20px_rgba(16,185,129,0.12)]"
       ref={containerRef}
     >
-      {/* Chrome */}
       <div className="terminal-chrome">
         <div className="terminal-dot terminal-dot-red" />
         <div className="terminal-dot terminal-dot-yellow" />
         <div className="terminal-dot terminal-dot-green" />
       </div>
 
-      {/* Tabs */}
       <div className="flex overflow-x-auto border-border-subtle border-b">
         {COMMANDS.map((cmd, i) => (
           <button
@@ -298,8 +286,10 @@ export function AnimatedTerminal() {
         ))}
       </div>
 
-      {/* Body */}
-      <div className="h-[340px] overflow-y-auto p-4 font-mono text-xs leading-relaxed sm:h-[380px] sm:p-5 sm:text-sm">
+      <div
+        className="h-[340px] overflow-y-auto p-4 font-mono text-xs leading-relaxed sm:h-[420px] sm:p-5 sm:text-sm"
+        ref={bodyRef}
+      >
         {/* Command line */}
         <div className="flex items-center">
           <span className="text-text-muted">$</span>
@@ -312,7 +302,7 @@ export function AnimatedTerminal() {
         </div>
 
         {/* Steps */}
-        {phase !== "idle" && phase !== "typing" && !showSummary && (
+        {phase !== "idle" && phase !== "typing" && !showOutput && (
           <div
             className="mt-3 space-y-1"
             style={{
@@ -347,21 +337,14 @@ export function AnimatedTerminal() {
           </div>
         )}
 
-        {/* Summary */}
-        {showSummary && (
-          <div
-            className="mt-3 rounded border border-accent/20 bg-accent/5 px-3 py-2.5"
+        {/* JSON output */}
+        {showOutput && (
+          <pre
+            className="mt-3 whitespace-pre-wrap break-words text-accent"
             style={{ animation: "fade-in 0.5s ease-out forwards" }}
           >
-            <div className="space-y-1">
-              {config.summary.lines.map((line) => (
-                <div className="flex gap-2" key={line.label}>
-                  <span className="shrink-0 text-text-muted">{line.label}</span>
-                  <span className="text-text-primary">{line.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+            {config.output}
+          </pre>
         )}
       </div>
     </div>

@@ -10,13 +10,12 @@ const levels = [
     command: "vesai user bryce@company.com",
     output: `{
   "email": "bryce@company.com",
-  "sessions_analyzed": 8,
-  "score": 65,
-  "story": "Power user exploring advanced features over 7 days. Encountered recurring friction in the export flow — 3 of 8 sessions ended at the same CSV timeout error. Despite this, engagement is increasing: session duration grew 40% week-over-week.",
-  "top_issues": [
-    "Export CSV timeout on datasets > 10k rows",
-    "Filter state resets after back-navigation"
-  ]
+  "sessionCount": 8,
+  "averageSessionScore": 71,
+  "userScore": 65,
+  "health": "At risk — recurring friction in core workflow",
+  "story": "Power user with increasing engagement over 7 days. 3 of 8 sessions ended at the same CSV export timeout on datasets over 10k rows. Filter state resets after back-navigation, forcing repeated setup. Despite friction, session duration grew 40% week-over-week — this user is invested but hitting real walls.",
+  "markdownPath": ".vesai/workspace/users/bryce-company-com.md"
 }`,
   },
   {
@@ -24,27 +23,31 @@ const levels = [
     question: "How is Acme Corp as a customer?",
     command: "vesai group acme-inc",
     output: `{
-  "group": "Acme Inc",
-  "users_analyzed": 4,
+  "groupId": "acme-inc",
+  "usersAnalyzed": 4,
   "score": 58,
-  "story": "Adoption is declining. 2 of 4 users have been inactive for 14+ days. The remaining active users show narrowing feature usage — down to just dashboard views. Initial onboarding was strong but no user has engaged with the integration setup flow.",
-  "risk": "high",
-  "recommendation": "Proactive outreach recommended. Focus on integration onboarding — this is where all 4 users dropped off."
+  "health": "Adoption declining — intervention recommended",
+  "story": "Acme Inc onboarded 4 users 3 weeks ago. Initial engagement was strong. Since then, 2 users have gone inactive (14+ days). The remaining active users show narrowing feature usage — primarily dashboard views only. No user has completed the integration setup flow, which appears to be the critical adoption gate. Proactive outreach recommended.",
+  "markdownPath": ".vesai/workspace/groups/acme-inc.md"
 }`,
   },
   {
     label: "Research",
-    question: "What causes checkout abandonment?",
-    command: 'vesai research "checkout abandonment"',
+    question: "Why are users abandoning checkout?",
+    command: 'vesai research "why are users abandoning checkout?"',
     output: `{
-  "question": "What causes checkout abandonment?",
-  "sessions_matched": 14,
-  "synthesis": "Checkout flow has a 62% completion rate. Primary drop-off occurs at the shipping address step. Mobile users are 3x more likely to abandon.",
-  "patterns": [
-    "Address autocomplete fails on mobile Safari",
-    "Shipping cost surprise causes back-navigation",
-    "Promo code field draws attention away from CTA"
-  ]
+  "question": "why are users abandoning checkout?",
+  "answer": "Checkout abandonment is driven by three compounding factors: shipping cost surprise, mobile form friction, and a distracting promo code field. 62% of users who reach checkout complete it, but mobile users are 3x more likely to abandon than desktop users.",
+  "findings": [
+    "Address autocomplete fails silently on mobile Safari, forcing manual entry",
+    "Shipping cost appears only after address entry — users back-navigate on sticker shock",
+    "Promo code field above CTA draws attention away from completing purchase",
+    "Desktop users who encounter errors recover 80% of the time; mobile users recover 27%"
+  ],
+  "confidence": "high",
+  "supportingSessionIds": ["s_a8f2c", "s_b91d0", "s_c43e7", "s_d67f1"],
+  "sessionsConsidered": 47,
+  "sessionsUsed": 14
 }`,
   },
 ];
@@ -59,12 +62,11 @@ export function Solution() {
         AI that watches every session
       </h2>
       <p className="mx-auto mt-4 max-w-2xl text-center text-text-secondary">
-        Three levels of analysis. From a single recording to account-level
-        intelligence.
+        From individual user stories to account-level intelligence to product
+        research — all from your existing PostHog&nbsp;data.
       </p>
 
       <div className="mt-12">
-        {/* Level tabs */}
         <div className="flex justify-center gap-2">
           {levels.map((l, i) => (
             <button
@@ -82,7 +84,6 @@ export function Solution() {
           ))}
         </div>
 
-        {/* Content */}
         <div className="mt-8 rounded-xl border border-border-subtle bg-bg-elevated p-6 sm:p-8">
           <p className="text-lg text-text-secondary italic">
             &ldquo;{level.question}&rdquo;

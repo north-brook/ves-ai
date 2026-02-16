@@ -14,13 +14,13 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "VES AI — AI-ready product analytics CLI",
+  title: "VES AI — Session replay intelligence for agents",
   description:
-    "Connect PostHog. Render session recordings. Analyze with Gemini vision. Output structured markdown your agents can act on.",
+    "VES AI watches every PostHog recording, finds bugs and UX friction your team missed, and writes it up automatically. Local-first CLI for AI agent workflows.",
   openGraph: {
-    title: "VES AI — AI-ready product analytics CLI",
+    title: "VES AI — Session replay intelligence for agents",
     description:
-      "Connect PostHog. Render session recordings. Analyze with Gemini vision. Output structured markdown your agents can act on.",
+      "VES AI watches every PostHog recording, finds bugs and UX friction your team missed, and writes it up automatically. Local-first CLI for AI agent workflows.",
     type: "website",
   },
   icons: {

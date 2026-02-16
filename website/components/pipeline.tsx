@@ -1,27 +1,31 @@
-import { ArrowRight, BrainCircuit, Link, Play, Rocket } from "lucide-react";
+import { ArrowRight, Rocket } from "lucide-react";
+import GoogleCloud from "./icons/google-cloud";
+import Playwright from "./icons/playwright";
+import PostHog from "./icons/posthog";
 import { Section } from "./section";
 
 const steps = [
   {
     name: "Connect",
-    detail: "Point at your PostHog project",
-    icon: Link,
+    detail: "Pull session replays and events from your PostHog project",
+    icon: <PostHog className="text-text-primary" size={28} />,
   },
   {
     name: "Render",
-    detail: "Headless Chromium replays sessions to video",
-    icon: Play,
+    detail: "Replay each session in headless Chromium via Playwright",
+    icon: <Playwright className="text-text-primary" size={28} />,
   },
   {
     name: "Analyze",
-    detail: "Gemini watches each recording and extracts structured insights",
-    icon: BrainCircuit,
+    detail:
+      "Gemini watches each video and extracts structured insights via Vertex AI",
+    icon: <GoogleCloud className="text-text-primary" size={28} />,
   },
   {
     name: "Act",
     detail:
-      "Session, user, and group intelligence ready for your team or your agents",
-    icon: Rocket,
+      "User, group, and research intelligence ready for your team or your agents",
+    icon: <Rocket className="text-text-primary" size={28} strokeWidth={1.5} />,
   },
 ];
 
@@ -43,13 +47,13 @@ export function Pipeline() {
                 <ArrowRight size={20} />
               </div>
             )}
-            <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-border-subtle bg-bg-elevated text-accent">
-              <step.icon size={28} strokeWidth={1.5} />
+            <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-border-subtle bg-bg-elevated">
+              {step.icon}
             </div>
             <h3 className="mt-4 font-semibold text-text-primary">
               {step.name}
             </h3>
-            <p className="mt-1 max-w-[200px] text-sm text-text-muted">
+            <p className="mt-1 max-w-[220px] text-sm text-text-muted">
               {step.detail}
             </p>
           </div>
