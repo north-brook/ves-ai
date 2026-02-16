@@ -14,8 +14,9 @@ export function Hero() {
           </h1>
 
           <p className="mt-6 max-w-xl text-base text-text-secondary leading-[1.7] sm:text-lg">
-            VES AI watches every PostHog recording, finds the bugs and UX
-            friction your team missed, and writes it up&nbsp;— automatically.
+            VES AI watches every PostHog session replay and turns them into rich
+            user stories, product insights, and qualitative learnings your team
+            can actually act&nbsp;on.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-3">
