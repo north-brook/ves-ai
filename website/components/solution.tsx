@@ -136,7 +136,7 @@ export function Solution() {
             $ {level.command}
           </div>
 
-          <div className="mt-4 max-h-[480px] overflow-y-auto rounded-lg border border-border-subtle bg-terminal p-4">
+          <div className="hide-scrollbar mt-4 max-h-[480px] overflow-y-auto rounded-lg border border-border-subtle bg-terminal p-4">
             <pre className="whitespace-pre-wrap break-words font-mono text-accent text-xs leading-relaxed sm:text-sm">
               <code>{level.output}</code>
             </pre>
