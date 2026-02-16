@@ -3,28 +3,28 @@ import { Section } from "./section";
 
 const cards = [
   {
-    title: "Machine-Readable by Default",
+    title: "JSON-First Output",
     description:
-      "Every data command emits JSON. Pipe output directly into your agent workflows, CI pipelines, or dashboards.",
+      "Every data command emits structured JSON. Pipe output directly into your agent workflows, CI pipelines, or dashboards.",
     icon: Code2,
-  },
-  {
-    title: "Durable Workspace Artifacts",
-    description:
-      "Session, user, group, and research artifacts persist as git-friendly markdown in .vesai/workspace/ for long-lived agent context.",
-    icon: FolderOpen,
-  },
-  {
-    title: "Local-First, Self-Hosted",
-    description:
-      "Global machine config stays in ~/.vesai while project credentials and artifacts stay in each repo's .vesai directory.",
-    icon: Server,
   },
   {
     title: "Ships with a SKILL.md",
     description:
-      "A comprehensive skill file teaches Claude Code, Codex, and other coding agents how to run quickstart/init plus user, group, and research workflows out of the box.",
+      "A comprehensive skill file teaches Claude Code, Codex, OpenClaw, and other coding agents how to use every vesai command out of the box.",
     icon: BookOpen,
+  },
+  {
+    title: "Durable Markdown Artifacts",
+    description:
+      "Session, user, and group analyses persist as git-friendly markdown files in ~/.vesai/workspace/ — greppable, portable, version-controlled.",
+    icon: FolderOpen,
+  },
+  {
+    title: "Local-First, No SaaS",
+    description:
+      "Your PostHog keys, your GCP project, your machine. No data leaves your infrastructure. No vendor lock-in.",
+    icon: Server,
   },
 ];
 
@@ -32,12 +32,10 @@ export function AgentCards() {
   return (
     <Section className="mx-auto max-w-6xl px-6 py-16 sm:py-24">
       <h2 className="text-center font-bold text-3xl text-text-primary tracking-tight sm:text-4xl">
-        Built for AI Agents
+        Built for your AI agents.
+        <br />
+        <span className="text-text-secondary">Works for humans too.</span>
       </h2>
-      <p className="mx-auto mt-4 max-w-2xl text-center text-text-secondary">
-        Same commands, same outputs whether you&apos;re a human or a coding
-        agent.
-      </p>
 
       <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {cards.map((card) => (

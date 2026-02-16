@@ -1,25 +1,26 @@
-import { ArrowRight, BrainCircuit, Download, Play, Rocket } from "lucide-react";
+import { ArrowRight, BrainCircuit, Link, Play, Rocket } from "lucide-react";
 import { Section } from "./section";
 
 const steps = [
   {
-    name: "Quickstart",
-    detail: "Configure global runtime + render memory budget",
-    icon: Download,
+    name: "Connect",
+    detail: "Point at your PostHog project",
+    icon: Link,
   },
   {
-    name: "Init",
-    detail: "Create project-scoped .vesai config and workspace",
+    name: "Render",
+    detail: "Headless Chromium replays sessions to video",
     icon: Play,
   },
   {
-    name: "Heartbeat",
-    detail: "Daemon backfills and continuously analyzes new sessions",
+    name: "Analyze",
+    detail: "Gemini watches each recording and extracts structured insights",
     icon: BrainCircuit,
   },
   {
-    name: "Ask",
-    detail: "Use user, group, and research commands for decisions",
+    name: "Act",
+    detail:
+      "Session, user, and group intelligence ready for your team or your agents",
     icon: Rocket,
   },
 ];
@@ -30,13 +31,13 @@ export function Pipeline() {
       <h2 className="text-center font-bold text-3xl text-text-primary tracking-tight sm:text-4xl">
         How It Works
       </h2>
-      <p className="mx-auto mt-4 max-w-2xl text-center text-text-secondary">
-        From machine setup to project intelligence artifacts in four steps.
-      </p>
 
       <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {steps.map((step, i) => (
-          <div className="relative flex flex-col items-center" key={step.name}>
+          <div
+            className="relative flex flex-col items-center text-center"
+            key={step.name}
+          >
             {i > 0 && (
               <div className="absolute top-10 -left-4 hidden text-accent/40 lg:block">
                 <ArrowRight size={20} />
@@ -48,7 +49,9 @@ export function Pipeline() {
             <h3 className="mt-4 font-semibold text-text-primary">
               {step.name}
             </h3>
-            <p className="mt-1 text-sm text-text-muted">{step.detail}</p>
+            <p className="mt-1 max-w-[200px] text-sm text-text-muted">
+              {step.detail}
+            </p>
           </div>
         ))}
       </div>

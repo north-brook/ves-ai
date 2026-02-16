@@ -5,7 +5,8 @@ import { Hero } from "../components/hero";
 import { Integrations } from "../components/integrations";
 import { Nav } from "../components/nav";
 import { Pipeline } from "../components/pipeline";
-import { TerminalShowcase } from "../components/terminal";
+import { Problem } from "../components/problem";
+import { Solution } from "../components/solution";
 
 export default function Home() {
   return (
@@ -13,8 +14,9 @@ export default function Home() {
       <Nav />
       <main>
         <Hero />
+        <Problem />
+        <Solution />
         <Pipeline />
-        <TerminalShowcase />
         <AgentCards />
         <Integrations />
         <GettingStarted />
