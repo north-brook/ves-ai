@@ -31,7 +31,7 @@ export function Nav() {
       className={`fixed top-0 right-0 left-0 z-50 transition-colors duration-300 ${
         scrolled
           ? "border-border-subtle border-b bg-bg-primary/80 backdrop-blur-md"
-          : ""
+          : "border-transparent border-b"
       }`}
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
