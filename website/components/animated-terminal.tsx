@@ -287,7 +287,7 @@ export function AnimatedTerminal() {
       </div>
 
       <div
-        className="h-[340px] overflow-y-auto p-4 font-mono text-xs leading-relaxed sm:h-[420px] sm:p-5 sm:text-sm"
+        className="hide-scrollbar h-[340px] overflow-y-auto p-4 font-mono text-xs leading-relaxed sm:h-[420px] sm:p-5 sm:text-sm"
         ref={bodyRef}
       >
         {/* Command line */}

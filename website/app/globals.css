@@ -124,6 +124,15 @@ pre {
   transform: translateY(0);
 }
 
+/* Hide scrollbar in terminal demo */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Copy button toast */
 .copy-toast {
   animation: toast-fade 2s ease-out forwards;
