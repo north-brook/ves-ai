@@ -15,33 +15,12 @@ interface CommandConfig {
 
 const COMMANDS: CommandConfig[] = [
   {
-    name: "Session",
-    command: "vesai replays session ph_abc123",
-    steps: [
-      { label: "Fetch recording", delay: 600 },
-      { label: "Render 47 events via Playwright", delay: 1400 },
-      { label: "Upload video to GCS", delay: 800 },
-      { label: "Analyze with Gemini", delay: 2000 },
-    ],
-    summary: {
-      lines: [
-        { label: "Session", value: '"Checkout Flow Frustration"' },
-        { label: "Score", value: "72 / 100" },
-        { label: "Issues", value: "3 detected (1 high, 2 medium)" },
-        {
-          label: "Artifact",
-          value: "~/.vesai/workspace/sessions/ph_abc123.md",
-        },
-      ],
-    },
-  },
-  {
     name: "User",
-    command: "vesai replays user bryce@company.com",
+    command: "vesai user bryce@company.com",
     steps: [
       { label: "Find 8 sessions for bryce@company.com", delay: 700 },
-      { label: "Render sessions", delay: 2200 },
-      { label: "Aggregate user analysis", delay: 1600 },
+      { label: "Render and analyze sessions", delay: 2200 },
+      { label: "Aggregate user story", delay: 1600 },
     ],
     summary: {
       lines: [
@@ -54,18 +33,18 @@ const COMMANDS: CommandConfig[] = [
         },
         {
           label: "Artifact",
-          value: "~/.vesai/workspace/users/bryce_company_com.md",
+          value: ".vesai/workspace/users/bryce_company_com.md",
         },
       ],
     },
   },
   {
     name: "Group",
-    command: "vesai replays group acme-inc",
+    command: "vesai group acme-inc",
     steps: [
       { label: "Find 4 users in acme-inc", delay: 600 },
       { label: "Analyze user journeys", delay: 2400 },
-      { label: "Aggregate group intelligence", delay: 1400 },
+      { label: "Aggregate group story", delay: 1400 },
     ],
     summary: {
       lines: [
@@ -78,7 +57,32 @@ const COMMANDS: CommandConfig[] = [
         },
         {
           label: "Artifact",
-          value: "~/.vesai/workspace/groups/acme-inc.md",
+          value: ".vesai/workspace/groups/acme-inc.md",
+        },
+      ],
+    },
+  },
+  {
+    name: "Research",
+    command: 'vesai research "checkout abandonment"',
+    steps: [
+      { label: "Search analyzed sessions", delay: 800 },
+      { label: "Synthesize findings with Gemini", delay: 2000 },
+    ],
+    summary: {
+      lines: [
+        {
+          label: "Question",
+          value: "What causes checkout abandonment?",
+        },
+        { label: "Sessions", value: "14 matched" },
+        {
+          label: "Finding",
+          value: "62% drop off at shipping — mobile 3x worse",
+        },
+        {
+          label: "Artifact",
+          value: ".vesai/workspace/research/checkout-abandonment.md",
         },
       ],
     },

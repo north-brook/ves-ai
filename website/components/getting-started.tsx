@@ -20,13 +20,18 @@ const steps = [
   },
   {
     step: "2",
-    label: "Run quickstart",
+    label: "Global setup",
     code: "vesai quickstart",
   },
   {
     step: "3",
+    label: "Initialize your project",
+    code: "vesai init",
+  },
+  {
+    step: "4",
     label: "Analyze your first user",
-    code: "vesai replays user bryce@company.com",
+    code: "vesai user bryce@company.com",
   },
 ];
 
@@ -39,7 +44,7 @@ export function GettingStarted() {
       id="getting-started"
     >
       <h2 className="text-center font-bold text-3xl text-text-primary tracking-tight sm:text-4xl">
-        Getting Started
+        Getting started
       </h2>
 
       <div className="mx-auto mt-12 max-w-2xl">

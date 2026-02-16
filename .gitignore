@@ -19,3 +19,4 @@ legacy-hosted/.next/
 legacy-hosted/node_modules/
 website/.next/
 website/node_modules/
+.vercel

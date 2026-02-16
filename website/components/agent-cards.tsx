@@ -3,25 +3,26 @@ import { Section } from "./section";
 
 const cards = [
   {
-    title: "JSON-First Output",
+    title: "JSON-first output",
     description:
       "Every data command emits structured JSON. Pipe output directly into your agent workflows, CI pipelines, or dashboards.",
     icon: Code2,
   },
   {
     title: "Ships with a SKILL.md",
+
     description:
       "A comprehensive skill file teaches Claude Code, Codex, OpenClaw, and other coding agents how to use every vesai command out of the box.",
     icon: BookOpen,
   },
   {
-    title: "Durable Markdown Artifacts",
+    title: "Durable markdown artifacts",
     description:
       "Session, user, and group analyses persist as git-friendly markdown files in ~/.vesai/workspace/ — greppable, portable, version-controlled.",
     icon: FolderOpen,
   },
   {
-    title: "Local-First, No SaaS",
+    title: "Local-first, no SaaS",
     description:
       "Your PostHog keys, your GCP project, your machine. No data leaves your infrastructure. No vendor lock-in.",
     icon: Server,

@@ -23,7 +23,7 @@ export function Problem() {
   return (
     <Section className="mx-auto max-w-6xl px-6 py-16 sm:py-24">
       <h2 className="text-center font-bold text-3xl text-text-primary tracking-tight sm:text-4xl">
-        The Replay Graveyard
+        The replay graveyard
       </h2>
       <p className="mx-auto mt-4 max-w-2xl text-center text-text-secondary">
         Your PostHog replays are a gold mine. Nobody&apos;s watching&nbsp;them.

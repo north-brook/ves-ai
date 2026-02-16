@@ -5,34 +5,9 @@ import { Section } from "./section";
 
 const levels = [
   {
-    label: "Session",
-    question: "What happened in this recording?",
-    command: "vesai replays session ph_abc123",
-    output: `{
-  "name": "Checkout Flow Frustration",
-  "score": 72,
-  "health": "Moderate friction detected",
-  "features": ["checkout", "payment_form", "cart"],
-  "detectedIssues": [
-    {
-      "name": "Rage-clicked checkout button",
-      "type": "usability",
-      "severity": "high",
-      "story": "User clicked the checkout button 3 times in rapid succession. The button had no loading state, causing confusion about whether the action was registered."
-    },
-    {
-      "name": "Payment validation blocked submit",
-      "type": "bug",
-      "severity": "medium",
-      "story": "Form validation error appeared after a 2-second delay, but the error message was positioned below the fold."
-    }
-  ]
-}`,
-  },
-  {
     label: "User",
     question: "How is bryce@company.com doing?",
-    command: "vesai replays user bryce@company.com",
+    command: "vesai user bryce@company.com",
     output: `{
   "email": "bryce@company.com",
   "sessions_analyzed": 8,
@@ -47,7 +22,7 @@ const levels = [
   {
     label: "Group",
     question: "How is Acme Corp as a customer?",
-    command: "vesai replays group acme-inc",
+    command: "vesai group acme-inc",
     output: `{
   "group": "Acme Inc",
   "users_analyzed": 4,
@@ -55,6 +30,21 @@ const levels = [
   "story": "Adoption is declining. 2 of 4 users have been inactive for 14+ days. The remaining active users show narrowing feature usage — down to just dashboard views. Initial onboarding was strong but no user has engaged with the integration setup flow.",
   "risk": "high",
   "recommendation": "Proactive outreach recommended. Focus on integration onboarding — this is where all 4 users dropped off."
+}`,
+  },
+  {
+    label: "Research",
+    question: "What causes checkout abandonment?",
+    command: 'vesai research "checkout abandonment"',
+    output: `{
+  "question": "What causes checkout abandonment?",
+  "sessions_matched": 14,
+  "synthesis": "Checkout flow has a 62% completion rate. Primary drop-off occurs at the shipping address step. Mobile users are 3x more likely to abandon.",
+  "patterns": [
+    "Address autocomplete fails on mobile Safari",
+    "Shipping cost surprise causes back-navigation",
+    "Promo code field draws attention away from CTA"
+  ]
 }`,
   },
 ];
@@ -66,7 +56,7 @@ export function Solution() {
   return (
     <Section className="mx-auto max-w-6xl px-6 py-16 sm:py-24">
       <h2 className="text-center font-bold text-3xl text-text-primary tracking-tight sm:text-4xl">
-        AI That Watches Every Session
+        AI that watches every session
       </h2>
       <p className="mx-auto mt-4 max-w-2xl text-center text-text-secondary">
         Three levels of analysis. From a single recording to account-level
@@ -102,7 +92,7 @@ export function Solution() {
           </div>
 
           <div className="mt-4 overflow-x-auto rounded-lg border border-border-subtle bg-terminal p-4">
-            <pre className="font-mono text-accent text-xs leading-relaxed sm:text-sm">
+            <pre className="whitespace-pre-wrap break-words font-mono text-accent text-xs leading-relaxed sm:text-sm">
               <code>{level.output}</code>
             </pre>
           </div>

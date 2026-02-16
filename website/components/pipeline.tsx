@@ -29,7 +29,7 @@ export function Pipeline() {
   return (
     <Section className="mx-auto max-w-6xl px-6 py-16 sm:py-24">
       <h2 className="text-center font-bold text-3xl text-text-primary tracking-tight sm:text-4xl">
-        How It Works
+        How it works
       </h2>
 
       <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
